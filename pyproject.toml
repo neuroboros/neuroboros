@@ -1,0 +1,36 @@
+[build-system]
+requires = [
+  "setuptools>=61.0",
+  "Cython",
+  "numpy",
+]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "neuroboros"
+version = "0.0.1"
+authors = [
+  { name="Ma Feilong", email="mafeilong@gmail.com" },
+]
+description = "Neuroimaging analysis in Python"
+readme = "README.md"
+license = { file="LICENSE" }
+requires-python = ">=3.6"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering",
+]
+dependencies = [
+    "numpy",
+]
+
+[project.urls]
+"Homepage" = "https://github.com/feilong/neuroboros"
+"Bug Tracker" = "https://github.com/feilong/neuroboros/issues"
+
+[tool.setuptools.packages.find]
+where = ["src"]
