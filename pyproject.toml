@@ -26,6 +26,9 @@ classifiers = [
 ]
 dependencies = [
     "numpy",
+    "scipy",
+    "datalad",
+    "joblib",
 ]
 
 [project.urls]
