@@ -59,12 +59,14 @@ class Dataset:
 
     def get_data(
             self, sid, task, run, lr, z=True, mask=False,
-            space=None, interp=None, denoise=None):
+            space=None, interp=None, denoise=None, smooth=None, xmat=None):
 
         if isinstance(run, Iterable):
-            ds = [self.get_data(
-                      sid, task, run_, lr, z, mask, space, interp, denoise)
-                  for run_ in run]
+            ds = [
+                self.get_data(
+                    sid, task, run_, lr, z, mask, space, interp, denoise,
+                    smooth)
+                for run_ in run]
             ds = np.concatenate(ds, axis=0)
             return ds
 
@@ -79,8 +81,12 @@ class Dataset:
         if mask:
             m = get_cortical_mask(lr, space, mask)
             ds = ds[:, m]
+        if smooth is not None:
+            ds = ds @ smooth
         if z:
             ds = np.nan_to_num(zscore(ds, axis=0))
+        if xmat is not None:
+            ds = ds @ xmat
 
         return ds
 
