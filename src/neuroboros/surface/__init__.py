@@ -21,6 +21,13 @@ class Surface(object):
         return self._neighbors
 
     @property
+    def neighbor_distances(self):
+        if not hasattr(self, '_neighbor_distances'):
+            self._neighbor_distances = compute_neighbor_distances(
+                self.coords, self.neighbors)
+        return self._neighbor_distances
+
+    @property
     def tree(self):
         if not hasattr(self, '_tree'):
             self._tree = cKDTree(self.coords)
@@ -123,6 +130,15 @@ def compute_neighbors(faces, nv=None):
         neighbors[i] = np.array(neighbors[i])
 
     return neighbors
+
+
+def compute_neighbor_distances(coords, neighbors):
+    nv = coords.shape[0]
+    dists = []
+    for i in range(nv):
+        d = np.linalg.norm(coords[neighbors[i]] - coords[[i]], axis=1)
+        dists.append(d)
+    return dists
 
 
 def compute_vertex_normals_sine_weight(coords, faces):
