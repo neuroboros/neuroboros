@@ -27,6 +27,7 @@ classifiers = [
 dependencies = [
     "numpy",
     "scipy",
+    "nibabel",
     "datalad",
     "joblib",
 ]
