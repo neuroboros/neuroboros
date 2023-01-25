@@ -61,3 +61,18 @@ def compute_vertex_normals_equal_weight(coords, faces):
     normals /= np.linalg.norm(normals, axis=1, keepdims=True)
 
     return normals
+
+
+def compute_face_areas(coords, faces):
+    e1 = coords[faces[:, 1]] - coords[faces[:, 0]]
+    e2 = coords[faces[:, 2]] - coords[faces[:, 0]]
+    face_areas = np.linalg.norm(np.cross(e1, e2), axis=1) / 2
+    return face_areas
+
+
+def compute_vertex_areas(coords, faces):
+    face_areas_per_vertex = compute_face_areas(coords, faces) / 3
+    vertex_areas = np.zeros((coords.shape[0], ))
+    for f, a in zip(faces, face_areas_per_vertex):
+        vertex_areas[f] += a
+    return vertex_areas
