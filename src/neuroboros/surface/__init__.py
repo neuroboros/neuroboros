@@ -13,6 +13,12 @@ class Surface(object):
         self.nf = self.faces.shape[0]
 
     @property
+    def neighbors(self):
+        if not hasattr(self, '_neighbors'):
+            self._neighbors = compute_neighbors(self.faces, self.nv)
+        return self._neighbors
+
+    @property
     def tree(self):
         if not hasattr(self, '_tree'):
             self._tree = cKDTree(self.coords)
@@ -65,9 +71,9 @@ class Sphere(Surface):
                 np.cross(a, e1)],
                 axis=1)
 
-    def barycentric(self, carts, **kwargs):
+    def barycentric(self, coords, **kwargs):
         self.prepare_barycentric()
-        return barycentric(self.vecs, carts, self.v2f, self.tree, self.faces, self.nv, **kwargs)
+        return barycentric(self.vecs, coords, self.v2f, self.tree, self.faces, self.nv, **kwargs)
 
 
 def compute_neighbors(faces, nv=None):
