@@ -6,6 +6,7 @@ from .properties import compute_neighbors, compute_neighbor_distances, \
     compute_vertex_normals_equal_weight, compute_vertex_normals_sine_weight
 from .barycentric import barycentric, barycentric_vectors, barycentric_weights
 from .nnfr import nnfr
+from .areal import areal
 from .union import compute_union_sphere
 
 
@@ -102,6 +103,9 @@ class Sphere(Surface):
 
     def nnfr(self, coords, reverse=True):
         return nnfr(self.coords, coords, reverse=reverse)
+
+    def areal(self, coords, anat_coords):
+        return areal(self, coords, anat_coords)
 
     def union(self, to_unite, eps=1e-10):
         if isinstance(to_unite, Sphere):
