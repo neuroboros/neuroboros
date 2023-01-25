@@ -4,6 +4,7 @@ from scipy.spatial import cKDTree
 
 from .barycentric import barycentric, barycentric_vectors, barycentric_weights
 from .nnfr import nnfr
+from .union import compute_union_sphere
 
 
 class Surface(object):
@@ -92,6 +93,17 @@ class Sphere(Surface):
 
     def nnfr(self, coords, reverse=True):
         return nnfr(self.coords, coords, reverse=reverse)
+
+    def union(self, to_unite, eps=1e-10):
+        if isinstance(to_unite, Sphere):
+            coords = to_unite.coords
+        elif isinstance(to_unite, np.ndarray):
+            coords = to_unite
+        else:
+            raise TypeError("`to_unite` must be a Surface or ndarray.")
+        new_coords, new_faces, indices1, indices2 = compute_union_sphere(self, coords, eps=eps)
+        union_sphere = Sphere(new_coords, new_faces)
+        return union_sphere, indices1, indices2
 
 
 def compute_neighbors(faces, nv=None):
