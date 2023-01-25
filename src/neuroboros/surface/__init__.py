@@ -3,6 +3,7 @@ import nibabel as nib
 from scipy.spatial import cKDTree
 
 from .barycentric import barycentric, barycentric_vectors, barycentric_weights
+from .nnfr import nnfr
 
 
 class Surface(object):
@@ -88,6 +89,9 @@ class Sphere(Surface):
     def barycentric(self, coords, **kwargs):
         self.prepare_barycentric()
         return barycentric(self.vecs, coords, self.v2f, self.tree, self.faces, self.nv, **kwargs)
+
+    def nnfr(self, coords, reverse=True):
+        return nnfr(self.coords, coords, reverse=reverse)
 
 
 def compute_neighbors(faces, nv=None):
