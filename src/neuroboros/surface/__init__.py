@@ -8,6 +8,7 @@ from .barycentric import barycentric, barycentric_vectors, barycentric_weights
 from .nnfr import nnfr
 from .areal import areal
 from .union import compute_union_sphere
+from .subdivision import surface_subdivision
 
 
 class Surface(object):
@@ -44,6 +45,11 @@ class Surface(object):
                 for v in f:
                     self._v2f[v].append(i)
         return self._v2f
+
+    def subdivide(self, n_div):
+        coords, faces = surface_subdivision(self.coords, self.faces, n_div)
+        subdivided = Surface(coords, faces)
+        return subdivided
 
     @classmethod
     def from_gifti(cls, fn):
