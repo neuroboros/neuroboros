@@ -2,15 +2,15 @@ import numpy as np
 from scipy.spatial import ConvexHull, cKDTree
 
 
-def compute_union_sphere(sphere, coords, eps=1e-10):
-    nv1 = sphere.coords.shape[0]
-    nv2 = coords.shape[0]
+def compute_union_coords(coords1, coords2, eps=1e-10):
+    nv1 = coords1.shape[0]
+    nv2 = coords2.shape[0]
     mask = np.ones((nv2, ), dtype=bool)
     indices1 = np.arange(nv1)
     indices2 = np.zeros((nv2, ), dtype=int)
-    tree = cKDTree(sphere.coords)
+    tree = cKDTree(coords1)
     count = nv1
-    for i, c in enumerate(coords):
+    for i, c in enumerate(coords2):
         d, idx = tree.query(c)
         if d < eps:
             mask[i] = False
@@ -20,10 +20,21 @@ def compute_union_sphere(sphere, coords, eps=1e-10):
             count += 1
 
     if not np.any(mask):
-        return sphere.coords, sphere.faces, indices1, indices2
-        # return sphere, indices1, indices2
+        coords = coords1
+    else:
+        coords = np.concatenate([coords1, coords2[mask]])
 
-    new_coords = coords[mask]
+    return coords, indices1, indices2
+
+
+def compute_union_sphere(sphere, coords, eps=1e-10):
+    union_coords, indices1, indices2 = compute_union_coords(
+        sphere.coords, coords, eps=eps)
+    if union_coords.shape == sphere.coords.shape:
+        return sphere.coords, sphere.faces, indices1, indices2
+
+    nv1 = sphere.coords.shape[0]
+    new_coords = union_coords[nv1:]
     t_indices = sphere.barycentric(new_coords, return_sparse=False)[0]
 
     new_faces = []
@@ -36,12 +47,9 @@ def compute_union_sphere(sphere, coords, eps=1e-10):
         for nf in hull.simplices:
             if not np.all(np.isin(nf, np.arange(3))):
                 new_faces.append(mp[nf])
-
     new_faces = np.stack(new_faces)
-    mask = np.logical_not(np.isin(np.arange(sphere.faces.shape[0]), t_indices))
-    new_faces = np.concatenate([sphere.faces[mask], new_faces], axis=0)
-    new_coords = np.concatenate([sphere.coords, new_coords])
 
-    return new_coords, new_faces, indices1, indices2
-    # union_sphere = Sphere(new_coords, new_faces)
-    # return union_sphere, indices1, indices2
+    mask = np.logical_not(np.isin(np.arange(sphere.faces.shape[0]), t_indices))
+    union_faces = np.concatenate([sphere.faces[mask], new_faces], axis=0)
+
+    return union_coords, union_faces, indices1, indices2
