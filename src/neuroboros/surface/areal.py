@@ -3,6 +3,7 @@ import scipy.sparse as sparse
 
 from .properties import compute_neighbor_distances, compute_vertex_areas
 from .dijkstra import dijkstra
+from .union import compute_union_coords
 
 
 def compute_vertex_nn(nv, indices2, neighbors, neighbor_distances):
@@ -30,8 +31,15 @@ def compute_vertex_nn(nv, indices2, neighbors, neighbor_distances):
     return nn
 
 
-def areal(sphere, new_coords, anat_coords):
-    combined_sphere, indices0, indices1 = sphere.union(new_coords)
+def areal(sphere, coords1, anat_coords, coords2=None):
+    if coords2 is not None:
+        coords12, indices1in12, indices2in12 = compute_union_coords(coords1, coords2)
+        combined_sphere, indices0, indices12 = sphere.union(coords12)
+        indices1, indices2 = indices12[indices1in12], indices12[indices2in12]
+    else:
+        combined_sphere, indices0, indices1 = sphere.union(coords1)
+        indices1, indices2 = indices0, indices1
+
     xform = sphere.barycentric(combined_sphere.coords)
     combined_coords = xform.T @ anat_coords
     assert combined_coords.shape == combined_sphere.coords.shape
@@ -39,13 +47,13 @@ def areal(sphere, new_coords, anat_coords):
     neighbor_distances = compute_neighbor_distances(
         combined_coords, neighbors)
 
-    nn0 = compute_vertex_nn(nv, indices0, neighbors, neighbor_distances)
     nn1 = compute_vertex_nn(nv, indices1, neighbors, neighbor_distances)
+    nn2 = compute_vertex_nn(nv, indices2, neighbors, neighbor_distances)
     vertex_areas = compute_vertex_areas(combined_coords, combined_sphere.faces)
-    mat = sparse.lil_matrix((sphere.nv, new_coords.shape[0]))
+    mat = sparse.lil_matrix((indices1.shape[0], indices2.shape[0]))
 
-    for n0, n1, va in zip(nn0, nn1, vertex_areas):
-        mat[n0, n1] += va
+    for n1, n2, va in zip(nn1, nn2, vertex_areas):
+        mat[n1, n2] += va
     mat = mat.tocsr()
 
     return mat
