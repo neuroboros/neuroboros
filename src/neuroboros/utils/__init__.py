@@ -339,3 +339,34 @@ def assert_sufficient_time(minimum='1:00:00'):
     if r < m:
         print(datetime.now(), 'Insufficient remaining walltime time. Exiting.')
         exit(0)
+
+
+def optimize_dtype(data):
+    """Optimize the data type of a NumPy array for memory efficiency.
+
+    Parameters
+    ----------
+    data : ndarray
+        The input NumPy array to be optimized.
+
+    Returns
+    -------
+    optimized_data : ndarray
+        The NumPy array with the optimized data type.
+
+    Raises
+    ------
+    ValueError
+        If the input data is not a NumPy array.
+    TypeError
+        If the input data is a scalar value.
+    """
+    if not isinstance(data, np.ndarray):
+        raise ValueError("Input data must be a numpy array.")
+    if data.ndim == 0:
+        raise TypeError("Input data must be a non-scalar numpy array.")
+    optimized_data = data
+    for dtype in [np.int32, np.uint32, np.int16, np.uint16, np.int8, np.uint8]:
+        if np.all(data.astype(dtype) == data):
+            optimized_data = data.astype(dtype)
+    return optimized_data
