@@ -14,6 +14,7 @@ Neuroboros datasets (:mod:`neuroboros.datasets`)
 """
 
 import os
+import warnings
 from collections.abc import Iterable
 from functools import partial
 import numpy as np
@@ -92,37 +93,57 @@ def download_datalad_file(fn, dl_dset):
 
 class Dataset:
     def __init__(
-            self, name, dl_source, space, resample, prep='default',
-            fp_version='20.2.7'):
+            self, name, dl_source, root_dir, space, resample,
+            surface_space=None, surface_resample=None, volume_space=None,
+            volume_resample=None, prep='default', fp_version='20.2.7'):
         self.name = name
+
         self.dl_source = dl_source
-        self.dl_dset = dl.install(
-            path=os.path.join(dl_root, self.name),
-            source=self.dl_source)
+        self.root_dir = root_dir
+        s = (dl_source is None) + (root_dir is None)
+        if s == 0:
+            raise ValueError('At least one of `dl_source` and `root_dir` '
+                             'needs to be set.')
+        if s > 1:
+            warnings.warn('Both `dl_source` and `root_dir` are set. Will use '
+                          '`root_dir`.')
+        if root_dir is None:
+            self.use_datalad = True
+            self.dl_dset = dl.install(
+                path=os.path.join(dl_root, self.name),
+                source=self.dl_source)
+        else:
+            self.use_datalad = False
+
         self.fp_version = fp_version
-        self.surface_space = None
-        self.volume_space = None
-        self.surface_resample = None
-        self.volume_resample = None
-        if not isinstance(space, (tuple, list)):
-            space = [space]
-        for sp in space:
-            if sp in SURFACE_SPACES:
-                self.surface_space = sp
-            elif sp in VOLUME_SPACES:
-                self.volume_space = sp
-            else:
-                raise ValueError(f"space {sp} not recognized.")
-        if not isinstance(resample, (tuple, list)):
-            resample = [resample]
-        for resamp in resample:
-            if resamp in SURFACE_RESAMPLES:
-                self.surface_resample = resamp
-            elif resamp in VOLUME_RESAMPLES:
-                self.volume_resample = resamp
-            else:
-                raise ValueError(
-                    f"Resampling method {resamp} not recognized.")
+        self.surface_space = surface_space
+        self.volume_space = volume_space
+        self.surface_resample = surface_resample
+        self.volume_resample = volume_resample
+
+        if space is not None:
+            if not isinstance(space, (tuple, list)):
+                space = [space]
+            for sp in space:
+                if sp in SURFACE_SPACES and self.surface_space is None:
+                    self.surface_space = sp
+                elif sp in VOLUME_SPACES and self.volume_space is None:
+                    self.volume_space = sp
+                else:
+                    raise ValueError(f"space {sp} not recognized.")
+
+        if resample is not None:
+            if not isinstance(resample, (tuple, list)):
+                resample = [resample]
+            for resamp in resample:
+                if resamp in SURFACE_RESAMPLES and self.surface_resample is None:
+                    self.surface_resample = resamp
+                elif resamp in VOLUME_RESAMPLES and self.volume_resample is None:
+                    self.volume_resample = resamp
+                else:
+                    raise ValueError(
+                        f"Resampling method {resamp} not recognized.")
+
         self.prep = prep
 
     def load_data(self, sid, task, run, lr, space, resample, fp_version=None):
@@ -135,14 +156,10 @@ class Dataset:
         fn = os.path.join(
             fp_version, 'renamed', space, lr, resample,
             f'sub-{sid}_task-{task}_run-{run:02d}.npy')
-        fn = _follow_symlink(fn, self.dl_dset.path)
 
-        fn = download_datalad_file(fn, self.dl_dset)
-        # result = self.dl_dset.get(fn)[0]
-        # if result['status'] not in ['ok', 'notneeded']:
-        #     raise RuntimeError(
-        #         f"datalad `get` status is {result['status']}, likely due to "
-        #         "problems downloading the file.")
+        if self.use_datalad:
+            fn = _follow_symlink(fn, self.dl_dset.path)
+            fn = download_datalad_file(fn, self.dl_dset)
         ds = np.load(fn).astype(np.float64)
 
         return ds
@@ -209,7 +226,9 @@ class Bologna(Dataset):
             prep='default', fp_version='20.2.7'):
         name = 'bologna'
         dl_source = 'git@github.com:feilong/bologna.git'
-        super().__init__(name, dl_source, space, resample, prep, fp_version)
+        super().__init__(
+            name, dl_source=dl_source, root_dir=None, space=space,
+            resample=resample, prep=prep, fp_version=fp_version)
         self.subjects = [f'{_+1:02d}' for _ in range(30)]
         self.tasks = ['rest']
 
@@ -221,6 +240,8 @@ class Forrest(Dataset):
             prep='default', fp_version='20.2.7'):
         name = 'forrest'
         dl_source = 'https://gin.g-node.org/neuroboros/forrest'
-        super().__init__(name, dl_source, space, resample, prep, fp_version)
+        super().__init__(
+            name, dl_source=dl_source, root_dir=None, space=space,
+            resample=resample, prep=prep, fp_version=fp_version)
         self.subjects = ['01', '02', '03', '04', '05', '06', '09', '10', '14', '15', '16', '17', '18', '19', '20']
         self.tasks = ["forrest", "movielocalizer", "objectcategories", "retmapccw", "retmapclw", "retmapcon", "retmapexp"]
