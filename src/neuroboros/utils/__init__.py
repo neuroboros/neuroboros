@@ -35,6 +35,8 @@ High-performance computing
 """
 
 import os
+import pickle
+import warnings
 import subprocess
 import functools
 import time
@@ -47,28 +49,50 @@ import joblib
 def save(fn, data):
     """Save the data using the automatically determined format.
 
+    If ``data`` is ndarray, save as npy file. If spmatrix, save as npz file.
+    If dict and ``fn`` ends with ".npz", save as npz file.  If ``fn`` ends
+    with ".pkl", save using ``pickle.dump``.
+
+    The function also automatically create the directory ``fn`` is in if it
+    does not exist.
+
     Parameters
     ----------
     fn : str
-        File name of the output file.
-    data : ndarray or sparse matrix
+        The filename (including path) to save the data to.
+    data : ndarray or spmatrix or dict or object
         The data to be saved.
 
     Returns
     -------
     ret
-        Returned value of ``numpy.save`` or ``scipy.sparse.save_npz``.
+        Returned value of ``numpy.save``, ``numpy.savez``,
+        ``scipy.sparse.save_npz``, or ``pickle.dump``.
 
     Raises
     ------
     TypeError
         Raised when ``type(data)`` is not supported.
+
+
     """
     os.makedirs(os.path.dirname(fn), exist_ok=True)
+
     if isinstance(data, np.ndarray):
         return np.save(fn, data)
+    if fn.endswith('.npy'):
+        warnings.warn('`data` is not an ndarray, trying to convert.')
+        return np.save(fn, data)
+
     if sparse.isspmatrix(data):
         return sparse.save_npz(fn, data)
+    if fn.endswith('.npz') and isinstance(data, dict):
+        return np.savez(fn, **data)
+
+    if fn.endswith('.pkl'):
+        with open(fn, 'wb') as f:
+            return pickle.dump(data, f)
+
     raise TypeError(f'`data` type {type(data)} not supported.')
 
 
@@ -83,7 +107,8 @@ def load(fn):
     Returns
     -------
     ret
-        Returned value of ``numpy.load`` or ``scipy.sparse.load_npz``.
+        Returned value of ``numpy.load``, ``scipy.sparse.load_npz``,
+        or ``pickle.load``.
 
     Raises
     ------
@@ -97,6 +122,9 @@ def load(fn):
             return sparse.load_npz(fn)
         except OSError:
             return np.load(fn)
+    if fn.endswith('.pkl'):
+        with open(fn, 'rb') as f:
+            return pickle.load(f)
     raise TypeError(f'file type of `fn` is not supported.')
 
 
