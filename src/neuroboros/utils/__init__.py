@@ -76,7 +76,9 @@ def save(fn, data):
 
 
     """
-    os.makedirs(os.path.dirname(fn), exist_ok=True)
+    dirname = os.path.dirname(fn)
+    if dirname:
+        os.makedirs(dirname, exist_ok=True)
 
     if isinstance(data, np.ndarray):
         return np.save(fn, data)
