@@ -6,10 +6,7 @@ from .io import load_file
 from .spaces import get_mapping, get_mask
 
 
-PLOT_MAPPING = {
-    surf_type: load_file(os.path.join(
-        '2d_plotting_data', f'onavg-ico128_to_{surf_type}_image.npy'))
-    for surf_type in ['inflated', 'pial', 'midthickness', 'white']}
+PLOT_MAPPING = {}
 
 
 def unmask_and_upsample(values, space, mask, nn=True):
@@ -75,6 +72,9 @@ def prepare_data(
 
 def brain_plot(values, space, mask, surf_type='inflated', nn=True, cmap=None, vmax=None, vmin=None, return_scale=False,
                medial_wall_color=[0.8, 0.8, 0.8, 1.0], background_color=[1.0, 1.0, 1.0, 0.0]):
+    assert surf_type in ['inflated', 'pial', 'midthickness', 'white'],\
+        f"Surface type '{surf_type}' is not recognized."
+
     ret = prepare_data(
         values, space, mask, nn=nn, cmap=cmap, vmax=vmax, vmin=vmin,
         return_scale=return_scale, medial_wall_color=medial_wall_color,
@@ -83,6 +83,11 @@ def brain_plot(values, space, mask, surf_type='inflated', nn=True, cmap=None, vm
         prepared_values, scale = ret
     else:
         prepared_values = ret
+
+    if surf_type not in PLOT_MAPPING:
+        mapping = load_file(os.path.join(
+        '2d_plotting_data', f'onavg-ico128_to_{surf_type}_image.npy'))
+        PLOT_MAPPING[surf_type] = mapping
 
     img = prepared_values[PLOT_MAPPING[surf_type]]
 
