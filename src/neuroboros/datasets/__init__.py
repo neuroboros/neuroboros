@@ -22,9 +22,9 @@ import pandas as pd
 from scipy.stats import zscore
 import datalad.api as dl
 
-from neuroboros.spaces import get_mask
+from ..spaces import get_mask
+from ..io import load_file, DATA_ROOT
 
-from neuroboros.path import data_root, dl_root
 
 SURFACE_SPACES = ['fsavg-ico32', 'onavg-ico32', 'onavg-ico48', 'onavg-ico64']
 SURFACE_RESAMPLES = ['1step_pial_overlap', '1step_pial_area', '2step_normals-equal_nnfr', '2step_normals-sine_nnfr']
@@ -110,7 +110,7 @@ class Dataset:
         if root_dir is None:
             self.use_datalad = True
             self.dl_dset = dl.install(
-                path=os.path.join(dl_root, self.name),
+                path=os.path.join(DATA_ROOT, self.name),
                 source=self.dl_source)
         else:
             self.use_datalad = False
@@ -245,3 +245,25 @@ class Forrest(Dataset):
             resample=resample, prep=prep, fp_version=fp_version)
         self.subjects = ['01', '02', '03', '04', '05', '06', '09', '10', '14', '15', '16', '17', '18', '19', '20']
         self.tasks = ["forrest", "movielocalizer", "objectcategories", "retmapccw", "retmapclw", "retmapcon", "retmapexp"]
+
+
+class Dalmatians(Dataset):
+    def __init__(
+            self, space=['onavg-ico32', 'mni-4mm'],
+            resample=['1step_pial_overlap', '1step_linear_overlap'],
+            prep='default', fp_version='20.2.7'):
+        name = 'dalmatians'
+        dl_source = 'git@github.com:feilong/dalmatians.git'
+        super().__init__(
+            name, dl_source=dl_source, root_dir=None, space=space,
+            resample=resample, prep=prep, fp_version=fp_version)
+        self.subjects = [
+            'AB033', 'AB034', 'AB035', 'AB036', 'AB037', 'AB038', 'AB039',
+            'AB041', 'AB042', 'AB043', 'AB053', 'AO003', 'AO004', 'AO005',
+            'AO006', 'AO007', 'AO008', 'AO009', 'AO010', 'AO011', 'AO027',
+            'AV012', 'AV013', 'AV014', 'AV015', 'AV016', 'AV017', 'AV018',
+            'AV019', 'AV022', 'AV032', 'VD044', 'VD045', 'VD046', 'VD047',
+            'VD048', 'VD049', 'VD050', 'VD051', 'VD052', 'VO020', 'VO021',
+            'VO023', 'VO024', 'VO025', 'VO026', 'VO028', 'VO029', 'VO030',
+            'VO031']
+        self.tasks = ['dalmatians', 'scrambled']
