@@ -10,10 +10,13 @@ DATA_ROOT = os.environ.get(
 
 def get_core_dataset():
     core_dir = os.path.join(DATA_ROOT, 'core')
-    dset = dl.clone(
-        source='https://gin.g-node.org/neuroboros/core',
-        path=core_dir)
-    return dset
+    if os.path.exists(core_dir):
+        dset = dl.Dataset(core_dir)
+    else:
+        dset = dl.clone(
+            source='https://gin.g-node.org/neuroboros/core',
+            path=core_dir)
+    return dset, core_dir
 
 
 def _follow_symlink(fn, root):
@@ -37,8 +40,9 @@ def download_datalad_file(fn, dl_dset):
 def load_file(fn, dset=None, root=None):
     if root is None:
         if dset is None:
-            dset = get_core_dataset()
-        root = dset.path
+            dset, root = get_core_dataset()
+        else:
+            root = dset.path
     else:
         dset = dl.Dataset(root)
     path = os.path.join(root, fn)
