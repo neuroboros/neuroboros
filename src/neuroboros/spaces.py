@@ -65,3 +65,62 @@ def get_geometry(which, lr, space, **kwargs):
     ffn = os.path.join(space, 'geometry', 'faces', f'{lr}h.npy')
     faces = load_file(ffn)
     return coords, faces
+
+
+def get_mapping(lr, source, target, mask=None, nn=False, keep_sum=False,
+                source_mask=None, target_mask=None, **kwargs):
+    group = kwargs.get('group', 'on1031')
+    resample = kwargs.get('resample', 'overlap-8div')
+    avg_type = kwargs.get('avg_type', 'trimmed')
+
+    if source_mask is None:
+        source_mask = mask
+    if target_mask is None:
+        target_mask = mask
+
+    if source == target:
+        ico = int(source.split('-ico')[1])
+        nv = ico**2 * 10 + 2
+        mat = sparse.diags(np.ones((nv, ))).tocsr()
+        # print(mat.shape, mat.data.shape, type(mat))
+    else:
+        fn1 = os.path.join(source, 'mapping', f'to_{target}', f'{lr}h',
+                        f'{group}_{avg_type}', f'{resample}.npz')
+        fn2 = os.path.join(target, 'mapping', f'to_{source}', f'{lr}h',
+                        f'{group}_{avg_type}', f'{resample}.npz')
+        mat1 = load_file(fn1)
+        mat2 = load_file(fn2)
+        assert mat1 is not None or mat2 is not None, \
+            f'Neither {fn1} nor {fn2} exists.'
+        mat = mat1 if mat1 is not None else mat2.T
+
+    if source_mask is not None:
+        mask1 = get_mask(lr, source, **kwargs)
+    if target_mask is not None:
+        mask2 = get_mask(lr, target, **kwargs)
+
+    if source_mask is not None and target_mask is not None:
+        mat = mat[np.ix_(mask1, mask2)]
+    elif source_mask is not None:
+        mat = mat[mask1, :]
+    elif target_mask is not None:
+        mat = mat[:, mask2]
+    else:
+        pass
+
+    if nn:
+        idx = mat.argmax(axis=0).A.ravel()
+        m, n = mat.shape
+        M = sparse.csr_matrix((np.ones((n, )), (idx, np.arange(n))), (m, n))
+        return M
+
+    if keep_sum:
+        with np.errstate(divide='ignore'):
+            d = np.nan_to_num(np.reciprocal(mat.sum(axis=1).A.ravel()))
+        M = sparse.diags(d) @ mat
+    else:
+        with np.errstate(divide='ignore'):
+            d = np.nan_to_num(np.reciprocal(mat.sum(axis=0).A.ravel()))
+        M = mat @ sparse.diags(d)
+
+    return M
