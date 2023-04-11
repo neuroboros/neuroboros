@@ -13,14 +13,26 @@ def unmask_and_upsample(values, space, mask, nn=True):
     ico = int(space.split('-ico')[1])
     nv = ico**2 * 10 + 2
 
+    if mask is not None and mask is not False:
+        use_mask = True
+        if isinstance(mask, (tuple, list)) and \
+                all([isinstance(_, np.ndarray) for _ in mask]):
+            masks = mask
+        else:
+            masks = [get_mask(lr, space) for lr in 'lr']
+    else:
+        use_mask = False
+
+    if isinstance(values, np.ndarray):
+        if use_mask:
+            values = np.array_split(values, [masks[0].sum()])
+        else:
+            values = np.split(values, 2)
+
     new_values = []
     for v, lr in zip(values, 'lr'):
-        if mask is not None and mask is not False:
-            if isinstance(mask, (tuple, list)) and \
-                    all([isinstance(_, np.ndarray) for _ in mask]):
-                m = mask['lr'.index(lr)]
-            else:
-                m = get_mask(lr, space)
+        if use_mask:
+            m = masks['lr'.index(lr)]
             vv = np.full((nv, ) + v.shape[1:], np.nan)
             vv[m] = v
         else:
@@ -63,11 +75,6 @@ def prepare_data(
             return values, scale
 
     return values
-
-
-# def brain_plot(prepared_values, surf_type='inflated'):
-#     img = prepared_values[PLOT_MAPPING[surf_type]]
-#     return img
 
 
 def brain_plot(values, space, mask, surf_type='inflated', nn=True, cmap=None, vmax=None, vmin=None, return_scale=False,
