@@ -109,9 +109,13 @@ class Dataset:
                           '`root_dir`.')
         if root_dir is None:
             self.use_datalad = True
-            self.dl_dset = dl.install(
-                path=os.path.join(DATA_ROOT, self.name),
-                source=self.dl_source)
+            path = os.path.join(DATA_ROOT, self.name)
+            if os.path.exists(path):
+                self.dl_dset = dl.Dataset(path)
+            else:
+                self.dl_dset = dl.install(
+                    path=path,
+                    source=self.dl_source)
         else:
             self.use_datalad = False
 

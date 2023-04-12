@@ -48,7 +48,7 @@ def load_file(fn, dset=None, root=None):
     path = os.path.join(root, fn)
     if not os.path.lexists(path):
         return None
-    if not (dset.repo is None):
+    if not (dset.repo is None) and not os.path.exists(path):
         res = download_datalad_file(fn, dset)
         assert os.path.normpath(path) == os.path.normpath(res)
     return load(path)
