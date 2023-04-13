@@ -43,7 +43,12 @@ import time
 from datetime import datetime, timedelta
 import numpy as np
 import scipy.sparse as sparse
+import pandas as pd
 import joblib
+
+
+def percentile(data, **kwargs):
+    print(np.percentile(data, np.linspace(0, 100, 11), **kwargs))
 
 
 def save(fn, data):
@@ -110,7 +115,7 @@ def load(fn):
     -------
     ret
         Returned value of ``numpy.load``, ``scipy.sparse.load_npz``,
-        or ``pickle.load``.
+        ``pickle.load``, or ``pandas.read_csv``.
 
     Raises
     ------
@@ -124,6 +129,10 @@ def load(fn):
             return sparse.load_npz(fn)
         except OSError:
             return np.load(fn)
+    if fn.endswith('.tsv'):
+        return pd.read_csv(fn, delimiter='\t', na_values='n/a')
+    if fn.endswith('.csv'):
+        return pd.read_csv(fn, na_values='n/a')
     if fn.endswith('.pkl'):
         with open(fn, 'rb') as f:
             return pickle.load(f)
