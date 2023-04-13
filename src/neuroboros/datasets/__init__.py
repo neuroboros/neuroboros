@@ -82,13 +82,13 @@ def _follow_symlink(fn, root):
     return fn
 
 
-def download_datalad_file(fn, dl_dset):
-    result = dl_dset.get(fn)[0]
-    if result['status'] not in ['ok', 'notneeded']:
-        raise RuntimeError(
-            f"datalad `get` status is {result['status']}, likely due to "
-            "problems downloading the file.")
-    return result['path']
+# def download_datalad_file(fn, dl_dset):
+#     result = dl_dset.get(fn)[0]
+#     if result['status'] not in ['ok', 'notneeded']:
+#         raise RuntimeError(
+#             f"datalad `get` status is {result['status']}, likely due to "
+#             "problems downloading the file.")
+#     return result['path']
 
 
 class Dataset:
@@ -163,8 +163,9 @@ class Dataset:
 
         if self.use_datalad:
             fn = _follow_symlink(fn, self.dl_dset.path)
-            fn = download_datalad_file(fn, self.dl_dset)
-        ds = np.load(fn).astype(np.float64)
+        ds = load_file(fn, dset=self.dl_dset, root=self.root_dir).astype(np.float64)
+            # fn = download_datalad_file(fn, self.dl_dset)
+        # ds = np.load(fn).astype(np.float64)
 
         return ds
 
@@ -181,12 +182,13 @@ class Dataset:
                 fp_version, 'renamed_confounds',
                 f'sub-{sid}_task-{task}_run-{run:02d}_{suffix}')
             fn = _follow_symlink(fn, self.dl_dset.path)
-            fn = download_datalad_file(fn, self.dl_dset)
+            # fn = download_datalad_file(fn, self.dl_dset)
+            o = load_file(fn, dset=self.dl_dset, root=self.root_dir)
 
             if fn.endswith('.npy'):
-                output.append(np.load(fn))
+                output.append(o)
             else:
-                output.append(pd.read_csv(fn, delimiter='\t', na_values='n/a'))
+                output.append(o)
         return output
 
     def get_data(self, sid, task, run, lr, space=None, resample=None,
