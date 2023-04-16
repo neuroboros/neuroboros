@@ -224,6 +224,34 @@ class Dataset:
         ds = prep(ds, confounds, cortical_mask)
         return ds
 
+    def _get_anatomical_data(self, sid, which, lr, mask, space, fp_version):
+        if fp_version is None:
+            fp_version = self.fp_version
+        if space is None:
+            space = self.surface_space
+        fn = os.path.join(fp_version, 'anatomy', space, 'overlap', which,
+                          f'{sid}_{lr}h.npy')
+        d = load_file(fn, dset=self.dl_dset, root=self.root_dir)
+        d = d.astype(np.float64)
+        if mask is not False and mask is not None:
+            if isinstance(mask, np.ndarray):
+                cortical_mask = mask
+            else:
+                cortical_mask = get_mask(lr, space)
+            d = d[cortical_mask]
+        return d
+
+    def morphometry(self, sid, which, lr, mask=True, space=None,
+                    fp_version=None):
+        return self._get_anatomical_data(
+            sid=sid, which=which, lr=lr, mask=mask, space=space,
+            fp_version=fp_version)
+
+    def parcellation(self, sid, which, lr, mask=True, space=None,
+                    fp_version=None):
+        return self._get_anatomical_data(
+            sid=sid, which=which + '.annot', lr=lr, mask=mask, space=space,
+            fp_version=fp_version)
 
 class Bologna(Dataset):
     def __init__(
