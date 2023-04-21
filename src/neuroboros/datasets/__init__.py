@@ -150,6 +150,8 @@ class Dataset:
 
         self.prep = prep
 
+        self.renaming = load_file('rename.json.gz', dset=self.dl_dset, root=self.root_dir)
+
     def load_data(self, sid, task, run, lr, space, resample, fp_version=None):
         if fp_version is None:
             fp_version = self.fp_version
@@ -160,9 +162,10 @@ class Dataset:
         fn = os.path.join(
             fp_version, 'renamed', space, lr, resample,
             f'sub-{sid}_task-{task}_run-{run:02d}.npy')
+        fn = self.renaming[fn]
 
-        if self.use_datalad:
-            fn = _follow_symlink(fn, self.dl_dset.path)
+        # if self.use_datalad:
+        #     fn = _follow_symlink(fn, self.dl_dset.path)
         ds = load_file(fn, dset=self.dl_dset, root=self.root_dir).astype(np.float64)
             # fn = download_datalad_file(fn, self.dl_dset)
         # ds = np.load(fn).astype(np.float64)
@@ -181,14 +184,11 @@ class Dataset:
             fn = os.path.join(
                 fp_version, 'renamed_confounds',
                 f'sub-{sid}_task-{task}_run-{run:02d}_{suffix}')
-            fn = _follow_symlink(fn, self.dl_dset.path)
+            fn = self.renaming[fn]
+            # fn = _follow_symlink(fn, self.dl_dset.path)
             # fn = download_datalad_file(fn, self.dl_dset)
             o = load_file(fn, dset=self.dl_dset, root=self.root_dir)
-
-            if fn.endswith('.npy'):
-                output.append(o)
-            else:
-                output.append(o)
+            output.append(o)
         return output
 
     def get_data(self, sid, task, run, lr, space=None, resample=None,

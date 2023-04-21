@@ -36,6 +36,8 @@ High-performance computing
 
 import os
 import pickle
+import gzip
+import json
 import warnings
 import subprocess
 import functools
@@ -136,6 +138,9 @@ def load(fn):
     if fn.endswith('.pkl'):
         with open(fn, 'rb') as f:
             return pickle.load(f)
+    if fn.endswith('.json.gz'):
+        with gzip.open(fn, 'rb') as f:
+            return json.load(f)
     raise TypeError(f'file type of `fn` is not supported.')
 
 
