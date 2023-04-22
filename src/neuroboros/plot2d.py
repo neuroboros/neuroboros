@@ -1,6 +1,23 @@
 import os
+import io
 import numpy as np
-from matplotlib import cm, colors
+from matplotlib import cm, colors, pyplot as plt, font_manager
+from warnings import warn
+
+try:
+    from PIL import Image as PIL_Image, ImageDraw, ImageFont
+    PIL_ok = True
+except ImportError as e:
+    PIL_ok = False
+
+try:
+    import IPython
+    from IPython.display import Image as IPythonImage
+    ipython_ok = True
+    # ipython_ok = (IPython.get_ipython().__class__.__name__
+    #               == 'ZMQInteractiveShell')
+except ImportError as e:
+    ipython_ok = False
 
 from .io import load_file
 from .spaces import get_mapping, get_mask
@@ -78,15 +95,18 @@ def prepare_data(
 
 
 def brain_plot(values, space, mask, surf_type='inflated', nn=True, cmap=None, vmax=None, vmin=None, return_scale=False,
-               medial_wall_color=[0.8, 0.8, 0.8, 1.0], background_color=[1.0, 1.0, 1.0, 0.0]):
+               medial_wall_color=[0.8, 0.8, 0.8, 1.0], background_color=[1.0, 1.0, 1.0, 0.0],
+               colorbar=False, output='ipython', width=None, title=None, title_size=70, **kwargs):
     assert surf_type in ['inflated', 'pial', 'midthickness', 'white'],\
         f"Surface type '{surf_type}' is not recognized."
 
+    need_scale = return_scale or colorbar
+
     ret = prepare_data(
         values, space, mask, nn=nn, cmap=cmap, vmax=vmax, vmin=vmin,
-        return_scale=return_scale, medial_wall_color=medial_wall_color,
+        return_scale=need_scale, medial_wall_color=medial_wall_color,
         background_color=background_color)
-    if return_scale:
+    if need_scale:
         prepared_values, scale = ret
     else:
         prepared_values = ret
@@ -97,6 +117,72 @@ def brain_plot(values, space, mask, surf_type='inflated', nn=True, cmap=None, vm
         PLOT_MAPPING[surf_type] = mapping
 
     img = prepared_values[PLOT_MAPPING[surf_type]]
+
+    if colorbar:
+        if PIL_ok:
+            pix_size = (1728, 190)
+            dpi = 300
+            fig, ax = plt.subplots(1, 1, figsize=[_/dpi for _ in pix_size], dpi=dpi)
+            # if 'title' in kwargs:
+            #     ax.set_title(kwargs.pop('title'))
+            plt.colorbar(scale, shrink=1, aspect=1, cax=ax, orientation='horizontal', **kwargs)
+            fig.subplots_adjust(left=0.03, right=0.97, top=0.99, bottom=0.7)
+            buffer = io.BytesIO()
+            fig.savefig(buffer, format='png', dpi=dpi, transparent=True)
+            buffer.seek(0)
+            cbar = PIL_Image.open(buffer)
+            plt.close(fig=fig)
+        else:
+            warn("Cannot convert to Image because Pillow is not installed. "
+                 "You can install it with `pip install Pillow`.")
+
+    if output != 'raw':
+        img = np.round(img * 255.).astype(np.uint8)
+    if output in ['ipython', 'pillow']:
+        if PIL_ok:
+            img = PIL_Image.fromarray(img)
+            if title is not None:
+                offset = max(0, title_size - 20)
+            else:
+                offset = 0
+
+            if colorbar:
+                w1, h1 = img.size
+                w2, h2 = cbar.size
+                new_img = PIL_Image.new('RGBA', (max(w1, w2), h1 + h2))
+                print(img.size, new_img.size, cbar.size)
+                new_img.paste(img, (0, offset))
+                new_img.paste(cbar, (0, offset+h1))
+                img = new_img
+            elif title is not None and offset:
+                new_img = PIL_Image.new('RGBA', (w1, 50+h1))
+                new_img.paste(img, (0, 50))
+                img = new_img
+
+            if title is not None:
+                font = font_manager.findfont(font_manager.FontProperties())
+                font = ImageFont.truetype(font, title_size)
+                draw = ImageDraw.Draw(img)
+                w, h = draw.textsize(title, font=font)
+                x = (img.size[0] - w) / 2
+                y = 0
+                draw.text((x, y), title, font=font, align='center',
+                          fill=(255, 255, 255, 127), stroke_width=3)
+                draw.text((x, y), title, font=font, align='center',
+                          fill=(0, 0, 0, 255), stroke_width=0)
+
+            if output == 'ipython':
+                if ipython_ok:
+                    bb = io.BytesIO()
+                    img.save(bb, format='png')
+                    bb = bb.getvalue()
+                    img = IPythonImage(bb, format='png', width=width)
+                else:
+                    warn("Cannot import `IPython`, skipping conversion to "
+                         "`IPython.display.Image`.")
+        else:
+            warn("Skipping conversion to `PIL.Image` because `Pillow` is not "
+                "installed. You can install it with `pip install Pillow`.")
 
     if return_scale:
         return img, scale
