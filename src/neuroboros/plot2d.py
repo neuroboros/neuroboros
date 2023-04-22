@@ -21,6 +21,7 @@ except ImportError as e:
 
 from .io import load_file
 from .spaces import get_mapping, get_mask
+from .utils import save
 
 
 PLOT_MAPPING = {}
@@ -96,7 +97,8 @@ def prepare_data(
 
 def brain_plot(values, space, mask, surf_type='inflated', nn=True, cmap=None, vmax=None, vmin=None, return_scale=False,
                medial_wall_color=[0.8, 0.8, 0.8, 1.0], background_color=[1.0, 1.0, 1.0, 0.0],
-               colorbar=False, output='ipython', width=None, title=None, title_size=70, **kwargs):
+               colorbar=False, output='ipython', width=None, title=None, title_size=70,
+               fn=None, **kwargs):
     assert surf_type in ['inflated', 'pial', 'midthickness', 'white'],\
         f"Surface type '{surf_type}' is not recognized."
 
@@ -138,7 +140,7 @@ def brain_plot(values, space, mask, surf_type='inflated', nn=True, cmap=None, vm
 
     if output != 'raw':
         img = np.round(img * 255.).astype(np.uint8)
-    if output in ['ipython', 'pillow']:
+    if output in ['ipython', 'pillow'] or fn is not None:
         if PIL_ok:
             img = PIL_Image.fromarray(img)
             if title is not None:
@@ -170,6 +172,9 @@ def brain_plot(values, space, mask, surf_type='inflated', nn=True, cmap=None, vm
                           fill=(255, 255, 255, 127), stroke_width=3)
                 draw.text((x, y), title, font=font, align='center',
                           fill=(0, 0, 0, 255), stroke_width=0)
+
+            if fn is not None:
+                save(fn, img)
 
             if output == 'ipython':
                 if ipython_ok:

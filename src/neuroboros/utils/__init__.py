@@ -47,6 +47,11 @@ import numpy as np
 import scipy.sparse as sparse
 import pandas as pd
 import joblib
+try:
+    from PIL import Image
+    PIL_ok = True
+except ImportError as e:
+    PIL_ok = False
 
 
 def percentile(data, **kwargs):
@@ -56,9 +61,12 @@ def percentile(data, **kwargs):
 def save(fn, data):
     """Save the data using the automatically determined format.
 
-    If ``data`` is ndarray, save as npy file. If spmatrix, save as npz file.
-    If dict and ``fn`` ends with ".npz", save as npz file.  If ``fn`` ends
-    with ".pkl", save using ``pickle.dump``.
+    If ``fn`` ends with ".npy", save as npy file.
+    If ``data`` is spmatrix, save as npz file.
+    If dict and ``fn`` ends with ".npz", save as npz file.
+    If ``fn`` ends with ".pkl", save using ``pickle.dump``.
+    If ``fn`` ends with ".png", save as PNG file (requires the Pillow
+    package).
 
     The function also automatically create the directory ``fn`` is in if it
     does not exist.
@@ -87,10 +95,9 @@ def save(fn, data):
     if dirname:
         os.makedirs(dirname, exist_ok=True)
 
-    if isinstance(data, np.ndarray):
-        return np.save(fn, data)
     if fn.endswith('.npy'):
-        warnings.warn('`data` is not an ndarray, trying to convert.')
+        if not isinstance(data, np.ndarray):
+            warnings.warn('`data` is not an ndarray, trying to convert.')
         return np.save(fn, data)
 
     if sparse.isspmatrix(data):
@@ -101,6 +108,16 @@ def save(fn, data):
     if fn.endswith('.pkl'):
         with open(fn, 'wb') as f:
             return pickle.dump(data, f)
+
+    if fn.endswith('.png'):
+        assert PIL_ok, "Needs the Pillow package to save images."
+        if isinstance(data, Image.Image):
+            im = data
+        elif isinstance(data, np.ndarray):
+            im = Image.fromarray(data)
+        else:
+            raise TypeError(f"Cannot save '{type(data)}' to image.")
+        return im.save(fn)
 
     raise TypeError(f'`data` type {type(data)} not supported.')
 
