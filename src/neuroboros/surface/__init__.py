@@ -62,7 +62,12 @@ class Surface(object):
 
     def subdivide(self, n_div):
         coords, faces = surface_subdivision(self.coords, self.faces, n_div)
-        subdivided = Surface(coords, faces)
+        if isinstance(self, Sphere):
+            norm = np.linalg.norm(coords[self.coords.shape[0]:], axis=1, keepdims=True)
+            coords[self.coords.shape[0]:] /= norm
+            subdivided = Sphere(coords, faces)
+        else:
+            subdivided = Surface(coords, faces)
         return subdivided
 
     @classmethod
@@ -135,6 +140,9 @@ class Sphere(Surface):
         else:
             mat = highres_sphere.areal(coords1, highres_anat, coords2)
         return mat
+
+    def dijkstra_subdivision(self, coords1, anat_coords, n_div=4):
+        f_indices, weights = barycentric(self.vecs, coords1, self.v2f, self.tree, self.faces, self.nv, eps=1e-7, return_sparse=False)
 
     def union(self, to_unite, eps=1e-10):
         if isinstance(to_unite, Sphere):
