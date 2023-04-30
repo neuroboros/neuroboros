@@ -146,7 +146,7 @@ def load(fn):
     if fn.endswith('.npz'):
         try:
             return sparse.load_npz(fn)
-        except OSError:
+        except (OSError, ValueError):
             return np.load(fn)
     if fn.endswith('.tsv'):
         return pd.read_csv(fn, delimiter='\t', na_values='n/a')
