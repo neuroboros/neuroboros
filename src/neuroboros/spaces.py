@@ -95,9 +95,15 @@ def get_mapping(lr, source, target, mask=None, nn=False, keep_sum=False,
         mat = mat1 if mat1 is not None else mat2.T
 
     if source_mask is not None:
-        mask1 = get_mask(lr, source, **kwargs)
+        if isinstance(source_mask, np.ndarray):
+            mask1 = source_mask
+        else:
+            mask1 = get_mask(lr, source, **kwargs)
     if target_mask is not None:
-        mask2 = get_mask(lr, target, **kwargs)
+        if isinstance(target_mask, np.ndarray):
+            mask2 = target_mask
+        else:
+            mask2 = get_mask(lr, target, **kwargs)
 
     if source_mask is not None and target_mask is not None:
         mat = mat[np.ix_(mask1, mask2)]
