@@ -74,7 +74,7 @@ def convert_searchlights(sls, dists, radius, mask, center_mask):
     return sls_new, dists_new
 
 
-def get_searchlights(lr, radius, space, center_space=None, mask=True,
+def get_searchlights(lr, radius, space='onavg-ico32', center_space=None, mask=True,
                      center_mask=None, return_dists=False, **kwargs):
     radius_ = 20
 

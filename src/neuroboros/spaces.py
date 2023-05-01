@@ -12,7 +12,7 @@ MEASURES = [
 PARCELLATIONS = ['aparc', 'aparc.DKTatlas', 'aparc.a2009s']
 
 
-def get_morphometry(which, lr, space, **kwargs):
+def get_morphometry(which, lr, space='onavg-ico32', **kwargs):
     assert which in MEASURES
     group = kwargs.get('group', 'on1031')
     resample = kwargs.get('resample', 'overlap-8div')
@@ -24,7 +24,7 @@ def get_morphometry(which, lr, space, **kwargs):
     return measure
 
 
-def get_parcellation(which, lr, space, prob=False, **kwargs):
+def get_parcellation(which, lr, space='onavg-ico32', prob=False, **kwargs):
     assert which in PARCELLATIONS
     group = kwargs.get('group', 'on1031')
     resample = kwargs.get('resample', 'overlap-8div')
@@ -40,7 +40,7 @@ def get_parcellation(which, lr, space, prob=False, **kwargs):
     return parc
 
 
-def get_mask(lr, space, **kwargs):
+def get_mask(lr, space='onavg-ico32', **kwargs):
     group = kwargs.get('group', 'on1031')
     resample = kwargs.get('resample', 'overlap-8div')
     avg_type = kwargs.get('avg_type', 'trimmed')
@@ -52,7 +52,7 @@ def get_mask(lr, space, **kwargs):
     return mask
 
 
-def get_geometry(which, lr, space, **kwargs):
+def get_geometry(which, lr, space='onavg-ico32', **kwargs):
     group = kwargs.get('group', 'on1031')
     avg_type = kwargs.get('avg_type', 'trimmed')
     assert lr in 'lr'
