@@ -159,10 +159,15 @@ class Dataset:
         if lr in ['l', 'r']:
             lr = f'{lr}-cerebrum'
 
-        fn = os.path.join(
-            fp_version, 'renamed', space, lr, resample,
-            f'sub-{sid}_task-{task}_run-{run:02d}.npy')
-        fn = self.renaming[fn]
+        if self.renaming is None:
+            fn = os.path.join(
+                fp_version, 'resampled', space, lr, resample,
+                f'sub-{sid}_task-{task}_run-{run:02d}.npy')
+        else:
+            fn = os.path.join(
+                fp_version, 'renamed', space, lr, resample,
+                f'sub-{sid}_task-{task}_run-{run:02d}.npy')
+            fn = self.renaming[fn]
 
         # if self.use_datalad:
         #     fn = _follow_symlink(fn, self.dl_dset.path)
@@ -181,10 +186,15 @@ class Dataset:
             'desc-mask_timeseries.npy']
         output = []
         for suffix in suffix_li:
-            fn = os.path.join(
-                fp_version, 'renamed_confounds',
-                f'sub-{sid}_task-{task}_run-{run:02d}_{suffix}')
-            fn = self.renaming[fn]
+            if self.renaming is None:
+                fn = os.path.join(
+                    fp_version, 'confounds',
+                    f'sub-{sid}_task-{task}_run-{run}_{suffix}')
+            else:
+                fn = os.path.join(
+                    fp_version, 'renamed_confounds',
+                    f'sub-{sid}_task-{task}_run-{run:02d}_{suffix}')
+                fn = self.renaming[fn]
             # fn = _follow_symlink(fn, self.dl_dset.path)
             # fn = download_datalad_file(fn, self.dl_dset)
             o = load_file(fn, dset=self.dl_dset, root=self.root_dir)
@@ -301,3 +311,33 @@ class Dalmatians(Dataset):
             'VO023', 'VO024', 'VO025', 'VO026', 'VO028', 'VO029', 'VO030',
             'VO031']
         self.tasks = ['dalmatians', 'scrambled']
+
+
+class SpaceTop(Dataset):
+    def __init__(self, space=['onavg-ico32', 'mni-4mm'],
+            resample=['1step_pial_overlap', '1step_linear_overlap'],
+            prep='default', fp_version='20.2.7'):
+        name = 'spacetop'
+        dl_source = 'git@github.com:feilong/spacetop.git'
+        super().__init__(
+            name, dl_source=dl_source, root_dir=None, space=space,
+            resample=resample, prep=prep, fp_version=fp_version)
+        self.tasks = ['faces']
+
+
+class CamCAN(Dataset):
+    def __init__(self, space=['onavg-ico32', 'mni-4mm'],
+            resample=['1step_pial_overlap', '1step_linear_overlap'],
+            prep='default', fp_version='20.2.7'):
+        name = 'camcan'
+        dl_source = 'git@github.com:feilong/camcan.git'
+        super().__init__(
+            name, dl_source=dl_source, root_dir=None, space=space,
+            resample=resample, prep=prep, fp_version=fp_version)
+        self.tasks = ['bang', 'rest', 'smt']
+
+        self.subject_sets = {}
+        mod_dir = os.path.dirname(os.path.realpath(__file__))
+        for task in ['bang', 'rest', 'smt']:
+            with open(os.path.join(mod_dir, f'camcan_{task}.txt'), 'r') as f:
+                self.subject_sets[task] = f.read().splitlines()
