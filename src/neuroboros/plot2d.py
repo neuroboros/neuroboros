@@ -12,7 +12,7 @@ except ImportError as e:
 
 try:
     import IPython
-    from IPython.display import Image as IPythonImage
+    from IPython.display import Image as IPythonImage, display
     ipython_ok = True
     # ipython_ok = (IPython.get_ipython().__class__.__name__
     #               == 'ZMQInteractiveShell')
@@ -253,6 +253,8 @@ def brain_plot(values, cmap=None, vmax=None, vmin=None, space=None, mask=None,
                     img.save(bb, format='png')
                     bb = bb.getvalue()
                     img = IPythonImage(bb, format='png', width=width)
+                    display(img)
+                    return
                 else:
                     warn("Cannot import `IPython`, skipping conversion to "
                          "`IPython.display.Image`.")
