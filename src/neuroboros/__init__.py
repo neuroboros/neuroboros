@@ -17,3 +17,4 @@ from .utils import save_results as record
 # from . import idm as idm
 from .plot2d import brain_plot as plot
 # from . import stats as stats
+from . import linalg as linalg
