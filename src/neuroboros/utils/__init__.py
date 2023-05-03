@@ -54,8 +54,16 @@ except ImportError as e:
     PIL_ok = False
 
 
-def percentile(data, **kwargs):
-    print(np.percentile(data, np.linspace(0, 100, 11), **kwargs))
+def percentile(data, ignore_nan=False, **kwargs):
+    count = np.isnan(data).sum()
+    if count:
+        if not ignore_nan:
+            if not isinstance(data, np.ndarray):
+                data = np.asarray(data)
+            warnings.warn(f'{count} values out of {data.size} are NaNs.')
+        print(np.nanpercentile(data, np.linspace(0, 100, 11), **kwargs))
+    else:
+        print(np.percentile(data, np.linspace(0, 100, 11), **kwargs))
 
 
 def save(fn, data):
