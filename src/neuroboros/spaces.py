@@ -40,14 +40,22 @@ def get_parcellation(which, lr, space='onavg-ico32', prob=False, **kwargs):
     return parc
 
 
-def get_mask(lr, space='onavg-ico32', **kwargs):
-    group = kwargs.get('group', 'on1031')
+def get_mask(lr, space='onavg-ico32', legacy=False, **kwargs):
     resample = kwargs.get('resample', 'overlap-8div')
-    avg_type = kwargs.get('avg_type', 'trimmed')
     which = kwargs.get('which', 'aparc.a2009s')
     assert lr in 'lr'
-    fn = os.path.join(space, 'masks', which, f'{lr}h',
-                      f'{group}_{avg_type}', f'{resample}.npy')
+    if legacy:
+        if space.startswith('fsavg-ico'):
+            flavor = kwargs.get('flavor', 'fsaverage')
+        elif space.startswith('fslr-ico'):
+            flavor = kwargs.get('flavor', '32k_fs_LR')
+        fn = os.path.join(space, 'masks', which, f'{lr}h',
+                          f'{flavor}', f'{resample}.npy')
+    else:
+        group = kwargs.get('group', 'on1031')
+        avg_type = kwargs.get('avg_type', 'trimmed')
+        fn = os.path.join(space, 'masks', which, f'{lr}h',
+                          f'{group}_{avg_type}', f'{resample}.npy')
     mask = load_file(fn)
     return mask
 
