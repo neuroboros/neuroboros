@@ -1,5 +1,5 @@
 import numpy as np
-from scipy.linalg import svd, polar, LinAlgError
+from scipy.linalg import svd, eigh, polar, LinAlgError
 
 
 def safe_svd(X, remove_mean=True):
@@ -57,3 +57,13 @@ def safe_polar(a, side='left'):
             # a = pu
             p = (w * s).dot(w.T.conj())
     return u, p
+
+
+def gram_pca(gram, eps=1e-7):
+    w, v = eigh(gram, lower=False)
+    assert np.all(w > -eps)
+    w[w < 0] = 0
+    U = v[:, ::-1][:, :-1]
+    s = np.sqrt(w[::-1][:-1])
+    PCs = U * s[np.newaxis]
+    return PCs
