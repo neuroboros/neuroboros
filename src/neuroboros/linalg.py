@@ -1,3 +1,18 @@
+"""
+===================================================
+Linear algebra utilities (:mod:`neuroboros.linalg`)
+===================================================
+
+.. currentmodule:: neuroboros.linalg
+
+.. autosummary::
+    :toctree:
+
+    safe_svd - Singular value decomposition without occasional LinAlgError crashes.
+    safe_polar - Polar decomposition without occasional LinAlgError crashes.
+    gram_pca - Principal component analysis based on the Gram matrix.
+
+"""
 import numpy as np
 from scipy.linalg import svd, eigh, polar, LinAlgError
 
@@ -19,7 +34,7 @@ def safe_svd(X, remove_mean=True):
         The matrix to be decomposed in NumPy array format.
     remove_mean : bool, default=True
         Whether to subtract the mean of each column before the actual SVD
-        (True) or not (False). Setting `remove_mean=True` is helpful when
+        (True) or not (False). Setting ``remove_mean=True`` is helpful when
         the SVD is used to perform PCA.
 
     Returns
@@ -45,6 +60,34 @@ def safe_svd(X, remove_mean=True):
 
 
 def safe_polar(a, side='left'):
+    """
+    Polar decomposition without occasional LinAlgError crashes.
+
+    The default ``lapack_driver`` of ``scipy.linalg.polar`` is ``'gesdd'``,
+    which occassionaly crashes even if the input matrix is not singular.
+    This function automatically handles the ``LinAlgError`` when it's
+    raised and switches to the ``'gesvd'`` driver in this case.
+
+    The input matrix ``a`` is factorized as ``u @ p`` (or ``p @ u`` when
+    ``side='right'``).
+
+    Parameters
+    ----------
+    a : ndarray of shape (M, N)
+        The matrix to be decomposed in NumPy array format.
+    side : {'left', 'right'}, default='left'
+        Whether to return ``u @ p`` (``side='left'``) or ``p @ u``
+        (``side='right'``).
+
+    Returns
+    -------
+    u : ndarray of shape (M, M) or (N, N)
+        Unitary matrix (rotation and reflection).
+    p : ndarray of shape (M, N) or (N, M)
+        Hermitian positive semi-definite matrix (scaling and shearing).
+
+    """
+
     try:
         u, p = polar(a, side=side)
     except Exception as e:
@@ -59,9 +102,25 @@ def safe_polar(a, side='left'):
     return u, p
 
 
-def gram_pca(gram, eps=1e-7):
+def gram_pca(gram, tol=1e-7):
+    """
+    Principal component analysis (PCA) based on the Gram matrix.
+
+    Parameters
+    ----------
+    gram : ndarray of shape (N, N)
+        The Gram matrix to be decomposed in NumPy array format.
+    tol : float, default=1e-7
+        Tolerance for the eigenvalues to be considered positive.
+
+    Returns
+    -------
+    PCs : ndarray of shape (N, N - 1)
+        The principal components (PCs) derived from the Gram matrix.
+    """
+
     w, v = eigh(gram, lower=False)
-    assert np.all(w > -eps)
+    assert np.all(w > -tol)
     w[w < 0] = 0
     U = v[:, ::-1][:, :-1]
     s = np.sqrt(w[::-1][:-1])
