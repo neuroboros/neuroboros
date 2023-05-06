@@ -130,7 +130,7 @@ def save(fn, data):
     raise TypeError(f'`data` type {type(data)} not supported.')
 
 
-def load(fn):
+def load(fn, **kwargs):
     """Load the file using the automatically determined function.
 
     Parameters
@@ -150,22 +150,26 @@ def load(fn):
         Raised when the type of ``fn`` is not supported.
     """
     if fn.endswith('.npy'):
-        return np.load(fn)
+        return np.load(fn, **kwargs)
     if fn.endswith('.npz'):
         try:
-            return sparse.load_npz(fn)
+            return sparse.load_npz(fn, **kwargs)
         except (OSError, ValueError):
-            return np.load(fn)
+            return np.load(fn, **kwargs)
     if fn.endswith('.tsv'):
-        return pd.read_csv(fn, delimiter='\t', na_values='n/a')
+        d = dict(delimiter='\t', na_values='n/a')
+        d.update(kwargs)
+        return pd.read_csv(fn, **d)
     if fn.endswith('.csv'):
-        return pd.read_csv(fn, na_values='n/a')
+        d = dict(na_values='n/a')
+        d.update(kwargs)
+        return pd.read_csv(fn, **d)
     if fn.endswith('.pkl'):
         with open(fn, 'rb') as f:
-            return pickle.load(f)
+            return pickle.load(f, **kwargs)
     if fn.endswith('.json.gz'):
         with gzip.open(fn, 'rb') as f:
-            return json.load(f)
+            return json.load(f, **kwargs)
     raise TypeError(f'file type of `fn` is not supported.')
 
 
