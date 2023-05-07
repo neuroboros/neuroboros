@@ -204,6 +204,24 @@ class Dataset:
     def get_data(self, sid, task, run, lr, space=None, resample=None,
                  prep=None, fp_version=None, force_volume=False,
                  prep_kwargs=None):
+        if lr == 'lr':
+            ds = np.concatenate(
+                [self.get_data(
+                        sid, task, run, lr_, space, resample, prep,
+                        fp_version, force_volume, prep_kwargs)
+                    for lr_ in 'lr'],
+                axis=1)
+            return ds
+
+        if isinstance(run, (tuple, list)):
+            ds = np.concatenate(
+                [self.get_data(
+                        sid, task, run_, lr, space, resample, prep,
+                        fp_version, force_volume, prep_kwargs)
+                    for run_ in run],
+                axis=1)
+            return ds
+
         if force_volume:
             space_kind = 'volume'
         else:
