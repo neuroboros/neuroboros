@@ -37,15 +37,18 @@ def guess_surface_volume(space, resample, lr):
         return 'surface'
     if space in VOLUME_SPACES or resample in VOLUME_RESAMPLES:
         return 'volume'
-    if lr in ['l', 'r', 'l-cerebrum', 'r-cerebrum']:
+    if lr in ['l', 'r', 'l-cerebrum', 'r-cerebrum', 'lr']:
         return 'surface'
     return 'volume'
 
 
-def default_prep(ds, confounds, cortical_mask, z=True, mask=True):
+def default_prep(ds, confounds, cortical_mask, z=True, mask=True, gsr=False):
     if mask and cortical_mask is not None:
         ds = ds[:, cortical_mask]
     conf = confounds[0]
+    if gsr:
+        gs = np.array(confounds[1]['global_signal'])
+        conf = np.concatenate([conf, gs[:, np.newaxis]], axis=1)
     beta = np.linalg.lstsq(conf, ds, rcond=None)[0]
     ds = ds - conf @ beta
     if z:
@@ -53,10 +56,13 @@ def default_prep(ds, confounds, cortical_mask, z=True, mask=True):
     return ds
 
 
-def scrub_prep(ds, confounds, cortical_mask, z=True, mask=True):
+def scrub_prep(ds, confounds, cortical_mask, z=True, mask=True, gsr=False):
     if mask and cortical_mask is not None:
         ds = ds[:, cortical_mask]
     conf, _, keep = confounds
+    if gsr:
+        gs = np.array(confounds[1]['global_signal'])
+        conf = np.concatenate([conf, gs[:, np.newaxis]], axis=1)
     beta = np.linalg.lstsq(conf[keep], ds[keep], rcond=None)[0]
     ds = ds[keep] - conf[keep] @ beta
     if z:
@@ -65,10 +71,18 @@ def scrub_prep(ds, confounds, cortical_mask, z=True, mask=True):
 
 
 def get_prep(name, **kwargs):
+    if name.endswith('-gsr'):
+        gsr = True
+        name = name[:-4]
+    else:
+        gsr = False
+
     prep = {
         'default': default_prep,
         'scrub': scrub_prep,
     }[name]
+    if gsr:
+        prep = partial(prep, gsr=True)
     if kwargs:
         prep = partial(prep, **kwargs)
     return prep
@@ -153,6 +167,22 @@ class Dataset:
         self.renaming = load_file('rename.json.gz', dset=self.dl_dset, root=self.root_dir)
 
     def load_data(self, sid, task, run, lr, space, resample, fp_version=None):
+        if lr == 'lr':
+            ds = np.concatenate(
+                [self.load_data(
+                        sid, task, run, lr_, space, resample, fp_version)
+                    for lr_ in 'lr'],
+                axis=1)
+            return ds
+
+        if isinstance(run, (tuple, list)):
+            ds = np.concatenate(
+                [self.get_data(
+                        sid, task, run_, lr, space, resample, fp_version)
+                    for run_ in run],
+                axis=0)
+            return ds
+
         if fp_version is None:
             fp_version = self.fp_version
 
@@ -204,24 +234,6 @@ class Dataset:
     def get_data(self, sid, task, run, lr, space=None, resample=None,
                  prep=None, fp_version=None, force_volume=False,
                  prep_kwargs=None):
-        if lr == 'lr':
-            ds = np.concatenate(
-                [self.get_data(
-                        sid, task, run, lr_, space, resample, prep,
-                        fp_version, force_volume, prep_kwargs)
-                    for lr_ in 'lr'],
-                axis=1)
-            return ds
-
-        if isinstance(run, (tuple, list)):
-            ds = np.concatenate(
-                [self.get_data(
-                        sid, task, run_, lr, space, resample, prep,
-                        fp_version, force_volume, prep_kwargs)
-                    for run_ in run],
-                axis=1)
-            return ds
-
         if force_volume:
             space_kind = 'volume'
         else:
@@ -244,7 +256,11 @@ class Dataset:
         ds = self.load_data(sid, task, run, lr, space, resample, fp_version)
         confounds = self.load_confounds(sid, task, run, fp_version)
         if space_kind == 'surface':
-            cortical_mask = get_mask(lr, space)
+            if lr == 'lr':
+                cortical_mask = np.concatenate(
+                    [get_mask(lr_, space) for lr_ in 'lr'], axis=0)
+            else:
+                cortical_mask = get_mask(lr, space)
         else:
             cortical_mask = None
         if isinstance(prep, str):
@@ -359,3 +375,19 @@ class CamCAN(Dataset):
         for task in ['bang', 'rest', 'smt']:
             with open(os.path.join(mod_dir, f'camcan_{task}.txt'), 'r') as f:
                 self.subject_sets[task] = f.read().splitlines()
+
+
+class ID1000(Dataset):
+    def __init__(self, space=['onavg-ico32', 'mni-4mm'],
+            resample=['1step_pial_overlap', '1step_linear_overlap'],
+            prep='default', fp_version='20.2.7'):
+        name = 'id1000'
+        dl_source = 'git@github.com:feilong/id1000.git'
+        super().__init__(
+            name, dl_source=dl_source, root_dir=None, space=space,
+            resample=resample, prep=prep, fp_version=fp_version)
+        self.tasks = ['moviewatching']
+
+        mod_dir = os.path.dirname(os.path.realpath(__file__))
+        with open(os.path.join(mod_dir, f'id1000.txt'), 'r') as f:
+            self.subjects = f.read().splitlines()
