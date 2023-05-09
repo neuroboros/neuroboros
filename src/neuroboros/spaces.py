@@ -75,6 +75,72 @@ def get_geometry(which, lr, space='onavg-ico32', **kwargs):
     return coords, faces
 
 
+def get_distances(lr, source, target=None, mask=None,
+                  source_mask=None, target_mask=None, **kwargs):
+    group = kwargs.get('group', 'on1031')
+    avg_type = kwargs.get('avg_type', 'trimmed')
+    dist_type = kwargs.get('dist_type', 'dijkstra')
+
+    if target is None:
+        target = source
+    if source_mask is None:
+        source_mask = mask
+    if target_mask is None:
+        target_mask = mask
+
+    fn = os.path.join(source, 'distances', f'to_{target}', f'{lr}h',
+                      f'{group}_{avg_type}', f'{dist_type}.npy')
+
+    assert target == source
+    d = load_file(fn)
+    ico = int(source.split('-ico')[1])
+    nv = ico**2 * 10 + 2
+    mat = np.zeros((nv, nv), dtype=d.dtype)
+    idx1, idx2 = np.triu_indices(nv, 1)
+    mat[idx1, idx2] = d
+    mat = np.maximum(mat, mat.T)
+
+    if source_mask is not None:
+        if isinstance(source_mask, np.ndarray):
+            mask1 = source_mask
+        else:
+            mask1 = get_mask(lr, source, **kwargs)
+    if target_mask is not None:
+        if isinstance(target_mask, np.ndarray):
+            mask2 = target_mask
+        else:
+            mask2 = get_mask(lr, target, **kwargs)
+
+    if source_mask is not None and target_mask is not None:
+        mat = mat[np.ix_(mask1, mask2)]
+    elif source_mask is not None:
+        mat = mat[mask1, :]
+    elif target_mask is not None:
+        mat = mat[:, mask2]
+    else:
+        pass
+
+    return mat
+
+
+def smooth(lr, fwhm, space='onavg-ico32', mask=None, keep_sum=False):
+    d = get_distances(lr, space, space, mask=mask)
+    s2 = fwhm / (4. * np.log(2))
+    weights = np.exp(-d**2/ s2)
+    mat = sparse.csr_matrix(weights)
+
+    if keep_sum:
+        with np.errstate(divide='ignore'):
+            d = np.nan_to_num(np.reciprocal(mat.sum(axis=1).A.ravel()))
+        M = sparse.diags(d) @ mat
+    else:
+        with np.errstate(divide='ignore'):
+            d = np.nan_to_num(np.reciprocal(mat.sum(axis=0).A.ravel()))
+        M = mat @ sparse.diags(d)
+
+    return M
+
+
 def get_mapping(lr, source, target, mask=None, nn=False, keep_sum=False,
                 source_mask=None, target_mask=None, **kwargs):
     group = kwargs.get('group', 'on1031')
