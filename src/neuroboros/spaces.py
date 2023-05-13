@@ -13,6 +13,24 @@ PARCELLATIONS = ['aparc', 'aparc.DKTatlas', 'aparc.a2009s']
 
 
 def get_morphometry(which, lr, space='onavg-ico32', **kwargs):
+    """Group-based morphometry measure.
+
+    Parameters
+    ----------
+    which : str
+        Which morphometric measure to get. One of the following:
+        'area', 'area.mid', 'area.pial', 'curv', 'curv.pial',
+        'jacobian_white', 'sulc', 'thickness', 'volume'.
+    lr : str
+        Hemisphere, either 'l' or 'r'.
+    space : str, default='onavg-ico32'
+        Surface space.
+
+    Returns
+    -------
+    measure : ndarray
+        Morphometric measure. Shape (n_vertices,).
+    """
     assert which in MEASURES
     group = kwargs.get('group', 'on1031')
     resample = kwargs.get('resample', 'overlap-8div')
@@ -25,6 +43,26 @@ def get_morphometry(which, lr, space='onavg-ico32', **kwargs):
 
 
 def get_parcellation(which, lr, space='onavg-ico32', prob=False, **kwargs):
+    """Group-based parcellation.
+
+    Parameters
+    ----------
+    which : str
+        Which parcellation to get. One of the following:
+        'aparc', 'aparc.DKTatlas', 'aparc.a2009s'.
+    lr : str
+        Hemisphere, either 'l' or 'r'.
+    space : str, default='onavg-ico32'
+        Surface space.
+    prob : bool, default=False
+        Whether to load the probabilistic version of the parcellation.
+
+    Returns
+    -------
+    parc : ndarray
+        The cortical parcellation. It is a discrete parcellation if ``prob``
+        is False, and a probabilistic parcellation if ``prob`` is True.
+    """
     assert which in PARCELLATIONS
     group = kwargs.get('group', 'on1031')
     resample = kwargs.get('resample', 'overlap-8div')
@@ -41,6 +79,23 @@ def get_parcellation(which, lr, space='onavg-ico32', prob=False, **kwargs):
 
 
 def get_mask(lr, space='onavg-ico32', legacy=False, **kwargs):
+    """Standard cortical mask.
+
+    Parameters
+    ----------
+    lr : str
+        Hemisphere, either 'l' or 'r'.
+    space : str, default='onavg-ico32'
+        Surface space.
+    legacy : bool, default=False
+        Whether to load the legacy version of the mask, e.g., "fsaverage" or
+        "32k_fs_LR", instead of the group-based cortical mask.
+
+    Returns
+    -------
+    mask : ndarray
+        Mask of the cortical surface. Shape (n_vertices,).
+    """
     resample = kwargs.get('resample', 'overlap-8div')
     which = kwargs.get('which', 'aparc.a2009s')
     assert lr in 'lr'
@@ -60,23 +115,80 @@ def get_mask(lr, space='onavg-ico32', legacy=False, **kwargs):
     return mask
 
 
-def get_geometry(which, lr, space='onavg-ico32', **kwargs):
+def get_geometry(which, lr, space='onavg-ico32', vertices_only=False, **kwargs):
+    """Surface geometry.
+
+    Parameters
+    ----------
+    which : str
+        Which geometry to get. One of the following:
+        'sphere', 'sphere.reg', 'white', 'pial', 'inflated', 'midthickness',
+        'faces'.
+    lr : str
+        Hemisphere, either 'l' or 'r'.
+    space : str, default='onavg-ico32'
+        Surface space.
+    vertices_only : bool, default=False
+        Whether to return only the coordinates of the vertices.
+
+    Returns
+    -------
+    coords : ndarray
+        Coordinates of the vertices. Shape (n_vertices, 3).
+        When ``which == 'faces'``, ``coords`` will not be returned.
+    faces : ndarray
+        Faces of the triangle surface mesh. Shape (n_faces, 3).
+        Only returned when ``vertices_only == False``.
+    """
     group = kwargs.get('group', 'on1031')
     avg_type = kwargs.get('avg_type', 'trimmed')
     assert lr in 'lr'
+    if not vertices_only:
+        ffn = os.path.join(space, 'geometry', 'faces', f'{lr}h.npy')
+        faces = load_file(ffn)
+        if which == 'faces':
+            return faces
+
     if which in ['sphere', 'sphere.reg']:
         fn = os.path.join(space, 'geometry', 'sphere.reg', f'{lr}h.npy')
     else:
         fn = os.path.join(space, 'geometry', which, f'{lr}h',
                 f'{group}_{avg_type}.npy')
     coords = load_file(fn)
-    ffn = os.path.join(space, 'geometry', 'faces', f'{lr}h.npy')
-    faces = load_file(ffn)
+    if vertices_only:
+        return coords
+
     return coords, faces
 
 
 def get_distances(lr, source, target=None, mask=None,
                   source_mask=None, target_mask=None, **kwargs):
+    """Distances between vertices.
+
+    Parameters
+    ----------
+    lr : str
+        Hemisphere, either 'l' or 'r'.
+    source : str
+        Source space.
+    target : str, default=None
+        Target space. If None, assuming it's the same as ``source``.
+    mask : str, default=None
+        Mask to apply to the distance matrix. If None or False, no mask is
+        applied. If True, the group-based cortical mask is used.
+        If a boolean array, it is used as the mask.
+        ``source_mask`` and ``target_mask`` can be set separately, and they
+        take precedence over ``mask``.
+    source_mask : str, default=None
+        Mask to apply to source space (rows) of the distance matrix.
+    target_mask : str, default=None
+        Mask to apply to target space (columns) of the distance matrix.
+
+    Returns
+    -------
+    M : ndarray
+        Distance matrix. The shape is (n_source_vertices, n_target_vertices).
+    """
     group = kwargs.get('group', 'on1031')
     avg_type = kwargs.get('avg_type', 'trimmed')
     dist_type = kwargs.get('dist_type', 'dijkstra')
@@ -112,18 +224,42 @@ def get_distances(lr, source, target=None, mask=None,
             mask2 = get_mask(lr, target, **kwargs)
 
     if source_mask is not None and target_mask is not None:
-        mat = mat[np.ix_(mask1, mask2)]
+        M = mat[np.ix_(mask1, mask2)]
     elif source_mask is not None:
-        mat = mat[mask1, :]
+        M = mat[mask1, :]
     elif target_mask is not None:
-        mat = mat[:, mask2]
+        M = mat[:, mask2]
     else:
-        pass
+        M = mat
 
-    return mat
+    return M
 
 
 def smooth(lr, fwhm, space='onavg-ico32', mask=None, keep_sum=False):
+    """Get a smoothing matrix.
+
+    Parameters
+    ----------
+    lr : str
+        Hemisphere, either 'l' or 'r'.
+    fwhm : float
+        Full-width at half-maximum of the Gaussian kernel.
+    space : str, default='onavg-ico32'
+        Surface space where the data is in.
+    mask : ndarray or bool or None, default=None
+        Mask to apply to the smoothing matrix. If None or False, no mask is
+        applied. If True, the standard cortical mask is used. If an ndarray,
+        it is used as the mask.
+    keep_sum : bool, default=False
+        If True, keep the sum of the data. Useful for transforming area,
+        volume, etc., where the total area/volume is preserved when
+        ``keep_sum=True``.
+
+    Returns
+    -------
+    M : sparse matrix
+        Smoothing matrix. Can be applied to data matrix ``X`` as ``X @ M``.
+    """
     d = get_distances(lr, space, space, mask=mask)
     s2 = fwhm / (4. * np.log(2))
     weights = np.exp(-d**2/ s2)
@@ -143,6 +279,42 @@ def smooth(lr, fwhm, space='onavg-ico32', mask=None, keep_sum=False):
 
 def get_mapping(lr, source, target, mask=None, nn=False, keep_sum=False,
                 source_mask=None, target_mask=None, **kwargs):
+    """Get mapping (transform) from one space to another.
+
+    Parameters
+    ----------
+    lr : str
+        Hemisphere, either 'l' or 'r'.
+    source : str
+        Source space, the space where the data is currently in.
+    target : str
+        Target space, the space where the data will be transformed into.
+    mask : bool or boolean array or None
+        Mask to apply to the mapping. If None or False, no mask is applied.
+        If True, the group-based cortical mask is used.
+        If a boolean array, it is used as the mask.
+        ``source_mask`` and ``target_mask`` can be set separately, and they
+        take precedence over ``mask``.
+    nn : bool
+        If True, use nearest neighbor interpolation.
+        If False, use overlap-area-based interpolation.
+    keep_sum : bool
+        If True, keep the sum of the data. Useful for transforming area,
+        volume, etc., where the total area/volume is preserved when
+        ``keep_sum=True``.
+    source_mask : bool or boolean array or None
+        Mask to apply to the source space. Similar to ``mask``.
+    target_mask : bool or boolean array or None
+        Mask to apply to the target space. Similar to ``mask``.
+
+    Returns
+    -------
+    M : sparse matrix
+        Mapping matrix. Can be applied to data in the source space to
+        transform it into the target space. For example, if ``X`` is a
+        data matrix in the source space, then ``X @ M`` is the data matrix
+        in the target space.
+    """
     group = kwargs.get('group', 'on1031')
     resample = kwargs.get('resample', 'overlap-8div')
     avg_type = kwargs.get('avg_type', 'trimmed')
@@ -168,12 +340,12 @@ def get_mapping(lr, source, target, mask=None, nn=False, keep_sum=False,
             f'Neither {fn1} nor {fn2} exists.'
         mat = mat1 if mat1 is not None else mat2.T
 
-    if source_mask is not None:
+    if source_mask is not None and source_mask is not False:
         if isinstance(source_mask, np.ndarray):
             mask1 = source_mask
         else:
             mask1 = get_mask(lr, source, **kwargs)
-    if target_mask is not None:
+    if target_mask is not None and target_mask is not False:
         if isinstance(target_mask, np.ndarray):
             mask2 = target_mask
         else:
