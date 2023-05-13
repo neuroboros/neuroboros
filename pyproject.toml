@@ -8,7 +8,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "neuroboros"
-version = "0.0.1"
+version = "0.1.0.alpha"
 authors = [
   { name="Ma Feilong", email="mafeilong@gmail.com" },
 ]
@@ -30,11 +30,14 @@ dependencies = [
     "nibabel",
     "datalad",
     "joblib",
+    "pandas",
+    "Pillow",
+    "matplotlib",
 ]
 
 [project.urls]
-"Homepage" = "https://github.com/feilong/neuroboros"
-"Bug Tracker" = "https://github.com/feilong/neuroboros/issues"
+"Homepage" = "https://github.com/neuroboros/neuroboros"
+"Bug Tracker" = "https://github.com/neuroboros/neuroboros/issues"
 
 [tool.setuptools.packages.find]
 where = ["src"]
