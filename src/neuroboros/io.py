@@ -43,14 +43,19 @@ def load_file(fn, dset=None, root=None, load_func=None):
             dset, root = get_core_dataset()
         else:
             root = dset.path
-    else:
-        dset = dl.Dataset(root)
     path = os.path.join(root, fn)
+
     if not os.path.lexists(path):
         return None
-    if not (dset.repo is None) and not os.path.exists(path):
+    if not os.path.exists(path):
+        if dset is None:
+            dset = dl.Dataset(root)
+        if dset.repo is None:
+            return None
+
         res = download_datalad_file(fn, dset)
         assert os.path.normpath(path) == os.path.normpath(res)
+
     if load_func is None:
         return load(path)
     return load_func(path)
