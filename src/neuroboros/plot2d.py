@@ -223,7 +223,7 @@ def brain_plot(values, cmap=None, vmax=None, vmin=None, space=None, mask=None,
                 w1, h1 = img.size
                 w2, h2 = cbar.size
                 new_img = PIL_Image.new('RGBA', (max(w1, w2), h1 + h2))
-                print(img.size, new_img.size, cbar.size)
+                # print(img.size, new_img.size, cbar.size)
                 new_img.paste(img, (0, offset))
                 new_img.paste(cbar, (0, offset+h1))
                 img = new_img
