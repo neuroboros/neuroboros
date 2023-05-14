@@ -173,6 +173,33 @@ def brain_plot(values, cmap=None, vmax=None, vmin=None, space=None, mask=None,
     assert surf_type in ['inflated', 'pial', 'midthickness', 'white'],\
         f"Surface type '{surf_type}' is not recognized."
 
+    if isinstance(values, np.ndarray):
+        cat = values
+    elif isinstance(values, (tuple, list)):
+        cat = np.concatenate(values, axis=0)
+    else:
+        raise TypeError("Expected `values` to be a numpy array or a list/"
+                         f"tuple of numpy arrays. Got {type(values)}.")
+    ndim = cat.ndim
+    percentiles = np.nanpercentile(cat, [5, 95])
+    max_, min_ = np.nanmax(cat), np.nanmin(cat)
+
+    if ndim not in [1, 2]:
+        raise ValueError(f"Expected `values` to be 1D or 2D. Got {ndim}D.")
+    if ndim == 1:
+        if cmap is None:
+            cmap = 'viridis'
+        if vmax is None:
+            vmax = percentiles[2]
+        if vmin is None:
+            vmin = percentiles[1]
+    elif ndim == 2:
+        if max_ > 1 or min_ < 0:
+            raise ValueError("Expected `values` to be in [0, 1] when it's 2D.")
+        if cat.shape[1] not in [3, 4]:
+            raise ValueError("Expected `values` to have 3 or 4 columns (RGB "
+                             f"or RGBA). Got {cat.shape[1]} columns.")
+
     need_scale = return_scale or colorbar
 
     ret = prepare_data(
