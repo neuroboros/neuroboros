@@ -1,0 +1,2 @@
+include src/neuroboros/surface/_barycentric.pyx
+global-include *.pyx
