@@ -8,7 +8,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "neuroboros"
-version = "0.1.0.alpha"
+version = "0.1.1"
 authors = [
   { name="Ma Feilong", email="mafeilong@gmail.com" },
 ]
