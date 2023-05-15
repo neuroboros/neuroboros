@@ -190,9 +190,9 @@ def brain_plot(values, cmap=None, vmax=None, vmin=None, space=None, mask=None,
         if cmap is None:
             cmap = 'viridis'
         if vmax is None:
-            vmax = percentiles[2]
+            vmax = percentiles[1]
         if vmin is None:
-            vmin = percentiles[1]
+            vmin = percentiles[0]
     elif ndim == 2:
         if max_ > 1 or min_ < 0:
             raise ValueError("Expected `values` to be in [0, 1] when it's 2D.")
