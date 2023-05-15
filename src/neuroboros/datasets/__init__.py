@@ -177,7 +177,7 @@ class Dataset:
 
         if isinstance(run, (tuple, list)):
             ds = np.concatenate(
-                [self.get_data(
+                [self.load_data(
                         sid, task, run_, lr, space, resample, fp_version)
                     for run_ in run],
                 axis=0)
