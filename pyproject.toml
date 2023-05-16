@@ -29,6 +29,7 @@ dependencies = [
     "scipy",
     "nibabel",
     "datalad",
+    "requests",
     "joblib",
     "pandas",
     "Pillow",

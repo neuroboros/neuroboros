@@ -19,7 +19,7 @@ try:
 except ImportError as e:
     ipython_ok = False
 
-from .io import load_file
+from .io import core_dataset
 from .spaces import get_mapping, get_mask
 from .utils import save
 
@@ -212,8 +212,9 @@ def brain_plot(values, cmap=None, vmax=None, vmin=None, space=None, mask=None,
         prepared_values = ret
 
     if surf_type not in PLOT_MAPPING:
-        mapping = load_file(os.path.join(
-        '2d_plotting_data', f'onavg-ico128_to_{surf_type}_image.npy'))
+        mapping = core_dataset.get(os.path.join(
+        '2d_plotting_data', f'onavg-ico128_to_{surf_type}_image.npy'),
+        on_missing='raise')
         PLOT_MAPPING[surf_type] = mapping
 
     img = prepared_values[PLOT_MAPPING[surf_type]]

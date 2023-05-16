@@ -2,7 +2,7 @@ import os
 import numpy as np
 import neuroboros as nb
 
-from .io import load_file
+from .io import core_dataset
 
 
 def load_npz(npz_fn):
@@ -21,7 +21,8 @@ def load_searchlights(lr, radius, space, center_space=None, **kwargs):
     npz_fn = os.path.join(
         space, 'searchlights', f'{center_space}_center', f'{lr}h',
         f'{group}_{avg_type}', f'{dist_type}_{radius}mm.npz')
-    sls, dists = load_file(npz_fn, load_func=load_npz)
+    sls, dists = core_dataset.get(
+        npz_fn, load_func=load_npz, on_missing='raise')
     return sls, dists
 
 

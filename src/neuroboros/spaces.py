@@ -2,7 +2,7 @@ import os
 import numpy as np
 import scipy.sparse as sparse
 
-from .io import load_file
+from .io import core_dataset
 
 
 MEASURES = [
@@ -38,7 +38,7 @@ def get_morphometry(which, lr, space='onavg-ico32', **kwargs):
     assert lr in 'lr'
     fn = os.path.join(space, 'morphometry', which, f'{lr}h',
                       f'{group}_{avg_type}', f'{resample}.npy')
-    measure = load_file(fn)
+    measure = core_dataset.get(fn, on_missing='raise')
     return measure
 
 
@@ -74,7 +74,7 @@ def get_parcellation(which, lr, space='onavg-ico32', prob=False, **kwargs):
         basename = f'{resample}_parc.npy'
     fn = os.path.join(space, 'parcellations', which, f'{lr}h',
                       f'{group}_{avg_type}', basename)
-    parc = load_file(fn)
+    parc = core_dataset.get(fn, on_missing='raise')
     return parc
 
 
@@ -111,7 +111,7 @@ def get_mask(lr, space='onavg-ico32', legacy=False, **kwargs):
         avg_type = kwargs.get('avg_type', 'trimmed')
         fn = os.path.join(space, 'masks', which, f'{lr}h',
                           f'{group}_{avg_type}', f'{resample}.npy')
-    mask = load_file(fn)
+    mask = core_dataset.get(fn, on_missing='raise')
     return mask
 
 
@@ -145,7 +145,7 @@ def get_geometry(which, lr, space='onavg-ico32', vertices_only=False, **kwargs):
     assert lr in 'lr'
     if not vertices_only:
         ffn = os.path.join(space, 'geometry', 'faces', f'{lr}h.npy')
-        faces = load_file(ffn)
+        faces = core_dataset.get(ffn, on_missing='raise')
         if which == 'faces':
             return faces
 
@@ -154,7 +154,7 @@ def get_geometry(which, lr, space='onavg-ico32', vertices_only=False, **kwargs):
     else:
         fn = os.path.join(space, 'geometry', which, f'{lr}h',
                 f'{group}_{avg_type}.npy')
-    coords = load_file(fn)
+    coords = core_dataset.get(fn, on_missing='raise')
     if vertices_only:
         return coords
 
@@ -204,13 +204,14 @@ def get_distances(lr, source, target=None, mask=None,
                       f'{group}_{avg_type}', f'{dist_type}.npy')
 
     assert target == source
-    d = load_file(fn)
+    d = core_dataset.get(fn, on_missing='raise')
     ico = int(source.split('-ico')[1])
     nv = ico**2 * 10 + 2
     mat = np.zeros((nv, nv), dtype=d.dtype)
     idx1, idx2 = np.triu_indices(nv, 1)
     mat[idx1, idx2] = d
     mat = np.maximum(mat, mat.T)
+    del d
 
     if source_mask is not None:
         if isinstance(source_mask, np.ndarray):
@@ -334,8 +335,8 @@ def get_mapping(lr, source, target, mask=None, nn=False, keep_sum=False,
                         f'{group}_{avg_type}', f'{resample}.npz')
         fn2 = os.path.join(target, 'mapping', f'to_{source}', f'{lr}h',
                         f'{group}_{avg_type}', f'{resample}.npz')
-        mat1 = load_file(fn1)
-        mat2 = load_file(fn2)
+        mat1 = core_dataset.get(fn1, on_missing='ignore')
+        mat2 = core_dataset.get(fn2, on_missing='ignore')
         assert mat1 is not None or mat2 is not None, \
             f'Neither {fn1} nor {fn2} exists.'
         mat = mat1 if mat1 is not None else mat2.T

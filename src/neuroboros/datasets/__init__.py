@@ -14,16 +14,12 @@ Neuroboros datasets (:mod:`neuroboros.datasets`)
 """
 
 import os
-import warnings
-from collections.abc import Iterable
 from functools import partial
 import numpy as np
-import pandas as pd
 from scipy.stats import zscore
-import datalad.api as dl
 
+from ..io import DefaultDataset, LocalDataset
 from ..spaces import get_mask
-from ..io import load_file, DATA_ROOT
 
 
 SURFACE_SPACES = ['fsavg-ico32', 'onavg-ico32', 'onavg-ico48', 'onavg-ico64']
@@ -88,22 +84,6 @@ def get_prep(name, **kwargs):
     return prep
 
 
-def _follow_symlink(fn, root):
-    fn_ = os.path.join(root, fn)
-    fn = os.path.join(os.path.dirname(fn_), os.readlink(fn_))
-    fn = os.path.normpath(fn)
-    fn = os.path.relpath(fn, root)
-    return fn
-
-
-# def download_datalad_file(fn, dl_dset):
-#     result = dl_dset.get(fn)[0]
-#     if result['status'] not in ['ok', 'notneeded']:
-#         raise RuntimeError(
-#             f"datalad `get` status is {result['status']}, likely due to "
-#             "problems downloading the file.")
-#     return result['path']
-
 
 class Dataset:
     def __init__(
@@ -114,24 +94,13 @@ class Dataset:
 
         self.dl_source = dl_source
         self.root_dir = root_dir
-        s = (dl_source is None) + (root_dir is None)
-        if s == 0:
-            raise ValueError('At least one of `dl_source` and `root_dir` '
-                             'needs to be set.')
-        if s > 1:
-            warnings.warn('Both `dl_source` and `root_dir` are set. Will use '
-                          '`root_dir`.')
-        if root_dir is None:
-            self.use_datalad = True
-            path = os.path.join(DATA_ROOT, self.name)
-            if os.path.exists(path):
-                self.dl_dset = dl.Dataset(path)
-            else:
-                self.dl_dset = dl.install(
-                    path=path,
-                    source=self.dl_source)
+
+        if self.dl_source is None:
+            assert self.root_dir is not None
+            self.dl_dset = LocalDataset(self.name, self.root_dir)
         else:
-            self.use_datalad = False
+            self.dl_dset = DefaultDataset(
+                self.name, self.dl_source, self.root_dir)
 
         self.fp_version = fp_version
         self.surface_space = surface_space
@@ -164,24 +133,24 @@ class Dataset:
 
         self.prep = prep
 
-        self.renaming = load_file('rename.json.gz', dset=self.dl_dset, root=self.root_dir)
+        self.renaming = self.dl_dset.get('rename.json.gz')
 
     def load_data(self, sid, task, run, lr, space, resample, fp_version=None):
         if lr == 'lr':
-            ds = np.concatenate(
+            dm = np.concatenate(
                 [self.load_data(
                         sid, task, run, lr_, space, resample, fp_version)
                     for lr_ in 'lr'],
                 axis=1)
-            return ds
+            return dm
 
-        if isinstance(run, (tuple, list)):
-            ds = np.concatenate(
-                [self.load_data(
-                        sid, task, run_, lr, space, resample, fp_version)
-                    for run_ in run],
-                axis=0)
-            return ds
+        # if isinstance(run, (tuple, list)):
+        #     ds = np.concatenate(
+        #         [self.load_data(
+        #                 sid, task, run_, lr, space, resample, fp_version)
+        #             for run_ in run],
+        #         axis=0)
+        #     return ds
 
         if fp_version is None:
             fp_version = self.fp_version
@@ -199,13 +168,9 @@ class Dataset:
                 f'sub-{sid}_task-{task}_run-{run:02d}.npy')
             fn = self.renaming[fn]
 
-        # if self.use_datalad:
-        #     fn = _follow_symlink(fn, self.dl_dset.path)
-        ds = load_file(fn, dset=self.dl_dset, root=self.root_dir).astype(np.float64)
-            # fn = download_datalad_file(fn, self.dl_dset)
-        # ds = np.load(fn).astype(np.float64)
+        dm = self.dl_dset.get(fn, on_missing='raise').astype(np.float64)
 
-        return ds
+        return dm
 
     def load_confounds(self, sid, task, run, fp_version=None):
         if fp_version is None:
@@ -227,7 +192,7 @@ class Dataset:
                 fn = self.renaming[fn]
             # fn = _follow_symlink(fn, self.dl_dset.path)
             # fn = download_datalad_file(fn, self.dl_dset)
-            o = load_file(fn, dset=self.dl_dset, root=self.root_dir)
+            o = self.dl_dset.get(fn, on_missing='raise')
             output.append(o)
         return output
 
@@ -275,7 +240,7 @@ class Dataset:
             space = self.surface_space
         fn = os.path.join(fp_version, 'anatomy', space, 'overlap', which,
                           f'{sid}_{lr}h.npy')
-        d = load_file(fn, dset=self.dl_dset, root=self.root_dir)
+        d = self.dl_dset.get(fn, on_missing='raise')
         d = d.astype(np.float64)
         if mask is not False and mask is not None:
             if isinstance(mask, np.ndarray):
