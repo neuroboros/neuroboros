@@ -144,14 +144,6 @@ class Dataset:
                 axis=1)
             return dm
 
-        # if isinstance(run, (tuple, list)):
-        #     ds = np.concatenate(
-        #         [self.load_data(
-        #                 sid, task, run_, lr, space, resample, fp_version)
-        #             for run_ in run],
-        #         axis=0)
-        #     return ds
-
         if fp_version is None:
             fp_version = self.fp_version
 
@@ -190,8 +182,6 @@ class Dataset:
                     fp_version, 'renamed_confounds',
                     f'sub-{sid}_task-{task}_run-{run:02d}_{suffix}')
                 fn = self.renaming[fn]
-            # fn = _follow_symlink(fn, self.dl_dset.path)
-            # fn = download_datalad_file(fn, self.dl_dset)
             o = self.dl_dset.get(fn, on_missing='raise')
             output.append(o)
         return output
@@ -199,6 +189,19 @@ class Dataset:
     def get_data(self, sid, task, run, lr, space=None, resample=None,
                  prep=None, fp_version=None, force_volume=False,
                  prep_kwargs=None):
+        if isinstance(run, (tuple, list)):
+            ret = [
+                self.get_data(sid, task, run_, lr, space, resample, prep,
+                              fp_version, force_volume, prep_kwargs)
+                for run_ in run]
+            if isinstance(ret[0], tuple):
+                n = len(ret[0])
+                ret = tuple([np.concatenate([ret_[i] for ret_ in ret], axis=0)
+                    for i in range(n)])
+            elif isinstance(ret[0], np.ndarray):
+                ret = np.concatenate(ret, axis=0)
+            return ret
+
         if force_volume:
             space_kind = 'volume'
         else:
