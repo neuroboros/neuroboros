@@ -1,6 +1,7 @@
 [build-system]
 requires = [
   "setuptools>=61.0",
+  "setuptools_scm[toml]>=6.2",
   "Cython",
   "numpy",
 ]
@@ -8,7 +9,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "neuroboros"
-version = "0.1.4"
+dynamic = ["version"]
 authors = [
   { name="Ma Feilong", email="mafeilong@gmail.com" },
 ]
@@ -28,7 +29,6 @@ dependencies = [
     "numpy",
     "scipy",
     "nibabel",
-    "datalad",
     "requests",
     "joblib",
     "pandas",
@@ -36,9 +36,17 @@ dependencies = [
     "matplotlib",
 ]
 
+[project.optional-dependencies]
+full = [
+    "datalad",
+]
+
 [project.urls]
-"Homepage" = "https://github.com/neuroboros/neuroboros"
+"Homepage" = "https://neuroboros.github.io/"
 "Bug Tracker" = "https://github.com/neuroboros/neuroboros/issues"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools_scm]
+write_to = "src/neuroboros/_version.py"

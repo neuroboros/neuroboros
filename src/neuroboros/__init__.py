@@ -21,3 +21,4 @@ from .plot2d import brain_plot as plot
 # from . import stats as stats
 from . import linalg as linalg
 from . import surface as surface
+from ._version import __version__, __version_tuple__
