@@ -221,13 +221,18 @@ def brain_plot(values, cmap=None, vmax=None, vmin=None, space=None, mask=None,
 
     if colorbar:
         if PIL_ok:
-            pix_size = (1728, 190)
             dpi = 300
-            fig, ax = plt.subplots(1, 1, figsize=[_/dpi for _ in pix_size], dpi=dpi)
-            # if 'title' in kwargs:
-            #     ax.set_title(kwargs.pop('title'))
+            if 'bar_title' in kwargs:
+                pix_size = (1728, 250)
+                top, bottom = 0.75, 0.55
+                fig, ax = plt.subplots(1, 1, figsize=[_/dpi for _ in pix_size], dpi=dpi)
+                ax.set_title(kwargs.pop('bar_title'))
+            else:
+                pix_size = (1728, 190)
+                fig, ax = plt.subplots(1, 1, figsize=[_/dpi for _ in pix_size], dpi=dpi)
+                top, bottom = 0.99, 0.7
             plt.colorbar(scale, shrink=1, aspect=1, cax=ax, orientation='horizontal', **kwargs)
-            fig.subplots_adjust(left=0.03, right=0.97, top=0.99, bottom=0.7)
+            fig.subplots_adjust(left=0.03, right=0.97, top=top, bottom=bottom)
             buffer = io.BytesIO()
             fig.savefig(buffer, format='png', dpi=dpi, transparent=True)
             buffer.seek(0)
