@@ -13,7 +13,7 @@ from .spaces import get_mapping as mapping
 from .spaces import get_distances as distances
 from .spaces import smooth as smooth
 from .searchlights import get_searchlights as sls
-from .datasets import Bologna, Forrest, Dalmatians, SpaceTop, CamCAN, ID1000
+from .datasets import Bologna, Forrest, Dalmatians, SpaceTop, CamCAN, ID1000, Raiders, Budapest, MonkeyKingdom
 from .utils import save, save_results, load, percentile
 from .utils import save_results as record
 # from . import idm as idm

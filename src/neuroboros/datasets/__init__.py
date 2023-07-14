@@ -96,8 +96,15 @@ class Dataset:
         self.root_dir = root_dir
 
         if self.dl_source is None:
-            assert self.root_dir is not None
-            self.dl_dset = LocalDataset(self.name, self.root_dir)
+            if self.root_dir is not None:
+                self.dl_dset = LocalDataset(self.name, self.root_dir)
+            else:
+                try:
+                    self.dl_dset = LocalDataset(self.name, self.root_dir)
+                except AssertionError as e:
+                    raise RuntimeError(
+                        "Dataset not found locally and `dl_source` not "
+                        "specified.") from e
         else:
             self.dl_dset = DefaultDataset(
                 self.name, self.dl_source, self.root_dir)
@@ -233,6 +240,9 @@ class Dataset:
             cortical_mask = None
         if isinstance(prep, str):
             prep = get_prep(prep, **(prep_kwargs if prep_kwargs is not None else {}))
+        if hasattr(self, 'slicer'):
+            ds = self.slicer(ds, task, run)
+            confounds = [self.slicer(c, task, run) for c in confounds]
         ds = prep(ds, confounds, cortical_mask)
         return ds
 
@@ -269,13 +279,13 @@ class Bologna(Dataset):
     def __init__(
             self, space=['onavg-ico32', 'mni-4mm'],
             resample=['1step_pial_overlap', '1step_linear_overlap'],
-            prep='default', fp_version='20.2.7'):
-        name = 'bologna'
-        dl_source = 'git@github.com:feilong/bologna.git'
+            prep='default', fp_version='20.2.7',
+            name='bologna', root_dir=None,
+            dl_source=None):
         super().__init__(
-            name, dl_source=dl_source, root_dir=None, space=space,
+            name, dl_source=dl_source, root_dir=root_dir, space=space,
             resample=resample, prep=prep, fp_version=fp_version)
-        self.subjects = [f'{_+1:02d}' for _ in range(30)]
+        self.subjects = [f'{_+1:02d}' for _ in range(69)]
         self.tasks = ['rest']
 
 
@@ -283,11 +293,11 @@ class Forrest(Dataset):
     def __init__(
             self, space=['onavg-ico32', 'mni-4mm'],
             resample=['1step_pial_overlap', '1step_linear_overlap'],
-            prep='default', fp_version='20.2.7'):
-        name = 'forrest'
-        dl_source = 'https://gin.g-node.org/neuroboros/forrest'
+            prep='default', fp_version='20.2.7',
+            name='forrest', root_dir=None,
+            dl_source='https://gin.g-node.org/neuroboros/forrest'):
         super().__init__(
-            name, dl_source=dl_source, root_dir=None, space=space,
+            name, dl_source=dl_source, root_dir=root_dir, space=space,
             resample=resample, prep=prep, fp_version=fp_version)
         self.subjects = ['01', '02', '03', '04', '05', '06', '09', '10', '14', '15', '16', '17', '18', '19', '20']
         self.tasks = ["forrest", "movielocalizer", "objectcategories", "retmapccw", "retmapclw", "retmapcon", "retmapexp"]
@@ -297,11 +307,12 @@ class Dalmatians(Dataset):
     def __init__(
             self, space=['onavg-ico32', 'mni-4mm'],
             resample=['1step_pial_overlap', '1step_linear_overlap'],
-            prep='default', fp_version='20.2.7'):
-        name = 'dalmatians'
-        dl_source = 'git@github.com:feilong/dalmatians.git'
+            prep='default', fp_version='20.2.7',
+            name='dalmatians', root_dir=None,
+            dl_source=None):
+
         super().__init__(
-            name, dl_source=dl_source, root_dir=None, space=space,
+            name, dl_source=dl_source, root_dir=root_dir, space=space,
             resample=resample, prep=prep, fp_version=fp_version)
         self.subjects = [
             'AB033', 'AB034', 'AB035', 'AB036', 'AB037', 'AB038', 'AB039',
@@ -318,11 +329,11 @@ class Dalmatians(Dataset):
 class SpaceTop(Dataset):
     def __init__(self, space=['onavg-ico32', 'mni-4mm'],
             resample=['1step_pial_overlap', '1step_linear_overlap'],
-            prep='default', fp_version='20.2.7'):
-        name = 'spacetop'
-        dl_source = 'git@github.com:feilong/spacetop.git'
+            prep='default', fp_version='20.2.7',
+            name='spacetop', root_dir=None,
+            dl_source=None):
         super().__init__(
-            name, dl_source=dl_source, root_dir=None, space=space,
+            name, dl_source=dl_source, root_dir=root_dir, space=space,
             resample=resample, prep=prep, fp_version=fp_version)
         self.tasks = ['faces']
 
@@ -330,11 +341,11 @@ class SpaceTop(Dataset):
 class CamCAN(Dataset):
     def __init__(self, space=['onavg-ico32', 'mni-4mm'],
             resample=['1step_pial_overlap', '1step_linear_overlap'],
-            prep='default', fp_version='20.2.7'):
-        name = 'camcan'
-        dl_source = 'git@github.com:feilong/camcan.git'
+            prep='default', fp_version='20.2.7',
+            name='camcan', root_dir=None,
+            dl_source=None):
         super().__init__(
-            name, dl_source=dl_source, root_dir=None, space=space,
+            name, dl_source=dl_source, root_dir=root_dir, space=space,
             resample=resample, prep=prep, fp_version=fp_version)
         self.tasks = ['bang', 'rest', 'smt']
 
@@ -348,14 +359,80 @@ class CamCAN(Dataset):
 class ID1000(Dataset):
     def __init__(self, space=['onavg-ico32', 'mni-4mm'],
             resample=['1step_pial_overlap', '1step_linear_overlap'],
-            prep='default', fp_version='20.2.7'):
-        name = 'id1000'
-        dl_source = 'git@github.com:feilong/id1000.git'
+            prep='default', fp_version='20.2.7',
+            name='id1000', root_dir=None,
+            dl_source=None):
         super().__init__(
-            name, dl_source=dl_source, root_dir=None, space=space,
+            name, dl_source=dl_source, root_dir=root_dir, space=space,
             resample=resample, prep=prep, fp_version=fp_version)
         self.tasks = ['moviewatching']
 
         mod_dir = os.path.dirname(os.path.realpath(__file__))
         with open(os.path.join(mod_dir, f'id1000.txt'), 'r') as f:
             self.subjects = f.read().splitlines()
+
+
+class Raiders(Dataset):
+    def __init__(self, space=['onavg-ico32', 'mni-4mm'],
+            resample=['1step_pial_overlap', '1step_linear_overlap'],
+            prep='default', fp_version='20.2.7',
+            name='raiders', root_dir=None,
+            dl_source=None):
+        super().__init__(
+            name, dl_source=dl_source, root_dir=root_dir, space=space,
+            resample=resample, prep=prep, fp_version=fp_version)
+        self.tasks = ['raiders', 'actions']
+        self.subjects = [
+            'sid000005', 'sid000007', 'sid000009', 'sid000010', 'sid000012',
+            'sid000013', 'sid000020', 'sid000021', 'sid000024', 'sid000029',
+            'sid000034', 'sid000052', 'sid000102', 'sid000114', 'sid000120',
+            'sid000134', 'sid000142', 'sid000278', 'sid000416', 'sid000433',
+            'sid000499', 'sid000522', 'sid000535']
+
+    def slicer(self, data, task, run):
+        if task == 'raiders':  # stimulus overlap between runs
+            if run == 1:
+                data = data[:-10]
+            elif run == 4:
+                data = data[10:]
+            elif run in [2, 3]:
+                data = data[10:-10]
+            else:
+                raise ValueError(f"Run {run} not recognized.")
+        return data
+
+
+class Budapest(Dataset):
+    def __init__(self, space=['onavg-ico32', 'mni-4mm'],
+            resample=['1step_pial_overlap', '1step_linear_overlap'],
+            prep='default', fp_version='20.2.7',
+            name='budapest', root_dir=None,
+            dl_source=None):
+        super().__init__(
+            name, dl_source=dl_source, root_dir=root_dir, space=space,
+            resample=resample, prep=prep, fp_version=fp_version)
+        self.tasks = ['budapest', 'hyperface', 'localizer']
+        self.subjects = [
+            'sid000005', 'sid000007', 'sid000009', 'sid000010', 'sid000013',
+            'sid000020', 'sid000021', 'sid000024', 'sid000029', 'sid000034',
+            'sid000052', 'sid000114', 'sid000120', 'sid000134', 'sid000142',
+            'sid000278', 'sid000416', 'sid000499', 'sid000522', 'sid000535',
+            'sid000560']
+
+
+class MonkeyKingdom(Dataset):
+    def __init__(self, space=['onavg-ico32', 'mni-4mm'],
+            resample=['1step_pial_overlap', '1step_linear_overlap'],
+            prep='default', fp_version='20.2.7',
+            name='monkey-kingdom', root_dir=None,
+            dl_source=None):
+        super().__init__(
+            name, dl_source=dl_source, root_dir=root_dir, space=space,
+            resample=resample, prep=prep, fp_version=fp_version)
+        self.tasks = ['monkey', 'rest', 'localizer', 'language']
+        self.subjects = [
+            'sid001123', 'sid001293', 'sid001294', 'sid001678', 'sid001784',
+            'sid001830', 'sid001835', 'sid001986', 'sid002015', 'sid002161',
+            'sid002180', 'sid002317', 'sid002325', 'sid002406', 'sid002414',
+            'sid002435', 'sid002446', 'sid002449', 'sid002454', 'sid002471',
+            'sid002499', 'sid002509', 'sid002519', 'sid002570']
