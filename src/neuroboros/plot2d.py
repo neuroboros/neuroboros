@@ -40,6 +40,9 @@ GUESS_SEPARATE = {
     (603, 607): ('onavg-ico8', True),
     (2417, 2414): ('onavg-ico16', True),
 
+    # masked, legacy
+    (9372, 9370): ('fsavg-ico32', True, 'fsaverage'),
+
     # non-masked
     (10242, 10242): ('onavg-ico32', False),
     (40962, 40962): ('onavg-ico64', False),
@@ -67,6 +70,9 @@ GUESS_COMBINED = {
     1210: ('onavg-ico8', True, [603]),
     4831: ('onavg-ico16', True, [2417]),
 
+    # masked, legacy
+    18742: ('fsavg-ico32', True, [9372], 'fsaverage'),
+
     # non-masked
     20484: ('onavg-ico32', False, [10242]),
     81924: ('onavg-ico64', False, [40962]),
@@ -84,9 +90,21 @@ PLOT_MAPPING = {}
 def unmask_and_upsample(values, space, mask, nn=True):
     if space is None and mask is None:
         if isinstance(values, np.ndarray):
-            space, mask, boundary = GUESS_COMBINED[values.shape[0]]
+            ret = GUESS_COMBINED[values.shape[0]]
+            if len(ret) == 4:
+                space, mask, boundary, flavor = ret
+                mask_kwargs = {'flavor': flavor, 'legacy': True}
+            else:
+                space, mask, boundary = ret
+                mask_kwargs = {}
         elif isinstance(values, (tuple, list)):
-            space, mask = GUESS_SEPARATE[tuple([_.shape[0] for _ in values])]
+            ret = GUESS_SEPARATE[tuple([_.shape[0] for _ in values])]
+            if len(ret) == 3:
+                space, mask, flavor = ret
+                mask_kwargs = {'flavor': flavor, 'legacy': True}
+            else:
+                space, mask = ret
+                mask_kwargs = {}
         else:
             raise TypeError(f"`values` has type `{type(values)}, "
                             "which is not supported.")
@@ -102,7 +120,7 @@ def unmask_and_upsample(values, space, mask, nn=True):
                 all([isinstance(_, np.ndarray) for _ in mask]):
             masks = mask
         else:
-            masks = [get_mask(lr, space) for lr in 'lr']
+            masks = [get_mask(lr, space, **mask_kwargs) for lr in 'lr']
     else:
         use_mask = False
 
