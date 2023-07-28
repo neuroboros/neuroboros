@@ -17,7 +17,7 @@ from .subdivision import surface_subdivision
 from .union import compute_union_sphere
 
 
-class Surface(object):
+class Surface:
     def __init__(self, coords, faces):
         self.coords = coords.astype('float')
         self.faces = faces
@@ -80,7 +80,7 @@ class Surface(object):
     @classmethod
     def from_gifti(cls, fn):
         gii = nib.load(fn)
-        coords, faces = [_.data for _ in gii.darrays]
+        coords, faces = (_.data for _ in gii.darrays)
         instance = cls(coords, faces)
         return instance
 
@@ -98,7 +98,7 @@ class Sphere(Surface):
     @classmethod
     def from_gifti(cls, fn):
         gii = nib.load(fn)
-        coords, faces = [_.data for _ in gii.darrays]
+        coords, faces = (_.data for _ in gii.darrays)
         instance = cls(coords, faces)
         return instance
 

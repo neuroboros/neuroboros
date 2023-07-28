@@ -528,7 +528,7 @@ class CamCAN(Dataset):
         self.subject_sets = {}
         mod_dir = os.path.dirname(os.path.realpath(__file__))
         for task in ['bang', 'rest', 'smt']:
-            with open(os.path.join(mod_dir, f'camcan_{task}.txt'), 'r') as f:
+            with open(os.path.join(mod_dir, f'camcan_{task}.txt')) as f:
                 self.subject_sets[task] = f.read().splitlines()
 
 
@@ -555,7 +555,7 @@ class ID1000(Dataset):
         self.tasks = ['moviewatching']
 
         mod_dir = os.path.dirname(os.path.realpath(__file__))
-        with open(os.path.join(mod_dir, f'id1000.txt'), 'r') as f:
+        with open(os.path.join(mod_dir, f'id1000.txt')) as f:
             self.subjects = f.read().splitlines()
 
 

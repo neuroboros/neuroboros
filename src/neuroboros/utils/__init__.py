@@ -194,7 +194,7 @@ def parse_record(record_fn, assert_node=None):
         A numpy array with 2 elements, where the 1st is the CPU time, and the
         2nd is the wall time. Both are in nanoseconds.
     """
-    with open(record_fn, 'r') as f:
+    with open(record_fn) as f:
         lines = f.read().splitlines()
     cpu_time = int(lines[2]) - int(lines[1])
     wall_time = int(lines[4]) - int(lines[3])
@@ -333,7 +333,7 @@ def save_results(
 
             if os.path.exists(running_fn):
                 while True:
-                    with open(running_fn, 'r') as f:
+                    with open(running_fn) as f:
                         diff = datetime.now() - datetime.strptime(f.read(), fmt)
                     if diff < timedelta(hours=rerun_hours):
                         if not return_results:
@@ -405,7 +405,7 @@ def assert_sufficient_time(minimum='1:00:00'):
         return
 
     cmd = ['squeue', '-h', '-j', os.environ['SLURM_JOBID'], '-o', '"%L"']
-    sp = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    sp = subprocess.run(cmd, capture_output=True)
     remaining = sp.stdout.decode('ascii').split('"')[1]
 
     def parse_time(s):
