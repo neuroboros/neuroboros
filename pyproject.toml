@@ -40,6 +40,9 @@ dependencies = [
 full = [
     "datalad",
 ]
+test = [
+     "pytest",
+]
 
 [project.urls]
 "Homepage" = "https://neuroboros.github.io/"
