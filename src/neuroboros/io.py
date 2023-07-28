@@ -29,9 +29,17 @@ class AlternativeDataset:
             )
 
     def get(self, fn, load_func=None, on_missing='warn'):
-        local_fn = os.path.join(self.root, fn)
+        if isinstance(fn, (tuple, list)):
+            local_fn = os.path.join(self.root, *fn)
+        else:
+            local_fn = os.path.join(self.root, fn)
+
         if not os.path.exists(local_fn):
-            url = self.url_base + fn
+            if isinstance(fn, (tuple, list)):
+                url = self.url_base + '/'.join(fn)
+            else:
+                url = self.url_base + fn.replace('\\', '/')
+
             try:
                 r = requests.get(url)
             except requests.exceptions.RequestException as e:
@@ -81,7 +89,11 @@ class DataLadDataset:
         self.source = source
 
     def get(self, fn, load_func=None, on_missing='warn'):
-        local_fn = os.path.join(self.root, fn)
+        if isinstance(fn, (tuple, list)):
+            local_fn = os.path.join(self.root, *fn)
+        else:
+            local_fn = os.path.join(self.root, fn)
+
         if not os.path.lexists(local_fn):
             if on_missing == 'raise':
                 raise RuntimeError(f"File {local_fn} not found in DataLad repo.")
@@ -114,7 +126,11 @@ class LocalDataset:
         assert os.path.exists(self.root)
 
     def get(self, fn, load_func=None, on_missing='warn'):
-        local_fn = os.path.join(self.root, fn)
+        if isinstance(fn, (tuple, list)):
+            local_fn = os.path.join(self.root, *fn)
+        else:
+            local_fn = os.path.join(self.root, fn)
+
         if not os.path.exists(local_fn):
             if on_missing == 'raise':
                 raise RuntimeError(f"File {local_fn} not found.")

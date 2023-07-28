@@ -172,24 +172,24 @@ class Dataset:
             lr = f'{lr}-cerebrum'
 
         if self.renaming is None:
-            fn = os.path.join(
+            fn = [
                 fp_version,
                 'resampled',
                 space,
                 lr,
                 resample,
                 f'sub-{sid}_task-{task}_run-{run:02d}.npy',
-            )
+            ]
         else:
-            fn = os.path.join(
+            fn = [
                 fp_version,
                 'renamed',
                 space,
                 lr,
                 resample,
                 f'sub-{sid}_task-{task}_run-{run:02d}.npy',
-            )
-            fn = self.renaming[fn]
+            ]
+            fn = self.renaming['/'.join(fn)].split('/')
 
         dm = self.dl_dset.get(fn, on_missing='raise').astype(np.float64)
 
@@ -206,16 +206,18 @@ class Dataset:
         output = []
         for suffix in suffix_li:
             if self.renaming is None:
-                fn = os.path.join(
-                    fp_version, 'confounds', f'sub-{sid}_task-{task}_run-{run}_{suffix}'
-                )
+                fn = [
+                    fp_version,
+                    'confounds',
+                    f'sub-{sid}_task-{task}_run-{run}_{suffix}',
+                ]
             else:
-                fn = os.path.join(
+                fn = [
                     fp_version,
                     'renamed_confounds',
                     f'sub-{sid}_task-{task}_run-{run:02d}_{suffix}',
-                )
-                fn = self.renaming[fn]
+                ]
+                fn = self.renaming['/'.join(fn)].split('/')
             o = self.dl_dset.get(fn, on_missing='raise')
             output.append(o)
         return output
