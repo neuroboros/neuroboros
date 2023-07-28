@@ -22,7 +22,7 @@ def safe_svd(X, remove_mean=True):
     Singular value decomposition without occasional LinAlgError crashes.
 
     The default ``lapack_driver`` of ``scipy.linalg.svd`` is ``'gesdd'``,
-    which occassionaly crashes even if the input matrix is not singular.
+    which occasionally crashes even if the input matrix is not singular.
     This function automatically handles the ``LinAlgError`` when it's
     raised and switches to the ``'gesvd'`` driver in this case.
 
@@ -64,7 +64,7 @@ def safe_polar(a, side='left'):
     Polar decomposition without occasional LinAlgError crashes.
 
     The default ``lapack_driver`` of ``scipy.linalg.polar`` is ``'gesdd'``,
-    which occassionaly crashes even if the input matrix is not singular.
+    which occasionally crashes even if the input matrix is not singular.
     This function automatically handles the ``LinAlgError`` when it's
     raised and switches to the ``'gesvd'`` driver in this case.
 
