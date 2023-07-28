@@ -50,3 +50,8 @@ where = ["src"]
 
 [tool.setuptools_scm]
 write_to = "src/neuroboros/_version.py"
+
+[tool.codespell]
+skip = '.git,*.pdf,*.svg'
+#
+# ignore-words-list = ''
