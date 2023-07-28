@@ -75,7 +75,7 @@ def compute_vertex_areas(coords, faces, face_areas=None):
         face_areas_per_vertex = compute_face_areas(coords, faces) / 3
     else:
         face_areas_per_vertex = face_areas / 3
-    vertex_areas = np.zeros((coords.shape[0], ))
+    vertex_areas = np.zeros((coords.shape[0],))
     for f, a in zip(faces, face_areas_per_vertex):
         vertex_areas[f] += a
     return vertex_areas

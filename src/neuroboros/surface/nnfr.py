@@ -12,7 +12,7 @@ def nnfr(source_coords, target_coords, reverse=True):
     forward_indices = source_tree.query(target_coords)[1]
     if reverse:
         u, c = np.unique(forward_indices, return_counts=True)
-        counts = np.zeros((ns, ), dtype=int)
+        counts = np.zeros((ns,), dtype=int)
         counts[u] += c
         remaining = np.setdiff1d(np.arange(ns), u)
         reverse_indices = target_tree.query(source_coords[remaining])[1]

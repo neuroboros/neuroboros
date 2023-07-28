@@ -1,4 +1,5 @@
 import heapq
+
 import numpy as np
 
 
@@ -30,8 +31,8 @@ def dijkstra_distances(src, nv, neighbors, neighbor_distances, max_dist=None):
     dists : ndarray of shape (nv, )
         The Dijkstra distances between the source vertex and all vertices.
     """
-    dists = np.full((nv, ), np.inf)
-    finished = np.zeros((nv, ), dtype=bool)
+    dists = np.full((nv,), np.inf)
+    finished = np.zeros((nv,), dtype=bool)
     candidates = [(0.0, src)]
     dists[src] = 0.0
 
@@ -85,7 +86,8 @@ def dijkstra(src, nv, neighbors, neighbor_distances, max_dist, sort=True):
         The Dijkstra distances.
     """
     dijkstra_dists = dijkstra_distances(
-        src, nv, neighbors, neighbor_distances, max_dist)
+        src, nv, neighbors, neighbor_distances, max_dist
+    )
     mask = dijkstra_dists < max_dist
     dijkstra_nbrs = np.where(mask)[0]
     dijkstra_dists = dijkstra_dists[mask]

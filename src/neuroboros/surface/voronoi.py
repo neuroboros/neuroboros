@@ -1,5 +1,6 @@
 import heapq
 from datetime import datetime
+
 import numpy as np
 import scipy.sparse as sparse
 from scipy.spatial.distance import cdist
@@ -26,8 +27,11 @@ def subdivide_edges(coords, faces, n_div):
             a, b, c = f[[i, j, k]]
             e = (a, b) if a < b else (b, a)
             if e not in e_mapping:
-                cc = (coords[[e[1]]] * arng[:, np.newaxis] + coords[e[0]] * (n_div - arng[:, np.newaxis])) / n_div
-                new_coords[count:count+n_div-1] = cc
+                cc = (
+                    coords[[e[1]]] * arng[:, np.newaxis]
+                    + coords[e[0]] * (n_div - arng[:, np.newaxis])
+                ) / n_div
+                new_coords[count : count + n_div - 1] = cc
                 indices = (count + nv - 1) + arng
                 e_mapping[e] = indices
                 count += n_div - 1
@@ -69,8 +73,8 @@ def subdivide_edges(coords, faces, n_div):
 
 
 def dijkstra_distances(nv, candidates, neighbors, max_dist=None):
-    dists = np.full((nv, ), np.inf)
-    finished = np.zeros((nv, ), dtype=bool)
+    dists = np.full((nv,), np.inf)
+    finished = np.zeros((nv,), dtype=bool)
     for d, idx in candidates:
         dists[idx] = d
 
@@ -91,19 +95,23 @@ def dijkstra_distances(nv, candidates, neighbors, max_dist=None):
     return dists
 
 
-def subdivision_voronoi(coords, faces, e_mapping, neighbors, f_indices, weights, max_dist=None):
+def subdivision_voronoi(
+    coords, faces, e_mapping, neighbors, f_indices, weights, max_dist=None
+):
     nv = coords.shape[0]
     assert len(np.unique(f_indices)) == len(f_indices)
     if max_dist is None:
         max_dist = 4.0 * np.sqrt(10242 / f_indices.shape[0]) + 2.0
-    log_step = (f_indices.shape[0] // 100 + 1)
-    nn = np.full((nv, ), -1, dtype=int)
-    nnd = np.full((nv, ), np.inf)
+    log_step = f_indices.shape[0] // 100 + 1
+    nn = np.full((nv,), -1, dtype=int)
+    nnd = np.full((nv,), np.inf)
     while np.any(np.isinf(nnd)):
         for i, (f_idx, w) in enumerate(zip(f_indices, weights)):
             cc = w @ coords[faces[f_idx]]
             a, b, c = sorted(faces[f_idx])
-            indices = np.concatenate([e_mapping[(a, b)], e_mapping[(a, c)], e_mapping[(b, c)], [a, b, c]])
+            indices = np.concatenate(
+                [e_mapping[(a, b)], e_mapping[(a, c)], e_mapping[(b, c)], [a, b, c]]
+            )
             dd = cdist(cc[np.newaxis], coords[indices], 'euclidean').ravel()
             candidates = []
             for d, idx in zip(dd, indices):
@@ -113,7 +121,17 @@ def subdivision_voronoi(coords, faces, e_mapping, neighbors, f_indices, weights,
             nn[mask] = i
             nnd[mask] = d[mask]
             if i % log_step == 0:
-                print(datetime.now(), i, mask.sum(), np.isfinite(d).sum(), d.shape, d.max(), d.min(), len(candidates), np.isinf(nnd).sum())
+                print(
+                    datetime.now(),
+                    i,
+                    mask.sum(),
+                    np.isfinite(d).sum(),
+                    d.shape,
+                    d.max(),
+                    d.min(),
+                    len(candidates),
+                    np.isinf(nnd).sum(),
+                )
         max_dist *= 1.5
     print(nnd.max())
     return nn, nnd
@@ -121,12 +139,15 @@ def subdivision_voronoi(coords, faces, e_mapping, neighbors, f_indices, weights,
 
 def native_voronoi(coords, faces, e_mapping, neighbors):
     nv = coords.shape[0]
-    nn = np.full((nv, ), -1, dtype=int)
-    nnd = np.full((nv, ), np.inf)
-    max_dist = np.max([
-        np.linalg.norm(coords[faces[:, 0]] - coords[faces[:, 1]], axis=1).max(),
-        np.linalg.norm(coords[faces[:, 1]] - coords[faces[:, 2]], axis=1).max(),
-        np.linalg.norm(coords[faces[:, 2]] - coords[faces[:, 0]], axis=1).max(),])
+    nn = np.full((nv,), -1, dtype=int)
+    nnd = np.full((nv,), np.inf)
+    max_dist = np.max(
+        [
+            np.linalg.norm(coords[faces[:, 0]] - coords[faces[:, 1]], axis=1).max(),
+            np.linalg.norm(coords[faces[:, 1]] - coords[faces[:, 2]], axis=1).max(),
+            np.linalg.norm(coords[faces[:, 2]] - coords[faces[:, 0]], axis=1).max(),
+        ]
+    )
     max_dist = max_dist * 0.5 + 1e-3
     print(max_dist)
 
@@ -146,12 +167,12 @@ def native_voronoi(coords, faces, e_mapping, neighbors):
             if np.any(min_idx == i):
                 seeds.append(f[i])
             d = d.min(axis=0)
-            mask = (d < nnd[indices])
+            mask = d < nnd[indices]
 
             nnd[indices[mask]] = d[mask]
             nn[indices[mask]] = f[min_idx[mask]]
         nn[f] = f
-        nnd[f] = 0.
+        nnd[f] = 0.0
     print(np.isfinite(nnd).mean(), nnd.max())
 
     seeds = np.unique(seeds)
@@ -163,7 +184,18 @@ def native_voronoi(coords, faces, e_mapping, neighbors):
         nn[mask] = seed
         nnd[mask] = d[mask]
         if i % 10000 == 0:
-            print(datetime.now(), i, seed, mask.sum(), nnd.max(), np.isfinite(d).sum(), d.shape, d.max(), d.min(), np.isinf(nnd).sum())
+            print(
+                datetime.now(),
+                i,
+                seed,
+                mask.sum(),
+                nnd.max(),
+                np.isfinite(d).sum(),
+                d.shape,
+                d.max(),
+                d.min(),
+                np.isinf(nnd).sum(),
+            )
 
     return nn, nnd
 
@@ -183,13 +215,13 @@ def split_triangle(t_div):
         for j in range(t_div - i):
             k = t_div - i - j - 1
             ww1.append([i, j, k])
-    ww1 = (np.array(ww1) + 1./3) / t_div
+    ww1 = (np.array(ww1) + 1.0 / 3) / t_div
     ww2 = []
     for i in range(t_div - 1):
         for j in range(t_div - i - 1):
             k = t_div - i - j - 1
             ww2.append([i, j, k])
-    ww2 = (np.array(ww2) + np.array([[2/3, 2/3, -1/3]])) / t_div
+    ww2 = (np.array(ww2) + np.array([[2 / 3, 2 / 3, -1 / 3]])) / t_div
     ww = np.concatenate([ww1, ww2])
     return ww
 
@@ -198,13 +230,13 @@ def compute_occupation(f_idx, f, coords, indices, nn, nnd, f_inv, ww):
     nn1 = [nn[indices]]
     u = np.unique(nn1)
     if len(u) == 1 and len(f_inv) == 0:
-        return {u[0]: np.ones((ww.shape[0], ), dtype=bool)}
+        return {u[0]: np.ones((ww.shape[0],), dtype=bool)}
     cc1 = [coords[indices]]
     dd1 = [nnd[indices]]
     if f_idx in f_inv:
         for i, c in f_inv[f_idx]:
             cc1.append([c])
-            dd1.append([0.])
+            dd1.append([0.0])
             nn1.append([i])
     cc1 = np.concatenate(cc1)
     dd1 = np.concatenate(dd1)
@@ -216,12 +248,28 @@ def compute_occupation(f_idx, f, coords, indices, nn, nnd, f_inv, ww):
     return {u: occupation == u for u in np.unique(occupation)}
 
 
-def compute_overlap(faces, face_areas, e_mapping, coords, nn, nnd, f_inv, nn2, nnd2, f_inv2, nv1, nv2, t_div=32):
+def compute_overlap(
+    faces,
+    face_areas,
+    e_mapping,
+    coords,
+    nn,
+    nnd,
+    f_inv,
+    nn2,
+    nnd2,
+    f_inv2,
+    nv1,
+    nv2,
+    t_div=32,
+):
     mat = sparse.lil_matrix((nv1, nv2))
     ww = split_triangle(t_div)
     for f_idx, f in enumerate(faces):
         a, b, c = sorted(faces[f_idx])
-        indices = np.concatenate([e_mapping[(a, b)], e_mapping[(a, c)], e_mapping[(b, c)], [a, b, c]])
+        indices = np.concatenate(
+            [e_mapping[(a, b)], e_mapping[(a, c)], e_mapping[(b, c)], [a, b, c]]
+        )
         uu1 = compute_occupation(f_idx, f, coords, indices, nn, nnd, f_inv, ww)
         uu2 = compute_occupation(f_idx, f, coords, indices, nn2, nnd2, f_inv2, ww)
         for u1, m1 in uu1.items():

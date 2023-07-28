@@ -1,7 +1,10 @@
 import numpy as np
 import scipy.sparse as sparse
 
-from ._barycentric import barycentric_weights, barycentric_weights_multi_faces_multi_points
+from ._barycentric import (
+    barycentric_weights,
+    barycentric_weights_multi_faces_multi_points,
+)
 
 
 def barycentric_vectors(f_coords):
@@ -19,17 +22,18 @@ def barycentric_vectors(f_coords):
     a = f_coords[..., 0, :]
     e1 = f_coords[..., 1, :] - f_coords[..., 0, :]
     e2 = f_coords[..., 2, :] - f_coords[..., 0, :]
-    vecs = np.stack([
-        a, e1, e2,
-        np.cross(e1, e2),
-        np.cross(e2, a),
-        np.cross(a, e1)],
-        axis=-2)
+    vecs = np.stack(
+        [a, e1, e2, np.cross(e1, e2), np.cross(e2, a), np.cross(a, e1)], axis=-2
+    )
     return vecs
 
 
-def barycentric(vecs, coords, v2f, tree, faces=None, nv=None, eps=5e-9, return_sparse=True):
-    f_indices, weights = barycentric_weights_multi_faces_multi_points(vecs, coords, v2f, tree, eps)
+def barycentric(
+    vecs, coords, v2f, tree, faces=None, nv=None, eps=5e-9, return_sparse=True
+):
+    f_indices, weights = barycentric_weights_multi_faces_multi_points(
+        vecs, coords, v2f, tree, eps
+    )
     if not return_sparse:
         return f_indices, weights
 

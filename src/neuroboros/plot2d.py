@@ -1,18 +1,24 @@
-import os
 import io
-import numpy as np
-from matplotlib import cm, colors, pyplot as plt, font_manager
+import os
 from warnings import warn
 
+import numpy as np
+from matplotlib import cm, colors, font_manager
+from matplotlib import pyplot as plt
+
 try:
-    from PIL import Image as PIL_Image, ImageDraw, ImageFont
+    from PIL import Image as PIL_Image
+    from PIL import ImageDraw, ImageFont
+
     PIL_ok = True
 except ImportError as e:
     PIL_ok = False
 
 try:
     import IPython
-    from IPython.display import Image as IPythonImage, display
+    from IPython.display import Image as IPythonImage
+    from IPython.display import display
+
     ipython_ok = True
     # ipython_ok = (IPython.get_ipython().__class__.__name__
     #               == 'ZMQInteractiveShell')
@@ -23,7 +29,6 @@ from .io import core_dataset
 from .spaces import get_mapping, get_mask
 from .utils import save
 
-
 GUESS_SEPARATE = {
     # masked
     (9675, 9666): ('onavg-ico32', True),
@@ -32,23 +37,18 @@ GUESS_SEPARATE = {
     (38698, 38628): ('onavg-ico64', True),
     (38073, 38040): ('fsavg-ico64', True),
     (38018, 37943): ('fslr-ico64', True),
-
     (21779, 21731): ('onavg-ico48', True),
     (30153, 30079): ('fslr-ico57', True),
-
     (152, 151): ('onavg-ico4', True),
     (603, 607): ('onavg-ico8', True),
     (2417, 2414): ('onavg-ico16', True),
-
     # masked, legacy
     (9372, 9370): ('fsavg-ico32', True, 'fsaverage'),
-
     # non-masked
     (10242, 10242): ('onavg-ico32', False),
     (40962, 40962): ('onavg-ico64', False),
     (23042, 23042): ('onavg-ico48', False),
     (32492, 32492): ('fslr-ico57', False),
-
     (162, 162): ('onavg-ico4', False),
     (642, 642): ('onavg-ico8', False),
     (2562, 2562): ('onavg-ico16', False),
@@ -62,23 +62,18 @@ GUESS_COMBINED = {
     77326: ('onavg-ico64', True, [38698]),
     76113: ('fsavg-ico64', True, [38073]),
     75961: ('fslr-ico64', True, [38018]),
-
     43510: ('onavg-ico48', True, [21779]),
     60232: ('fslr-ico57', True, [30153]),
-
     303: ('onavg-ico4', True, [152]),
     1210: ('onavg-ico8', True, [603]),
     4831: ('onavg-ico16', True, [2417]),
-
     # masked, legacy
     18742: ('fsavg-ico32', True, [9372], 'fsaverage'),
-
     # non-masked
     20484: ('onavg-ico32', False, [10242]),
     81924: ('onavg-ico64', False, [40962]),
     46084: ('onavg-ico48', False, [23042]),
     64984: ('fslr-ico57', False, [32492]),
-
     324: ('onavg-ico4', False, [162]),
     1284: ('onavg-ico8', False, [642]),
     5124: ('onavg-ico16', False, [2562]),
@@ -106,8 +101,9 @@ def unmask_and_upsample(values, space, mask, nn=True):
                 space, mask = ret
                 mask_kwargs = {}
         else:
-            raise TypeError(f"`values` has type `{type(values)}, "
-                            "which is not supported.")
+            raise TypeError(
+                f"`values` has type `{type(values)}, " "which is not supported."
+            )
     else:
         boundary = None
 
@@ -116,8 +112,9 @@ def unmask_and_upsample(values, space, mask, nn=True):
 
     if mask is not None and mask is not False:
         use_mask = True
-        if isinstance(mask, (tuple, list)) and \
-                all([isinstance(_, np.ndarray) for _ in mask]):
+        if isinstance(mask, (tuple, list)) and all(
+            [isinstance(_, np.ndarray) for _ in mask]
+        ):
             masks = mask
         else:
             masks = [get_mask(lr, space, **mask_kwargs) for lr in 'lr']
@@ -136,7 +133,7 @@ def unmask_and_upsample(values, space, mask, nn=True):
     for v, lr in zip(values, 'lr'):
         if use_mask:
             m = masks['lr'.index(lr)]
-            vv = np.full((nv, ) + v.shape[1:], np.nan)
+            vv = np.full((nv,) + v.shape[1:], np.nan)
             vv[m] = v
         else:
             vv = v
@@ -161,18 +158,27 @@ def to_color(values, cmap, vmax=None, vmin=None):
 
 
 def prepare_data(
-        values, space, mask, nn=True, cmap=None, vmax=None, vmin=None, return_scale=False,
-        medial_wall_color=[0.8, 0.8, 0.8, 1.0], background_color=[1.0, 1.0, 1.0, 0.0]):
-
+    values,
+    space,
+    mask,
+    nn=True,
+    cmap=None,
+    vmax=None,
+    vmin=None,
+    return_scale=False,
+    medial_wall_color=[0.8, 0.8, 0.8, 1.0],
+    background_color=[1.0, 1.0, 1.0, 0.0],
+):
     values = unmask_and_upsample(values, space, mask, nn=nn)
 
     if cmap is not None:
         nan_mask = np.isnan(values)
         values = to_color(values, cmap, vmax, vmin)
         values[nan_mask] = medial_wall_color
-        values = [values,
-                  [_[:values.shape[1]]
-                   for _ in [medial_wall_color, background_color]]]
+        values = [
+            values,
+            [_[: values.shape[1]] for _ in [medial_wall_color, background_color]],
+        ]
         values = np.concatenate(values, axis=0)
 
         if return_scale:
@@ -183,21 +189,42 @@ def prepare_data(
     return values
 
 
-def brain_plot(values, cmap=None, vmax=None, vmin=None, space=None, mask=None,
-               surf_type='inflated', nn=True, return_scale=False,
-               medial_wall_color=[0.8, 0.8, 0.8, 1.0], background_color=[1.0, 1.0, 1.0, 0.0],
-               colorbar=True, output='ipython', width=None, title=None, title_size=70,
-               fn=None, **kwargs):
-    assert surf_type in ['inflated', 'pial', 'midthickness', 'white'],\
-        f"Surface type '{surf_type}' is not recognized."
+def brain_plot(
+    values,
+    cmap=None,
+    vmax=None,
+    vmin=None,
+    space=None,
+    mask=None,
+    surf_type='inflated',
+    nn=True,
+    return_scale=False,
+    medial_wall_color=[0.8, 0.8, 0.8, 1.0],
+    background_color=[1.0, 1.0, 1.0, 0.0],
+    colorbar=True,
+    output='ipython',
+    width=None,
+    title=None,
+    title_size=70,
+    fn=None,
+    **kwargs,
+):
+    assert surf_type in [
+        'inflated',
+        'pial',
+        'midthickness',
+        'white',
+    ], f"Surface type '{surf_type}' is not recognized."
 
     if isinstance(values, np.ndarray):
         cat = values
     elif isinstance(values, (tuple, list)):
         cat = np.concatenate(values, axis=0)
     else:
-        raise TypeError("Expected `values` to be a numpy array or a list/"
-                         f"tuple of numpy arrays. Got {type(values)}.")
+        raise TypeError(
+            "Expected `values` to be a numpy array or a list/"
+            f"tuple of numpy arrays. Got {type(values)}."
+        )
     ndim = cat.ndim
     percentiles = np.nanpercentile(cat, [5, 95])
     max_, min_ = np.nanmax(cat), np.nanmin(cat)
@@ -215,24 +242,35 @@ def brain_plot(values, cmap=None, vmax=None, vmin=None, space=None, mask=None,
         if max_ > 1 or min_ < 0:
             raise ValueError("Expected `values` to be in [0, 1] when it's 2D.")
         if cat.shape[1] not in [3, 4]:
-            raise ValueError("Expected `values` to have 3 or 4 columns (RGB "
-                             f"or RGBA). Got {cat.shape[1]} columns.")
+            raise ValueError(
+                "Expected `values` to have 3 or 4 columns (RGB "
+                f"or RGBA). Got {cat.shape[1]} columns."
+            )
 
     need_scale = return_scale or colorbar
 
     ret = prepare_data(
-        values, space, mask, nn=nn, cmap=cmap, vmax=vmax, vmin=vmin,
-        return_scale=need_scale, medial_wall_color=medial_wall_color,
-        background_color=background_color)
+        values,
+        space,
+        mask,
+        nn=nn,
+        cmap=cmap,
+        vmax=vmax,
+        vmin=vmin,
+        return_scale=need_scale,
+        medial_wall_color=medial_wall_color,
+        background_color=background_color,
+    )
     if need_scale:
         prepared_values, scale = ret
     else:
         prepared_values = ret
 
     if surf_type not in PLOT_MAPPING:
-        mapping = core_dataset.get(os.path.join(
-        '2d_plotting_data', f'onavg-ico128_to_{surf_type}_image.npy'),
-        on_missing='raise')
+        mapping = core_dataset.get(
+            os.path.join('2d_plotting_data', f'onavg-ico128_to_{surf_type}_image.npy'),
+            on_missing='raise',
+        )
         PLOT_MAPPING[surf_type] = mapping
 
     img = prepared_values[PLOT_MAPPING[surf_type]]
@@ -243,13 +281,19 @@ def brain_plot(values, cmap=None, vmax=None, vmin=None, space=None, mask=None,
             if 'bar_title' in kwargs:
                 pix_size = (1728, 250)
                 top, bottom = 0.75, 0.55
-                fig, ax = plt.subplots(1, 1, figsize=[_/dpi for _ in pix_size], dpi=dpi)
+                fig, ax = plt.subplots(
+                    1, 1, figsize=[_ / dpi for _ in pix_size], dpi=dpi
+                )
                 ax.set_title(kwargs.pop('bar_title'))
             else:
                 pix_size = (1728, 190)
-                fig, ax = plt.subplots(1, 1, figsize=[_/dpi for _ in pix_size], dpi=dpi)
+                fig, ax = plt.subplots(
+                    1, 1, figsize=[_ / dpi for _ in pix_size], dpi=dpi
+                )
                 top, bottom = 0.99, 0.7
-            plt.colorbar(scale, shrink=1, aspect=1, cax=ax, orientation='horizontal', **kwargs)
+            plt.colorbar(
+                scale, shrink=1, aspect=1, cax=ax, orientation='horizontal', **kwargs
+            )
             fig.subplots_adjust(left=0.03, right=0.97, top=top, bottom=bottom)
             buffer = io.BytesIO()
             fig.savefig(buffer, format='png', dpi=dpi, transparent=True)
@@ -257,11 +301,13 @@ def brain_plot(values, cmap=None, vmax=None, vmin=None, space=None, mask=None,
             cbar = PIL_Image.open(buffer)
             plt.close(fig=fig)
         else:
-            warn("Cannot convert to Image because Pillow is not installed. "
-                 "You can install it with `pip install Pillow`.")
+            warn(
+                "Cannot convert to Image because Pillow is not installed. "
+                "You can install it with `pip install Pillow`."
+            )
 
     if output != 'raw':
-        img = np.round(img * 255.).astype(np.uint8)
+        img = np.round(img * 255.0).astype(np.uint8)
     if output in ['ipython', 'pillow'] or fn is not None:
         if PIL_ok:
             img = PIL_Image.fromarray(img)
@@ -276,10 +322,10 @@ def brain_plot(values, cmap=None, vmax=None, vmin=None, space=None, mask=None,
                 new_img = PIL_Image.new('RGBA', (max(w1, w2), h1 + h2))
                 # print(img.size, new_img.size, cbar.size)
                 new_img.paste(img, (0, offset))
-                new_img.paste(cbar, (0, offset+h1))
+                new_img.paste(cbar, (0, offset + h1))
                 img = new_img
             elif title is not None and offset:
-                new_img = PIL_Image.new('RGBA', (w1, 50+h1))
+                new_img = PIL_Image.new('RGBA', (w1, 50 + h1))
                 new_img.paste(img, (0, 50))
                 img = new_img
 
@@ -290,10 +336,22 @@ def brain_plot(values, cmap=None, vmax=None, vmin=None, space=None, mask=None,
                 w, h = draw.textsize(title, font=font)
                 x = (img.size[0] - w) / 2
                 y = 0
-                draw.text((x, y), title, font=font, align='center',
-                          fill=(255, 255, 255, 127), stroke_width=3)
-                draw.text((x, y), title, font=font, align='center',
-                          fill=(0, 0, 0, 255), stroke_width=0)
+                draw.text(
+                    (x, y),
+                    title,
+                    font=font,
+                    align='center',
+                    fill=(255, 255, 255, 127),
+                    stroke_width=3,
+                )
+                draw.text(
+                    (x, y),
+                    title,
+                    font=font,
+                    align='center',
+                    fill=(0, 0, 0, 255),
+                    stroke_width=0,
+                )
 
             if fn is not None:
                 save(fn, img)
@@ -307,11 +365,15 @@ def brain_plot(values, cmap=None, vmax=None, vmin=None, space=None, mask=None,
                     display(img)
                     return
                 else:
-                    warn("Cannot import `IPython`, skipping conversion to "
-                         "`IPython.display.Image`.")
+                    warn(
+                        "Cannot import `IPython`, skipping conversion to "
+                        "`IPython.display.Image`."
+                    )
         else:
-            warn("Skipping conversion to `PIL.Image` because `Pillow` is not "
-                "installed. You can install it with `pip install Pillow`.")
+            warn(
+                "Skipping conversion to `PIL.Image` because `Pillow` is not "
+                "installed. You can install it with `pip install Pillow`."
+            )
 
     if return_scale:
         return img, scale

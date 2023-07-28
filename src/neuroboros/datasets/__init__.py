@@ -15,15 +15,20 @@ Neuroboros datasets (:mod:`neuroboros.datasets`)
 
 import os
 from functools import partial
+
 import numpy as np
 from scipy.stats import zscore
 
 from ..io import DefaultDataset, LocalDataset
 from ..spaces import get_mask
 
-
 SURFACE_SPACES = ['fsavg-ico32', 'onavg-ico32', 'onavg-ico48', 'onavg-ico64']
-SURFACE_RESAMPLES = ['1step_pial_overlap', '1step_pial_area', '2step_normals-equal_nnfr', '2step_normals-sine_nnfr']
+SURFACE_RESAMPLES = [
+    '1step_pial_overlap',
+    '1step_pial_area',
+    '2step_normals-equal_nnfr',
+    '2step_normals-sine_nnfr',
+]
 VOLUME_SPACES = ['mni-2mm', 'mni-3mm', 'mni-4mm']
 VOLUME_RESAMPLES = ['1step_linear_overlap', '1step_fmriprep_overlap']
 
@@ -84,12 +89,21 @@ def get_prep(name, **kwargs):
     return prep
 
 
-
 class Dataset:
     def __init__(
-            self, name, dl_source, root_dir, space, resample,
-            surface_space=None, surface_resample=None, volume_space=None,
-            volume_resample=None, prep='default', fp_version='20.2.7'):
+        self,
+        name,
+        dl_source,
+        root_dir,
+        space,
+        resample,
+        surface_space=None,
+        surface_resample=None,
+        volume_space=None,
+        volume_resample=None,
+        prep='default',
+        fp_version='20.2.7',
+    ):
         self.name = name
 
         self.dl_source = dl_source
@@ -103,11 +117,10 @@ class Dataset:
                     self.dl_dset = LocalDataset(self.name, self.root_dir)
                 except AssertionError as e:
                     raise RuntimeError(
-                        "Dataset not found locally and `dl_source` not "
-                        "specified.") from e
+                        "Dataset not found locally and `dl_source` not " "specified."
+                    ) from e
         else:
-            self.dl_dset = DefaultDataset(
-                self.name, self.dl_source, self.root_dir)
+            self.dl_dset = DefaultDataset(self.name, self.dl_source, self.root_dir)
 
         self.fp_version = fp_version
         self.surface_space = surface_space
@@ -135,8 +148,7 @@ class Dataset:
                 elif resamp in VOLUME_RESAMPLES and self.volume_resample is None:
                     self.volume_resample = resamp
                 else:
-                    raise ValueError(
-                        f"Resampling method {resamp} not recognized.")
+                    raise ValueError(f"Resampling method {resamp} not recognized.")
 
         self.prep = prep
 
@@ -145,10 +157,12 @@ class Dataset:
     def load_data(self, sid, task, run, lr, space, resample, fp_version=None):
         if lr == 'lr':
             dm = np.concatenate(
-                [self.load_data(
-                        sid, task, run, lr_, space, resample, fp_version)
-                    for lr_ in 'lr'],
-                axis=1)
+                [
+                    self.load_data(sid, task, run, lr_, space, resample, fp_version)
+                    for lr_ in 'lr'
+                ],
+                axis=1,
+            )
             return dm
 
         if fp_version is None:
@@ -159,12 +173,22 @@ class Dataset:
 
         if self.renaming is None:
             fn = os.path.join(
-                fp_version, 'resampled', space, lr, resample,
-                f'sub-{sid}_task-{task}_run-{run:02d}.npy')
+                fp_version,
+                'resampled',
+                space,
+                lr,
+                resample,
+                f'sub-{sid}_task-{task}_run-{run:02d}.npy',
+            )
         else:
             fn = os.path.join(
-                fp_version, 'renamed', space, lr, resample,
-                f'sub-{sid}_task-{task}_run-{run:02d}.npy')
+                fp_version,
+                'renamed',
+                space,
+                lr,
+                resample,
+                f'sub-{sid}_task-{task}_run-{run:02d}.npy',
+            )
             fn = self.renaming[fn]
 
         dm = self.dl_dset.get(fn, on_missing='raise').astype(np.float64)
@@ -177,34 +201,62 @@ class Dataset:
         suffix_li = [
             'desc-confounds_timeseries.npy',
             'desc-confounds_timeseries.tsv',
-            'desc-mask_timeseries.npy']
+            'desc-mask_timeseries.npy',
+        ]
         output = []
         for suffix in suffix_li:
             if self.renaming is None:
                 fn = os.path.join(
-                    fp_version, 'confounds',
-                    f'sub-{sid}_task-{task}_run-{run}_{suffix}')
+                    fp_version, 'confounds', f'sub-{sid}_task-{task}_run-{run}_{suffix}'
+                )
             else:
                 fn = os.path.join(
-                    fp_version, 'renamed_confounds',
-                    f'sub-{sid}_task-{task}_run-{run:02d}_{suffix}')
+                    fp_version,
+                    'renamed_confounds',
+                    f'sub-{sid}_task-{task}_run-{run:02d}_{suffix}',
+                )
                 fn = self.renaming[fn]
             o = self.dl_dset.get(fn, on_missing='raise')
             output.append(o)
         return output
 
-    def get_data(self, sid, task, run, lr, space=None, resample=None,
-                 prep=None, fp_version=None, force_volume=False,
-                 prep_kwargs=None):
+    def get_data(
+        self,
+        sid,
+        task,
+        run,
+        lr,
+        space=None,
+        resample=None,
+        prep=None,
+        fp_version=None,
+        force_volume=False,
+        prep_kwargs=None,
+    ):
         if isinstance(run, (tuple, list)):
             ret = [
-                self.get_data(sid, task, run_, lr, space, resample, prep,
-                              fp_version, force_volume, prep_kwargs)
-                for run_ in run]
+                self.get_data(
+                    sid,
+                    task,
+                    run_,
+                    lr,
+                    space,
+                    resample,
+                    prep,
+                    fp_version,
+                    force_volume,
+                    prep_kwargs,
+                )
+                for run_ in run
+            ]
             if isinstance(ret[0], tuple):
                 n = len(ret[0])
-                ret = tuple([np.concatenate([ret_[i] for ret_ in ret], axis=0)
-                    for i in range(n)])
+                ret = tuple(
+                    [
+                        np.concatenate([ret_[i] for ret_ in ret], axis=0)
+                        for i in range(n)
+                    ]
+                )
             elif isinstance(ret[0], np.ndarray):
                 ret = np.concatenate(ret, axis=0)
             return ret
@@ -233,7 +285,8 @@ class Dataset:
         if space_kind == 'surface':
             if lr == 'lr':
                 cortical_mask = np.concatenate(
-                    [get_mask(lr_, space) for lr_ in 'lr'], axis=0)
+                    [get_mask(lr_, space) for lr_ in 'lr'], axis=0
+                )
             else:
                 cortical_mask = get_mask(lr, space)
         else:
@@ -251,8 +304,9 @@ class Dataset:
             fp_version = self.fp_version
         if space is None:
             space = self.surface_space
-        fn = os.path.join(fp_version, 'anatomy', space, 'overlap', which,
-                          f'{sid}_{lr}h.npy')
+        fn = os.path.join(
+            fp_version, 'anatomy', space, 'overlap', which, f'{sid}_{lr}h.npy'
+        )
         d = self.dl_dset.get(fn, on_missing='raise')
         d = d.astype(np.float64)
         if mask is not False and mask is not None:
@@ -263,90 +317,212 @@ class Dataset:
             d = d[cortical_mask]
         return d
 
-    def morphometry(self, sid, which, lr, mask=True, space=None,
-                    fp_version=None):
+    def morphometry(self, sid, which, lr, mask=True, space=None, fp_version=None):
         return self._get_anatomical_data(
-            sid=sid, which=which, lr=lr, mask=mask, space=space,
-            fp_version=fp_version)
+            sid=sid, which=which, lr=lr, mask=mask, space=space, fp_version=fp_version
+        )
 
-    def parcellation(self, sid, which, lr, mask=True, space=None,
-                    fp_version=None):
+    def parcellation(self, sid, which, lr, mask=True, space=None, fp_version=None):
         return self._get_anatomical_data(
-            sid=sid, which=which + '.annot', lr=lr, mask=mask, space=space,
-            fp_version=fp_version)
+            sid=sid,
+            which=which + '.annot',
+            lr=lr,
+            mask=mask,
+            space=space,
+            fp_version=fp_version,
+        )
+
 
 class Bologna(Dataset):
     def __init__(
-            self, space=['onavg-ico32', 'mni-4mm'],
-            resample=['1step_pial_overlap', '1step_linear_overlap'],
-            prep='default', fp_version='20.2.7',
-            name='bologna', root_dir=None,
-            dl_source=None):
+        self,
+        space=['onavg-ico32', 'mni-4mm'],
+        resample=['1step_pial_overlap', '1step_linear_overlap'],
+        prep='default',
+        fp_version='20.2.7',
+        name='bologna',
+        root_dir=None,
+        dl_source=None,
+    ):
         super().__init__(
-            name, dl_source=dl_source, root_dir=root_dir, space=space,
-            resample=resample, prep=prep, fp_version=fp_version)
+            name,
+            dl_source=dl_source,
+            root_dir=root_dir,
+            space=space,
+            resample=resample,
+            prep=prep,
+            fp_version=fp_version,
+        )
         self.subjects = [f'{_+1:02d}' for _ in range(69)]
         self.tasks = ['rest']
 
 
 class Forrest(Dataset):
     def __init__(
-            self, space=['onavg-ico32', 'mni-4mm'],
-            resample=['1step_pial_overlap', '1step_linear_overlap'],
-            prep='default', fp_version='20.2.7',
-            name='forrest', root_dir=None,
-            dl_source='https://gin.g-node.org/neuroboros/forrest'):
+        self,
+        space=['onavg-ico32', 'mni-4mm'],
+        resample=['1step_pial_overlap', '1step_linear_overlap'],
+        prep='default',
+        fp_version='20.2.7',
+        name='forrest',
+        root_dir=None,
+        dl_source='https://gin.g-node.org/neuroboros/forrest',
+    ):
         super().__init__(
-            name, dl_source=dl_source, root_dir=root_dir, space=space,
-            resample=resample, prep=prep, fp_version=fp_version)
-        self.subjects = ['01', '02', '03', '04', '05', '06', '09', '10', '14', '15', '16', '17', '18', '19', '20']
-        self.tasks = ["forrest", "movielocalizer", "objectcategories", "retmapccw", "retmapclw", "retmapcon", "retmapexp"]
+            name,
+            dl_source=dl_source,
+            root_dir=root_dir,
+            space=space,
+            resample=resample,
+            prep=prep,
+            fp_version=fp_version,
+        )
+        self.subjects = [
+            '01',
+            '02',
+            '03',
+            '04',
+            '05',
+            '06',
+            '09',
+            '10',
+            '14',
+            '15',
+            '16',
+            '17',
+            '18',
+            '19',
+            '20',
+        ]
+        self.tasks = [
+            "forrest",
+            "movielocalizer",
+            "objectcategories",
+            "retmapccw",
+            "retmapclw",
+            "retmapcon",
+            "retmapexp",
+        ]
 
 
 class Dalmatians(Dataset):
     def __init__(
-            self, space=['onavg-ico32', 'mni-4mm'],
-            resample=['1step_pial_overlap', '1step_linear_overlap'],
-            prep='default', fp_version='20.2.7',
-            name='dalmatians', root_dir=None,
-            dl_source=None):
-
+        self,
+        space=['onavg-ico32', 'mni-4mm'],
+        resample=['1step_pial_overlap', '1step_linear_overlap'],
+        prep='default',
+        fp_version='20.2.7',
+        name='dalmatians',
+        root_dir=None,
+        dl_source=None,
+    ):
         super().__init__(
-            name, dl_source=dl_source, root_dir=root_dir, space=space,
-            resample=resample, prep=prep, fp_version=fp_version)
+            name,
+            dl_source=dl_source,
+            root_dir=root_dir,
+            space=space,
+            resample=resample,
+            prep=prep,
+            fp_version=fp_version,
+        )
         self.subjects = [
-            'AB033', 'AB034', 'AB035', 'AB036', 'AB037', 'AB038', 'AB039',
-            'AB041', 'AB042', 'AB043', 'AB053', 'AO003', 'AO004', 'AO005',
-            'AO006', 'AO007', 'AO008', 'AO009', 'AO010', 'AO011', 'AO027',
-            'AV012', 'AV013', 'AV014', 'AV015', 'AV016', 'AV017', 'AV018',
-            'AV019', 'AV022', 'AV032', 'VD044', 'VD045', 'VD046', 'VD047',
-            'VD048', 'VD049', 'VD050', 'VD051', 'VD052', 'VO020', 'VO021',
-            'VO023', 'VO024', 'VO025', 'VO026', 'VO028', 'VO029', 'VO030',
-            'VO031']
+            'AB033',
+            'AB034',
+            'AB035',
+            'AB036',
+            'AB037',
+            'AB038',
+            'AB039',
+            'AB041',
+            'AB042',
+            'AB043',
+            'AB053',
+            'AO003',
+            'AO004',
+            'AO005',
+            'AO006',
+            'AO007',
+            'AO008',
+            'AO009',
+            'AO010',
+            'AO011',
+            'AO027',
+            'AV012',
+            'AV013',
+            'AV014',
+            'AV015',
+            'AV016',
+            'AV017',
+            'AV018',
+            'AV019',
+            'AV022',
+            'AV032',
+            'VD044',
+            'VD045',
+            'VD046',
+            'VD047',
+            'VD048',
+            'VD049',
+            'VD050',
+            'VD051',
+            'VD052',
+            'VO020',
+            'VO021',
+            'VO023',
+            'VO024',
+            'VO025',
+            'VO026',
+            'VO028',
+            'VO029',
+            'VO030',
+            'VO031',
+        ]
         self.tasks = ['dalmatians', 'scrambled']
 
 
 class SpaceTop(Dataset):
-    def __init__(self, space=['onavg-ico32', 'mni-4mm'],
-            resample=['1step_pial_overlap', '1step_linear_overlap'],
-            prep='default', fp_version='20.2.7',
-            name='spacetop', root_dir=None,
-            dl_source=None):
+    def __init__(
+        self,
+        space=['onavg-ico32', 'mni-4mm'],
+        resample=['1step_pial_overlap', '1step_linear_overlap'],
+        prep='default',
+        fp_version='20.2.7',
+        name='spacetop',
+        root_dir=None,
+        dl_source=None,
+    ):
         super().__init__(
-            name, dl_source=dl_source, root_dir=root_dir, space=space,
-            resample=resample, prep=prep, fp_version=fp_version)
+            name,
+            dl_source=dl_source,
+            root_dir=root_dir,
+            space=space,
+            resample=resample,
+            prep=prep,
+            fp_version=fp_version,
+        )
         self.tasks = ['faces']
 
 
 class CamCAN(Dataset):
-    def __init__(self, space=['onavg-ico32', 'mni-4mm'],
-            resample=['1step_pial_overlap', '1step_linear_overlap'],
-            prep='default', fp_version='20.2.7',
-            name='camcan', root_dir=None,
-            dl_source=None):
+    def __init__(
+        self,
+        space=['onavg-ico32', 'mni-4mm'],
+        resample=['1step_pial_overlap', '1step_linear_overlap'],
+        prep='default',
+        fp_version='20.2.7',
+        name='camcan',
+        root_dir=None,
+        dl_source=None,
+    ):
         super().__init__(
-            name, dl_source=dl_source, root_dir=root_dir, space=space,
-            resample=resample, prep=prep, fp_version=fp_version)
+            name,
+            dl_source=dl_source,
+            root_dir=root_dir,
+            space=space,
+            resample=resample,
+            prep=prep,
+            fp_version=fp_version,
+        )
         self.tasks = ['bang', 'rest', 'smt']
 
         self.subject_sets = {}
@@ -357,14 +533,25 @@ class CamCAN(Dataset):
 
 
 class ID1000(Dataset):
-    def __init__(self, space=['onavg-ico32', 'mni-4mm'],
-            resample=['1step_pial_overlap', '1step_linear_overlap'],
-            prep='default', fp_version='20.2.7',
-            name='id1000', root_dir=None,
-            dl_source=None):
+    def __init__(
+        self,
+        space=['onavg-ico32', 'mni-4mm'],
+        resample=['1step_pial_overlap', '1step_linear_overlap'],
+        prep='default',
+        fp_version='20.2.7',
+        name='id1000',
+        root_dir=None,
+        dl_source=None,
+    ):
         super().__init__(
-            name, dl_source=dl_source, root_dir=root_dir, space=space,
-            resample=resample, prep=prep, fp_version=fp_version)
+            name,
+            dl_source=dl_source,
+            root_dir=root_dir,
+            space=space,
+            resample=resample,
+            prep=prep,
+            fp_version=fp_version,
+        )
         self.tasks = ['moviewatching']
 
         mod_dir = os.path.dirname(os.path.realpath(__file__))
@@ -373,21 +560,51 @@ class ID1000(Dataset):
 
 
 class Raiders(Dataset):
-    def __init__(self, space=['onavg-ico32', 'mni-4mm'],
-            resample=['1step_pial_overlap', '1step_linear_overlap'],
-            prep='default', fp_version='20.2.7',
-            name='raiders', root_dir=None,
-            dl_source=None):
+    def __init__(
+        self,
+        space=['onavg-ico32', 'mni-4mm'],
+        resample=['1step_pial_overlap', '1step_linear_overlap'],
+        prep='default',
+        fp_version='20.2.7',
+        name='raiders',
+        root_dir=None,
+        dl_source=None,
+    ):
         super().__init__(
-            name, dl_source=dl_source, root_dir=root_dir, space=space,
-            resample=resample, prep=prep, fp_version=fp_version)
+            name,
+            dl_source=dl_source,
+            root_dir=root_dir,
+            space=space,
+            resample=resample,
+            prep=prep,
+            fp_version=fp_version,
+        )
         self.tasks = ['raiders', 'actions']
         self.subjects = [
-            'sid000005', 'sid000007', 'sid000009', 'sid000010', 'sid000012',
-            'sid000013', 'sid000020', 'sid000021', 'sid000024', 'sid000029',
-            'sid000034', 'sid000052', 'sid000102', 'sid000114', 'sid000120',
-            'sid000134', 'sid000142', 'sid000278', 'sid000416', 'sid000433',
-            'sid000499', 'sid000522', 'sid000535']
+            'sid000005',
+            'sid000007',
+            'sid000009',
+            'sid000010',
+            'sid000012',
+            'sid000013',
+            'sid000020',
+            'sid000021',
+            'sid000024',
+            'sid000029',
+            'sid000034',
+            'sid000052',
+            'sid000102',
+            'sid000114',
+            'sid000120',
+            'sid000134',
+            'sid000142',
+            'sid000278',
+            'sid000416',
+            'sid000433',
+            'sid000499',
+            'sid000522',
+            'sid000535',
+        ]
 
     def slicer(self, data, task, run):
         if task == 'raiders':  # stimulus overlap between runs
@@ -403,36 +620,95 @@ class Raiders(Dataset):
 
 
 class Budapest(Dataset):
-    def __init__(self, space=['onavg-ico32', 'mni-4mm'],
-            resample=['1step_pial_overlap', '1step_linear_overlap'],
-            prep='default', fp_version='20.2.7',
-            name='budapest', root_dir=None,
-            dl_source=None):
+    def __init__(
+        self,
+        space=['onavg-ico32', 'mni-4mm'],
+        resample=['1step_pial_overlap', '1step_linear_overlap'],
+        prep='default',
+        fp_version='20.2.7',
+        name='budapest',
+        root_dir=None,
+        dl_source=None,
+    ):
         super().__init__(
-            name, dl_source=dl_source, root_dir=root_dir, space=space,
-            resample=resample, prep=prep, fp_version=fp_version)
+            name,
+            dl_source=dl_source,
+            root_dir=root_dir,
+            space=space,
+            resample=resample,
+            prep=prep,
+            fp_version=fp_version,
+        )
         self.tasks = ['budapest', 'hyperface', 'localizer']
         self.subjects = [
-            'sid000005', 'sid000007', 'sid000009', 'sid000010', 'sid000013',
-            'sid000020', 'sid000021', 'sid000024', 'sid000029', 'sid000034',
-            'sid000052', 'sid000114', 'sid000120', 'sid000134', 'sid000142',
-            'sid000278', 'sid000416', 'sid000499', 'sid000522', 'sid000535',
-            'sid000560']
+            'sid000005',
+            'sid000007',
+            'sid000009',
+            'sid000010',
+            'sid000013',
+            'sid000020',
+            'sid000021',
+            'sid000024',
+            'sid000029',
+            'sid000034',
+            'sid000052',
+            'sid000114',
+            'sid000120',
+            'sid000134',
+            'sid000142',
+            'sid000278',
+            'sid000416',
+            'sid000499',
+            'sid000522',
+            'sid000535',
+            'sid000560',
+        ]
 
 
 class MonkeyKingdom(Dataset):
-    def __init__(self, space=['onavg-ico32', 'mni-4mm'],
-            resample=['1step_pial_overlap', '1step_linear_overlap'],
-            prep='default', fp_version='20.2.7',
-            name='monkey-kingdom', root_dir=None,
-            dl_source=None):
+    def __init__(
+        self,
+        space=['onavg-ico32', 'mni-4mm'],
+        resample=['1step_pial_overlap', '1step_linear_overlap'],
+        prep='default',
+        fp_version='20.2.7',
+        name='monkey-kingdom',
+        root_dir=None,
+        dl_source=None,
+    ):
         super().__init__(
-            name, dl_source=dl_source, root_dir=root_dir, space=space,
-            resample=resample, prep=prep, fp_version=fp_version)
+            name,
+            dl_source=dl_source,
+            root_dir=root_dir,
+            space=space,
+            resample=resample,
+            prep=prep,
+            fp_version=fp_version,
+        )
         self.tasks = ['monkey', 'rest', 'localizer', 'language']
         self.subjects = [
-            'sid001123', 'sid001293', 'sid001294', 'sid001678', 'sid001784',
-            'sid001830', 'sid001835', 'sid001986', 'sid002015', 'sid002161',
-            'sid002180', 'sid002317', 'sid002325', 'sid002406', 'sid002414',
-            'sid002435', 'sid002446', 'sid002449', 'sid002454', 'sid002471',
-            'sid002499', 'sid002509', 'sid002519', 'sid002570']
+            'sid001123',
+            'sid001293',
+            'sid001294',
+            'sid001678',
+            'sid001784',
+            'sid001830',
+            'sid001835',
+            'sid001986',
+            'sid002015',
+            'sid002161',
+            'sid002180',
+            'sid002317',
+            'sid002325',
+            'sid002406',
+            'sid002414',
+            'sid002435',
+            'sid002446',
+            'sid002449',
+            'sid002454',
+            'sid002471',
+            'sid002499',
+            'sid002509',
+            'sid002519',
+            'sid002570',
+        ]
