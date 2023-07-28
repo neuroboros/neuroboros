@@ -55,7 +55,7 @@ def convert_searchlights(sls, dists, radius, mask, center_mask):
     sls_new : list of ndarray
         The new list of searchlight indices after conversion.
     dists_new : list of ndarray
-        The new list of distnaces to searchlight center after conversion.
+        The new list of distances to searchlight center after conversion.
     """
     if mask is not False:
         cortical_indices = np.where(mask)[0]
