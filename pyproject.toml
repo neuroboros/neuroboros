@@ -55,3 +55,9 @@ write_to = "src/neuroboros/_version.py"
 skip = '.git,*.pdf,*.svg'
 #
 # ignore-words-list = ''
+
+[tool.black]
+skip_string_normalization = "True"
+
+[tool.isort]
+profile = "black"
