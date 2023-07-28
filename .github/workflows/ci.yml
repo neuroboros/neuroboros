@@ -13,7 +13,11 @@ concurrency:
 jobs:
   pre-commit:
     name: Pre-commit checks
-    uses: beeware/.github/.github/workflows/pre-commit-run.yml@main
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - uses: actions/setup-python@v3
+    - uses: pre-commit/action@v3.0.0
 
   unit-tests:
     name: Unit tests
