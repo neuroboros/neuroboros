@@ -34,21 +34,24 @@ High-performance computing
 
 """
 
-import os
-import pickle
+import functools
 import gzip
 import json
-import warnings
+import os
+import pickle
 import subprocess
-import functools
 import time
+import warnings
 from datetime import datetime, timedelta
-import numpy as np
-import scipy.sparse as sparse
-import pandas as pd
+
 import joblib
+import numpy as np
+import pandas as pd
+import scipy.sparse as sparse
+
 try:
     from PIL import Image
+
     PIL_ok = True
 except ImportError as e:
     PIL_ok = False
@@ -191,14 +194,15 @@ def parse_record(record_fn, assert_node=None):
         A numpy array with 2 elements, where the 1st is the CPU time, and the
         2nd is the wall time. Both are in nanoseconds.
     """
-    with open(record_fn, 'r') as f:
+    with open(record_fn) as f:
         lines = f.read().splitlines()
     cpu_time = int(lines[2]) - int(lines[1])
     wall_time = int(lines[4]) - int(lines[3])
     if assert_node is not None:
         if assert_node not in [lines[5], lines[5].split('.')[0]]:
             raise ValueError(
-                f"Expecting Node `{assert_node}`, got {lines[5]} in record.")
+                f"Expecting Node `{assert_node}`, got {lines[5]} in record."
+            )
     t = np.array([cpu_time, wall_time])
     return t
 
@@ -244,10 +248,12 @@ def monitor(func, record_fn=None):
         total_cpus = os.cpu_count()
         avail_cpus = joblib.cpu_count()
 
-        info = (f'Computation finished at {datetime.now().strftime(fmt)}\n'
-                f'{cpu_time_start}\n{cpu_time_end}\n'
-                f'{wall_time_start}\n{wall_time_end}\n'
-                f'{hostname}\n{avail_cpus}\n{total_cpus}\n')
+        info = (
+            f'Computation finished at {datetime.now().strftime(fmt)}\n'
+            f'{cpu_time_start}\n{cpu_time_end}\n'
+            f'{wall_time_start}\n{wall_time_end}\n'
+            f'{hostname}\n{avail_cpus}\n{total_cpus}\n'
+        )
         if record_fn is None:
             return info, results
         else:
@@ -260,8 +266,14 @@ def monitor(func, record_fn=None):
 
 
 def save_results(
-        func, out_fn, return_results=False, log_fn=None, rerun_hours=48,
-        verbose=True, rerun=False):
+    func,
+    out_fn,
+    return_results=False,
+    log_fn=None,
+    rerun_hours=48,
+    verbose=True,
+    rerun=False,
+):
     """Run the function and save the returned output to file.
 
     This function takes a function ``func`` as input and outputs a wrapped
@@ -321,7 +333,7 @@ def save_results(
 
             if os.path.exists(running_fn):
                 while True:
-                    with open(running_fn, 'r') as f:
+                    with open(running_fn) as f:
                         diff = datetime.now() - datetime.strptime(f.read(), fmt)
                     if diff < timedelta(hours=rerun_hours):
                         if not return_results:
@@ -349,7 +361,6 @@ def save_results(
                     else:
                         return results
 
-
         os.makedirs(os.path.dirname(log_fn), exist_ok=True)
         with open(running_fn, 'w') as f:
             f.write(datetime.now().strftime(fmt))
@@ -360,7 +371,7 @@ def save_results(
         results = monitored_func(*args, **kwargs)
 
         if len(out_fns) > 1:
-            for (res, fn) in zip(results, out_fns):
+            for res, fn in zip(results, out_fns):
                 save(fn, res)
         else:
             save(out_fns[0], results)
@@ -394,7 +405,7 @@ def assert_sufficient_time(minimum='1:00:00'):
         return
 
     cmd = ['squeue', '-h', '-j', os.environ['SLURM_JOBID'], '-o', '"%L"']
-    sp = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    sp = subprocess.run(cmd, capture_output=True)
     remaining = sp.stdout.decode('ascii').split('"')[1]
 
     def parse_time(s):

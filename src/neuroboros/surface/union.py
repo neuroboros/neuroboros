@@ -5,9 +5,9 @@ from scipy.spatial import ConvexHull, cKDTree
 def compute_union_coords(coords1, coords2, eps=1e-10):
     nv1 = coords1.shape[0]
     nv2 = coords2.shape[0]
-    mask = np.ones((nv2, ), dtype=bool)
+    mask = np.ones((nv2,), dtype=bool)
     indices1 = np.arange(nv1)
-    indices2 = np.zeros((nv2, ), dtype=int)
+    indices2 = np.zeros((nv2,), dtype=int)
     tree = cKDTree(coords1)
     count = nv1
     for i, c in enumerate(coords2):
@@ -29,7 +29,8 @@ def compute_union_coords(coords1, coords2, eps=1e-10):
 
 def compute_union_sphere(sphere, coords, eps=1e-10):
     union_coords, indices1, indices2 = compute_union_coords(
-        sphere.coords, coords, eps=eps)
+        sphere.coords, coords, eps=eps
+    )
     if union_coords.shape == sphere.coords.shape:
         return sphere.coords, sphere.faces, indices1, indices2
 

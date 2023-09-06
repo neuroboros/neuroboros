@@ -1,0 +1,58 @@
+name: CI
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+# Cancel active CI runs for a PR before starting another run
+concurrency:
+  group: ${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pre-commit:
+    name: Pre-commit checks
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - uses: actions/setup-python@v3
+    - uses: pre-commit/action@v3.0.0
+
+  unit-tests:
+    name: Unit tests
+    needs: [ pre-commit ] # , towncrier, package ]
+    runs-on: ${{ matrix.platform }}-latest
+    continue-on-error: ${{ matrix.experimental }}
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [ "macos", "ubuntu", "windows" ]
+        python-version: [ "3.8", "3.9", "3.10", "3.11", "3.12-dev" ]
+        include:
+        - experimental: false
+        # Allow dev Python to fail without failing entire job
+        - python-version: "3.12-dev"
+          experimental: true
+        # Run tests against the latest Windows Store Python
+        - platform: "windows"
+          python-version: "winstore3.11"
+          experimental: false
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v3.5.3
+      with:
+        fetch-depth: 0
+
+    - name: Set up Python
+      if: startswith(matrix.python-version, '3')
+      uses: actions/setup-python@v4.7.0
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: Setup environment
+      run: python -m pip install .[test]
+
+    - name: Test
+      id: test
+      run: python -m pytest -s -v .

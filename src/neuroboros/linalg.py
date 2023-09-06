@@ -14,7 +14,7 @@ Linear algebra utilities (:mod:`neuroboros.linalg`)
 
 """
 import numpy as np
-from scipy.linalg import svd, eigh, polar, LinAlgError
+from scipy.linalg import LinAlgError, eigh, polar, svd
 
 
 def safe_svd(X, remove_mean=True):

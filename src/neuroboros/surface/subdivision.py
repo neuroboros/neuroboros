@@ -1,4 +1,5 @@
 import os
+
 import numpy as np
 
 
@@ -73,7 +74,9 @@ def subdivide_inside(coords, faces, e_mapping, n_div, count_base):
                 k = n_div - i - j
                 if (i, j, k) not in mapping:
                     mapping[(i, j, k)] = count + count_base
-                    c = np.sum(coords[f] * (np.array([i, j, k])[:, np.newaxis] / n_div), axis=0)
+                    c = np.sum(
+                        coords[f] * (np.array([i, j, k])[:, np.newaxis] / n_div), axis=0
+                    )
                     # c /= np.linalg.norm(c)
                     # new_coords.append(c)
                     new_coords[count] = c
@@ -94,6 +97,8 @@ def surface_subdivision(coords, faces, n_div):
     print(coords.shape, edge_coords.shape, inside_coords.shape)
     new_coords = np.concatenate([coords, edge_coords, inside_coords], axis=0)
     return new_coords, new_faces
+
+
 #     new_coords, new_faces = [], []
 
 #     # count = coords.shape[0]

@@ -1,14 +1,21 @@
 import os
+
 import numpy as np
 import scipy.sparse as sparse
 
 from .io import core_dataset
 
-
 MEASURES = [
-    'area', 'area.mid', 'area.pial',
-    'curv', 'curv.pial',
-    'jacobian_white', 'sulc', 'thickness', 'volume']
+    'area',
+    'area.mid',
+    'area.pial',
+    'curv',
+    'curv.pial',
+    'jacobian_white',
+    'sulc',
+    'thickness',
+    'volume',
+]
 PARCELLATIONS = ['aparc', 'aparc.DKTatlas', 'aparc.a2009s']
 
 
@@ -36,8 +43,9 @@ def get_morphometry(which, lr, space='onavg-ico32', **kwargs):
     resample = kwargs.get('resample', 'overlap-8div')
     avg_type = kwargs.get('avg_type', 'trimmed')
     assert lr in 'lr'
-    fn = os.path.join(space, 'morphometry', which, f'{lr}h',
-                      f'{group}_{avg_type}', f'{resample}.npy')
+    fn = os.path.join(
+        space, 'morphometry', which, f'{lr}h', f'{group}_{avg_type}', f'{resample}.npy'
+    )
     measure = core_dataset.get(fn, on_missing='raise')
     return measure
 
@@ -72,8 +80,9 @@ def get_parcellation(which, lr, space='onavg-ico32', prob=False, **kwargs):
         basename = f'{resample}_prob.npy'
     else:
         basename = f'{resample}_parc.npy'
-    fn = os.path.join(space, 'parcellations', which, f'{lr}h',
-                      f'{group}_{avg_type}', basename)
+    fn = os.path.join(
+        space, 'parcellations', which, f'{lr}h', f'{group}_{avg_type}', basename
+    )
     parc = core_dataset.get(fn, on_missing='raise')
     return parc
 
@@ -104,13 +113,15 @@ def get_mask(lr, space='onavg-ico32', legacy=False, **kwargs):
             flavor = kwargs.get('flavor', 'fsaverage')
         elif space.startswith('fslr-ico'):
             flavor = kwargs.get('flavor', '32k_fs_LR')
-        fn = os.path.join(space, 'masks', which, f'{lr}h',
-                          f'{flavor}', f'{resample}.npy')
+        fn = os.path.join(
+            space, 'masks', which, f'{lr}h', f'{flavor}', f'{resample}.npy'
+        )
     else:
         group = kwargs.get('group', 'on1031')
         avg_type = kwargs.get('avg_type', 'trimmed')
-        fn = os.path.join(space, 'masks', which, f'{lr}h',
-                          f'{group}_{avg_type}', f'{resample}.npy')
+        fn = os.path.join(
+            space, 'masks', which, f'{lr}h', f'{group}_{avg_type}', f'{resample}.npy'
+        )
     mask = core_dataset.get(fn, on_missing='raise')
     return mask
 
@@ -152,8 +163,7 @@ def get_geometry(which, lr, space='onavg-ico32', vertices_only=False, **kwargs):
     if which in ['sphere', 'sphere.reg']:
         fn = os.path.join(space, 'geometry', 'sphere.reg', f'{lr}h.npy')
     else:
-        fn = os.path.join(space, 'geometry', which, f'{lr}h',
-                f'{group}_{avg_type}.npy')
+        fn = os.path.join(space, 'geometry', which, f'{lr}h', f'{group}_{avg_type}.npy')
     coords = core_dataset.get(fn, on_missing='raise')
     if vertices_only:
         return coords
@@ -161,8 +171,9 @@ def get_geometry(which, lr, space='onavg-ico32', vertices_only=False, **kwargs):
     return coords, faces
 
 
-def get_distances(lr, source, target=None, mask=None,
-                  source_mask=None, target_mask=None, **kwargs):
+def get_distances(
+    lr, source, target=None, mask=None, source_mask=None, target_mask=None, **kwargs
+):
     """Distances between vertices.
 
     Parameters
@@ -200,8 +211,14 @@ def get_distances(lr, source, target=None, mask=None,
     if target_mask is None:
         target_mask = mask
 
-    fn = os.path.join(source, 'distances', f'to_{target}', f'{lr}h',
-                      f'{group}_{avg_type}', f'{dist_type}.npy')
+    fn = os.path.join(
+        source,
+        'distances',
+        f'to_{target}',
+        f'{lr}h',
+        f'{group}_{avg_type}',
+        f'{dist_type}.npy',
+    )
 
     assert target == source
     d = core_dataset.get(fn, on_missing='raise')
@@ -262,8 +279,8 @@ def smooth(lr, fwhm, space='onavg-ico32', mask=None, keep_sum=False):
         Smoothing matrix. Can be applied to data matrix ``X`` as ``X @ M``.
     """
     d = get_distances(lr, space, space, mask=mask)
-    s2 = fwhm / (4. * np.log(2))
-    weights = np.exp(-d**2/ s2)
+    s2 = fwhm / (4.0 * np.log(2))
+    weights = np.exp(-(d**2) / s2)
     mat = sparse.csr_matrix(weights)
 
     if keep_sum:
@@ -278,8 +295,17 @@ def smooth(lr, fwhm, space='onavg-ico32', mask=None, keep_sum=False):
     return M
 
 
-def get_mapping(lr, source, target, mask=None, nn=False, keep_sum=False,
-                source_mask=None, target_mask=None, **kwargs):
+def get_mapping(
+    lr,
+    source,
+    target,
+    mask=None,
+    nn=False,
+    keep_sum=False,
+    source_mask=None,
+    target_mask=None,
+    **kwargs,
+):
     """Get mapping (transform) from one space to another.
 
     Parameters
@@ -328,17 +354,28 @@ def get_mapping(lr, source, target, mask=None, nn=False, keep_sum=False,
     if source == target:
         ico = int(source.split('-ico')[1])
         nv = ico**2 * 10 + 2
-        mat = sparse.diags(np.ones((nv, ))).tocsr()
+        mat = sparse.diags(np.ones((nv,))).tocsr()
         # print(mat.shape, mat.data.shape, type(mat))
     else:
-        fn1 = os.path.join(source, 'mapping', f'to_{target}', f'{lr}h',
-                        f'{group}_{avg_type}', f'{resample}.npz')
-        fn2 = os.path.join(target, 'mapping', f'to_{source}', f'{lr}h',
-                        f'{group}_{avg_type}', f'{resample}.npz')
+        fn1 = os.path.join(
+            source,
+            'mapping',
+            f'to_{target}',
+            f'{lr}h',
+            f'{group}_{avg_type}',
+            f'{resample}.npz',
+        )
+        fn2 = os.path.join(
+            target,
+            'mapping',
+            f'to_{source}',
+            f'{lr}h',
+            f'{group}_{avg_type}',
+            f'{resample}.npz',
+        )
         mat1 = core_dataset.get(fn1, on_missing='ignore')
         mat2 = core_dataset.get(fn2, on_missing='ignore')
-        assert mat1 is not None or mat2 is not None, \
-            f'Neither {fn1} nor {fn2} exists.'
+        assert mat1 is not None or mat2 is not None, f'Neither {fn1} nor {fn2} exists.'
         mat = mat1 if mat1 is not None else mat2.T
 
     if source_mask is not None and source_mask is not False:
@@ -364,7 +401,7 @@ def get_mapping(lr, source, target, mask=None, nn=False, keep_sum=False,
     if nn:
         idx = mat.argmax(axis=0).A.ravel()
         m, n = mat.shape
-        M = sparse.csr_matrix((np.ones((n, )), (idx, np.arange(n))), (m, n))
+        M = sparse.csr_matrix((np.ones((n,)), (idx, np.arange(n))), (m, n))
         return M
 
     if keep_sum:

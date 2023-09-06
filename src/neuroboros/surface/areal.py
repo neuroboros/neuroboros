@@ -1,14 +1,14 @@
 import numpy as np
 import scipy.sparse as sparse
 
-from .properties import compute_neighbor_distances, compute_vertex_areas
 from .dijkstra import dijkstra
+from .properties import compute_neighbor_distances, compute_vertex_areas
 from .union import compute_union_coords
 
 
 def compute_vertex_nn(nv, indices2, neighbors, neighbor_distances):
-    nn = np.zeros((nv, ), dtype=int)
-    nnd = np.full((nv, ), np.inf)
+    nn = np.zeros((nv,), dtype=int)
+    nnd = np.full((nv,), np.inf)
     for src in indices2:
         nbrs, dists = dijkstra(src, nv, neighbors, neighbor_distances, max_dist=3.0)
         for nbr, d in zip(nbrs, dists):
@@ -18,13 +18,15 @@ def compute_vertex_nn(nv, indices2, neighbors, neighbor_distances):
 
     for max_dist in [4.0, 5.0, 6.0, 8.0, 10.0, np.inf]:
         for src in np.where(np.isinf(nnd))[0]:
-            nbrs, dists = dijkstra(src, nv, neighbors, neighbor_distances, max_dist=max_dist)
+            nbrs, dists = dijkstra(
+                src, nv, neighbors, neighbor_distances, max_dist=max_dist
+            )
             idx = np.where(np.isin(nbrs, indices2))[0]
             if len(idx):
                 nnd[src] = dists[idx[0]]
                 nn[src] = nbrs[idx[0]]
 
-    mapping = np.zeros((nv, ), dtype=int)
+    mapping = np.zeros((nv,), dtype=int)
     mapping[indices2] = np.arange(len(indices2))
     nn = mapping[nn]
 
@@ -44,8 +46,7 @@ def areal(sphere, coords1, anat_coords, coords2=None):
     combined_coords = xform.T @ anat_coords
     assert combined_coords.shape == combined_sphere.coords.shape
     nv, neighbors = combined_sphere.nv, combined_sphere.neighbors
-    neighbor_distances = compute_neighbor_distances(
-        combined_coords, neighbors)
+    neighbor_distances = compute_neighbor_distances(combined_coords, neighbors)
 
     nn1 = compute_vertex_nn(nv, indices1, neighbors, neighbor_distances)
     nn2 = compute_vertex_nn(nv, indices2, neighbors, neighbor_distances)

@@ -1,4 +1,5 @@
 import numpy as np
+
 import neuroboros as nb
 
 
@@ -28,9 +29,8 @@ class TestDatasets:
         sid = dset.subjects[0]
         for lr in ['l', 'r', 'lr']:
             cat = np.concatenate(
-                [dset.get_data(sid, 'forrest', run_, lr)
-                 for run_ in [1, 2, 3]],
-                axis=0)
+                [dset.get_data(sid, 'forrest', run_, lr) for run_ in [1, 2, 3]], axis=0
+            )
             dm = dset.get_data(sid, 'forrest', [1, 2, 3], lr)
             np.testing.assert_array_equal(dm, cat)
 
@@ -39,13 +39,13 @@ class TestDatasets:
         sid = dset.subjects[0]
         for lr in ['l', 'r', 'lr']:
             cat = np.concatenate(
-                [dset.get_data(sid, 'forrest', run_, lr)[0]
-                 for run_ in [1, 2, 3]],
-                axis=0)
+                [dset.get_data(sid, 'forrest', run_, lr)[0] for run_ in [1, 2, 3]],
+                axis=0,
+            )
             mask = np.concatenate(
-                [dset.get_data(sid, 'forrest', run_, lr)[1]
-                 for run_ in [1, 2, 3]],
-                axis=0)
+                [dset.get_data(sid, 'forrest', run_, lr)[1] for run_ in [1, 2, 3]],
+                axis=0,
+            )
             dm, mask2 = dset.get_data(sid, 'forrest', [1, 2, 3], lr)
             np.testing.assert_array_equal(dm, cat)
             np.testing.assert_array_equal(mask, mask2)

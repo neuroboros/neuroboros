@@ -1,5 +1,7 @@
 import os
+
 import numpy as np
+
 import neuroboros as nb
 
 from .io import core_dataset
@@ -19,10 +21,14 @@ def load_searchlights(lr, radius, space, center_space=None, **kwargs):
     if center_space is None:
         center_space = space
     npz_fn = os.path.join(
-        space, 'searchlights', f'{center_space}_center', f'{lr}h',
-        f'{group}_{avg_type}', f'{dist_type}_{radius}mm.npz')
-    sls, dists = core_dataset.get(
-        npz_fn, load_func=load_npz, on_missing='raise')
+        space,
+        'searchlights',
+        f'{center_space}_center',
+        f'{lr}h',
+        f'{group}_{avg_type}',
+        f'{dist_type}_{radius}mm.npz',
+    )
+    sls, dists = core_dataset.get(npz_fn, load_func=load_npz, on_missing='raise')
     return sls, dists
 
 
@@ -64,7 +70,7 @@ def convert_searchlights(sls, dists, radius, mask, center_mask):
     sls_new, dists_new = [], []
     for i, (sl, d) in enumerate(zip(sls, dists)):
         if center_mask is False or center_mask[i]:
-            m = (d <= radius)
+            m = d <= radius
             if mask is not False:
                 m = np.logical_and(np.isin(sl, cortical_indices), m)
                 sls_new.append(mapping[sl[m]])
@@ -75,8 +81,16 @@ def convert_searchlights(sls, dists, radius, mask, center_mask):
     return sls_new, dists_new
 
 
-def get_searchlights(lr, radius, space='onavg-ico32', center_space=None, mask=True,
-                     center_mask=None, return_dists=False, **kwargs):
+def get_searchlights(
+    lr,
+    radius,
+    space='onavg-ico32',
+    center_space=None,
+    mask=True,
+    center_mask=None,
+    return_dists=False,
+    **kwargs,
+):
     radius_ = 20
 
     if center_mask is None:
@@ -92,8 +106,9 @@ def get_searchlights(lr, radius, space='onavg-ico32', center_space=None, mask=Tr
         if center_mask is True:
             center_mask = nb.mask(lr, center_space, **kwargs)
 
-    sls, dists = load_searchlights(lr, radius_, space,
-        center_space=center_space, **kwargs)
+    sls, dists = load_searchlights(
+        lr, radius_, space, center_space=center_space, **kwargs
+    )
     sls, dists = convert_searchlights(sls, dists, radius, mask, center_mask)
 
     if return_dists:
