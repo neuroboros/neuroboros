@@ -1,3 +1,4 @@
+import os
 import nibabel as nib
 import numpy as np
 from scipy.spatial import cKDTree
@@ -83,6 +84,29 @@ class Surface:
         coords, faces = (_.data for _ in gii.darrays)
         instance = cls(coords, faces)
         return instance
+
+    def to_gifti(self, fn):
+        dirname = os.path.dirname(fn)
+        if dirname != '':
+            os.makedirs(dirname, exist_ok=True)
+
+        if isinstance(self, Sphere):
+            coords = self.coords * 100
+        else:
+            coords = self.coords
+
+        darrays = [
+            nib.gifti.GiftiDataArray(
+                coords.astype(np.float32),
+                intent=nib.nifti1.intent_codes['NIFTI_INTENT_POINTSET'],
+                datatype=nib.nifti1.data_type_codes['NIFTI_TYPE_FLOAT32']),
+            nib.gifti.GiftiDataArray(
+                self.faces.astype(np.int32),
+                intent=nib.nifti1.intent_codes['NIFTI_INTENT_TRIANGLE'],
+                datatype=nib.nifti1.data_type_codes['NIFTI_TYPE_INT32']),
+        ]
+        gii = nib.gifti.GiftiImage(darrays=darrays)
+        nib.save(gii, fn)
 
 
 class Sphere(Surface):

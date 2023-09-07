@@ -47,6 +47,7 @@ from datetime import datetime, timedelta
 import joblib
 import numpy as np
 import pandas as pd
+import nibabel as nib
 import scipy.sparse as sparse
 
 try:
@@ -129,6 +130,14 @@ def save(fn, data):
         else:
             raise TypeError(f"Cannot save '{type(data)}' to image.")
         return im.save(fn)
+
+    if fn.endswith('.shape.gii'):
+        darray = nib.gifti.GiftiDataArray(
+            data.astype(np.float32),
+        intent=nib.nifti1.intent_codes['NIFTI_INTENT_SHAPE'],
+        datatype=nib.nifti1.data_type_codes['NIFTI_TYPE_FLOAT32'])
+        gii = nib.gifti.GiftiImage(darrays=[darray])
+        nib.save(gii, fn)
 
     raise TypeError(f'`data` type {type(data)} not supported.')
 

@@ -8,6 +8,7 @@ Neuroboros (:mod:`neuroboros`)
 # from . import stats as stats
 from . import linalg as linalg
 from . import surface as surface
+from .surface import Surface, Sphere
 from ._version import __version__, __version_tuple__
 from .datasets import (
     ID1000,
