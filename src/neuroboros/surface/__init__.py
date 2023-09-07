@@ -1,4 +1,5 @@
 import os
+
 import nibabel as nib
 import numpy as np
 from scipy.spatial import cKDTree
@@ -16,7 +17,7 @@ from .properties import (
 )
 from .subdivision import surface_subdivision
 from .union import compute_union_sphere
-from .voronoi import native_voronoi, subdivide_edges, split_triangle, compute_occupation
+from .voronoi import compute_occupation, native_voronoi, split_triangle, subdivide_edges
 
 
 class Surface:
@@ -55,7 +56,9 @@ class Surface:
         return self._vertex_areas
 
     def vertex_areas_nn(self, n_div=8, t_div=32):
-        new_coords, e_mapping, neighbors = subdivide_edges(self.coords, self.faces, n_div)
+        new_coords, e_mapping, neighbors = subdivide_edges(
+            self.coords, self.faces, n_div
+        )
         coords = np.concatenate([self.coords, new_coords])
         nn, nnd = native_voronoi(coords, self.faces, e_mapping, neighbors)
 
@@ -118,11 +121,13 @@ class Surface:
             nib.gifti.GiftiDataArray(
                 coords.astype(np.float32),
                 intent=nib.nifti1.intent_codes['NIFTI_INTENT_POINTSET'],
-                datatype=nib.nifti1.data_type_codes['NIFTI_TYPE_FLOAT32']),
+                datatype=nib.nifti1.data_type_codes['NIFTI_TYPE_FLOAT32'],
+            ),
             nib.gifti.GiftiDataArray(
                 self.faces.astype(np.int32),
                 intent=nib.nifti1.intent_codes['NIFTI_INTENT_TRIANGLE'],
-                datatype=nib.nifti1.data_type_codes['NIFTI_TYPE_INT32']),
+                datatype=nib.nifti1.data_type_codes['NIFTI_TYPE_INT32'],
+            ),
         ]
         gii = nib.gifti.GiftiImage(darrays=darrays)
         nib.save(gii, fn)

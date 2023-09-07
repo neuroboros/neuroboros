@@ -45,9 +45,9 @@ import warnings
 from datetime import datetime, timedelta
 
 import joblib
+import nibabel as nib
 import numpy as np
 import pandas as pd
-import nibabel as nib
 import scipy.sparse as sparse
 
 try:
@@ -134,8 +134,9 @@ def save(fn, data):
     if fn.endswith('.shape.gii'):
         darray = nib.gifti.GiftiDataArray(
             data.astype(np.float32),
-        intent=nib.nifti1.intent_codes['NIFTI_INTENT_SHAPE'],
-        datatype=nib.nifti1.data_type_codes['NIFTI_TYPE_FLOAT32'])
+            intent=nib.nifti1.intent_codes['NIFTI_INTENT_SHAPE'],
+            datatype=nib.nifti1.data_type_codes['NIFTI_TYPE_FLOAT32'],
+        )
         gii = nib.gifti.GiftiImage(darrays=[darray])
         return nib.save(gii, fn)
 

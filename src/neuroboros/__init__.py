@@ -8,7 +8,6 @@ Neuroboros (:mod:`neuroboros`)
 # from . import stats as stats
 from . import linalg as linalg
 from . import surface as surface
-from .surface import Surface, Sphere
 from ._version import __version__, __version_tuple__
 from .datasets import (
     ID1000,
@@ -32,6 +31,7 @@ from .spaces import get_mask as mask
 from .spaces import get_morphometry as morphometry
 from .spaces import get_parcellation as parcellation
 from .spaces import smooth as smooth
+from .surface import Sphere, Surface
 from .utils import load, percentile, save
 from .utils import save_results
 from .utils import save_results as record
