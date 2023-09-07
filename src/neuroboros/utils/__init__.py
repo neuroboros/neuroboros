@@ -137,7 +137,7 @@ def save(fn, data):
         intent=nib.nifti1.intent_codes['NIFTI_INTENT_SHAPE'],
         datatype=nib.nifti1.data_type_codes['NIFTI_TYPE_FLOAT32'])
         gii = nib.gifti.GiftiImage(darrays=[darray])
-        nib.save(gii, fn)
+        return nib.save(gii, fn)
 
     raise TypeError(f'`data` type {type(data)} not supported.')
 
