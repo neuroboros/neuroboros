@@ -19,7 +19,7 @@ from functools import partial
 import numpy as np
 from scipy.stats import zscore
 
-from ..io import DefaultDataset, LocalDataset
+from ..io import DatasetManager
 from ..spaces import get_mask
 
 SURFACE_SPACES = ['fsavg-ico32', 'onavg-ico32', 'onavg-ico48', 'onavg-ico64']
@@ -109,18 +109,22 @@ class Dataset:
         self.dl_source = dl_source
         self.root_dir = root_dir
 
-        if self.dl_source is None:
-            if self.root_dir is not None:
-                self.dl_dset = LocalDataset(self.name, self.root_dir)
-            else:
-                try:
-                    self.dl_dset = LocalDataset(self.name, self.root_dir)
-                except AssertionError as e:
-                    raise RuntimeError(
-                        "Dataset not found locally and `dl_source` not " "specified."
-                    ) from e
-        else:
-            self.dl_dset = DefaultDataset(self.name, self.dl_source, self.root_dir)
+        self.dl_dset = DatasetManager(
+            self.name, root=self.root_dir, source=self.dl_source
+        )
+
+        # if self.dl_source is None:
+        #     if self.root_dir is not None:
+        #         self.dl_dset = LocalDataset(self.name, self.root_dir)
+        #     else:
+        #         try:
+        #             self.dl_dset = LocalDataset(self.name, self.root_dir)
+        #         except AssertionError as e:
+        #             raise RuntimeError(
+        #                 "Dataset not found locally and `dl_source` not " "specified."
+        #             ) from e
+        # else:
+        #     self.dl_dset = DefaultDataset(self.name, self.dl_source, self.root_dir)
 
         self.fp_version = fp_version
         self.surface_space = surface_space
