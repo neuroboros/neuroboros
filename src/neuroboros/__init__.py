@@ -19,6 +19,7 @@ from .datasets import (
     MonkeyKingdom,
     Raiders,
     SpaceTop,
+    datasets,
 )
 
 # from . import idm as idm

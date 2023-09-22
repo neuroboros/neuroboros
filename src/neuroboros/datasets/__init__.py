@@ -718,3 +718,16 @@ class MonkeyKingdom(Dataset):
             'sid002519',
             'sid002570',
         ]
+
+
+datasets = {
+    'forrest': Forrest,
+    'bologna': Bologna,
+    'dalmatians': Dalmatians,
+    'spacetop': SpaceTop,
+    'camcan': CamCAN,
+    'id1000': ID1000,
+    'raiders': Raiders,
+    'budapest': Budapest,
+    'monkeykingdom': MonkeyKingdom,
+}
