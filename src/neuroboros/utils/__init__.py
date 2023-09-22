@@ -276,8 +276,8 @@ def monitor(func, record_fn=None):
 
 
 def save_results(
-    func,
     out_fn,
+    func,
     return_results=False,
     log_fn=None,
     rerun_hours=48,
@@ -293,10 +293,10 @@ def save_results(
 
     Parameters
     ----------
-    func : function
-        The function to be wrapped.
     out_fn : str or list/tuple of str
         The names of the output file(s).
+    func : function
+        The function to be wrapped.
     return_results : bool, default=False
         Whether ``wrapped_func`` will return the output of the original
         function ``func``. If it's False, None will be returned.

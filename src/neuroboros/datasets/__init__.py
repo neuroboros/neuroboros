@@ -731,3 +731,11 @@ datasets = {
     'budapest': Budapest,
     'monkeykingdom': MonkeyKingdom,
 }
+
+
+def get_dataset(name):
+    if name not in datasets:
+        raise ValueError(
+            f"Dataset {name} not recognized. Valid datasets are: {datasets.keys()}"
+        )
+    return datasets[name]()

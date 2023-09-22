@@ -19,8 +19,8 @@ from .datasets import (
     MonkeyKingdom,
     Raiders,
     SpaceTop,
-    datasets,
 )
+from .datasets import get_dataset as dataset
 
 # from . import idm as idm
 from .plot2d import brain_plot as plot
