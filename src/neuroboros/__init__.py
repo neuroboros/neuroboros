@@ -9,6 +9,9 @@ Neuroboros (:mod:`neuroboros`)
 from . import linalg as linalg
 from . import surface as surface
 from ._version import __version__, __version_tuple__
+
+# from . import idm as idm
+from .benchmark import classification
 from .datasets import (
     ID1000,
     Bologna,
@@ -21,8 +24,6 @@ from .datasets import (
     SpaceTop,
 )
 from .datasets import get_dataset as dataset
-
-# from . import idm as idm
 from .plot2d import brain_plot as plot
 from .searchlights import get_searchlights as sls
 from .spaces import get_distances as distances
