@@ -5,8 +5,8 @@ Neuroboros (:mod:`neuroboros`)
 
 """
 
-# from . import stats as stats
 from . import linalg as linalg
+from . import stats as stats
 from . import surface as surface
 from ._version import __version__, __version_tuple__
 
