@@ -1,5 +1,5 @@
 import numpy as np
-from scipy.stats import f, zscore
+from scipy.stats import f, norm, rankdata, zscore
 
 
 def cronbach_alpha_ci(alpha, n, m, ci):
@@ -155,3 +155,40 @@ def spearman_brown(r, n):
     """
     r_new = (n * r) / (1.0 + (n - 1.0) * r)
     return r_new
+
+
+def normalize(d, clip=(0.0005, 0.9995), keep_stats=True):
+    """Normalize the data to normal distribution.
+
+    Parameters
+    ----------
+    d : ndarray
+        The data to be normalized. The function assumes that ``d`` is 1D.
+    clip : float or tuple of float, default=(0.0005, 0.9995)
+        The lower and upper bounds for clipping the percentiles. By default,
+        the function clips percentiles above 99.95% and below 0.05%. If a float
+        is provided, it is used as the percentage of clipping, e.g., 0.01 for
+        clipping percentiles above 99.5% and below 0.5%.
+    keep_stats : bool, default=True
+        Whether to keep the mean and standard deviation of the input data. If
+        False, the returned data is normalized to standard normal distribution
+        (zero mean and unit variance).
+
+    Returns
+    -------
+    d_new : ndarray
+        The normalized data.
+
+    """
+    rank = rankdata(d)
+    pct = (rank - 0.5) / len(rank)
+
+    if isinstance(clip, float):
+        clip = (clip * 0.5, 1 - clip * 0.5)
+    pct = np.clip(pct, *clip)
+
+    if keep_stats:
+        d_new = norm.ppf(pct, loc=d.mean(), scale=d.std())
+    else:
+        d_new = norm.ppf(pct, loc=0, scale=1)
+    return d_new
