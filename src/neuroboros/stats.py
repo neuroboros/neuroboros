@@ -135,30 +135,23 @@ def noise_ceilings(X, rep_axis=0, var_axis=1, return_alpha=False):
     return ceilings
 
 
-def spearman_brown(rs, n, inverse=False):
+def spearman_brown(r, n):
     """Spearman-Brown prediction formula.
 
     Parameters
     ----------
-    rs : float
-        The reliability coefficient. By default, it's the reliability of a
-        single measurement. If ``inverse`` is True, it's the reliability of
-        repetitions.
+    r : float
+        The reliability coefficient.
     n : int
-        The number of repetitions.
-    inverse : bool, default=False
-        If True, instead of predicting the reliability of repetitions based on
-        the reliability of a single measurement, predict the reliability of a
-        single measurement based on the reliability of repetitions.
+        The length of the new "test" relative to the current one. For example,
+        if the current test has 10 items and the new test has 20 items, then
+        ``n`` is 2. If the current test has 20 items and the new test has 10
+        items, then ``n`` is 0.5.
 
     Returns
     -------
-    rs : float
+    r_new : float
         The predicted reliability coefficient.
     """
-    if inverse:
-        rs1 = 1.0 / (1.0 + n * (1.0 - rs) / rs)
-        return rs1
-    else:
-        rsn = (n * rs) / (1.0 + (n - 1) * rs)
-        return rsn
+    r_new = (n * r) / (1.0 + (n - 1.0) * r)
+    return r_new

@@ -4,6 +4,11 @@ from scipy.stats import zscore
 import neuroboros as nb
 
 
+def inverse_spearman_brown(rs, n):
+    rs1 = 1.0 / (1.0 + n * (1.0 - rs) / rs)
+    return rs1
+
+
 class TestSpearmanBrown:
     def test_spearman_brown(self):
         rng = np.random.default_rng(0)
@@ -13,7 +18,7 @@ class TestSpearmanBrown:
             rn = nb.stats.spearman_brown(r1, n)
             assert rn > r1
             assert rn <= 1
-            inv = nb.stats.spearman_brown(rn, n, inverse=True)
+            inv = inverse_spearman_brown(rn, n)
             np.testing.assert_allclose(inv, r1)
 
     def test_spearman_brown_ndarray(self):
@@ -24,7 +29,16 @@ class TestSpearmanBrown:
             rn = nb.stats.spearman_brown(r1, n)
             np.testing.assert_array_less(r1, rn)
             np.testing.assert_array_less(rn, 1.0)
-            inv = nb.stats.spearman_brown(rn, n, inverse=True)
+            inv = inverse_spearman_brown(rn, n)
+            np.testing.assert_allclose(inv, r1)
+
+    def test_spearman_brown_inv(self):
+        rng = np.random.default_rng(0)
+        for i in range(100):
+            rn = rng.random()
+            n = rng.integers(2, 100)
+            inv = inverse_spearman_brown(rn, n)
+            r1 = nb.stats.spearman_brown(rn, 1.0 / n)
             np.testing.assert_allclose(inv, r1)
 
 
