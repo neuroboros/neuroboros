@@ -142,7 +142,7 @@ def spearman_brown(r, n):
     ----------
     r : float
         The reliability coefficient.
-    n : int
+    n : int or float
         The length of the new "test" relative to the current one. For example,
         if the current test has 10 items and the new test has 20 items, then
         ``n`` is 2. If the current test has 20 items and the new test has 10
@@ -155,6 +155,26 @@ def spearman_brown(r, n):
     """
     r_new = (n * r) / (1.0 + (n - 1.0) * r)
     return r_new
+
+
+def spearman_brown_inv(r, r_new):
+    """Predicting required test length for a given reliability.
+
+    Parameters
+    ----------
+    r : float
+        The current reliability coefficient.
+    r_new : float
+        The desired reliability coefficient.
+
+    Returns
+    -------
+    n : float
+        The required test length relative to the current one.
+    """
+    prod = r * r_new
+    n = (r_new - prod) / (r - prod)
+    return n
 
 
 def normalize(d, clip=(0.0005, 0.9995), keep_stats=True):

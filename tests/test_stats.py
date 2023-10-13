@@ -42,6 +42,19 @@ class TestSpearmanBrown:
             np.testing.assert_allclose(inv, r1)
 
 
+class TestSpearmanBrownInv:
+    def test_spearman_brown_inv(self):
+        rng = np.random.default_rng(0)
+        for i in range(100):
+            r1 = rng.random()
+            rn = rng.random()
+            if r1 == 0 or rn == 0:
+                continue
+            n = nb.stats.spearman_brown_inv(r1, rn)
+            r2 = nb.stats.spearman_brown(r1, n)
+            np.testing.assert_allclose(r2, rn)
+
+
 class TestAlpha:
     def test_alpha(self):
         rng = np.random.default_rng(0)
