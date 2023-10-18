@@ -31,6 +31,7 @@ from .utils import save
 
 GUESS_SEPARATE = {
     # masked
+    (154786, 154560): ('onavg-ico128', True),
     (9675, 9666): ('onavg-ico32', True),
     (9519, 9506): ('fsavg-ico32', True),
     (9504, 9483): ('fslr-ico32', True),
@@ -56,6 +57,7 @@ GUESS_SEPARATE = {
 
 GUESS_COMBINED = {
     # masked
+    309346: ('onavg-ico128', True, [154786]),
     19341: ('onavg-ico32', True, [9675]),
     19025: ('fsavg-ico32', True, [9519]),
     18987: ('fslr-ico32', True, [9504]),
