@@ -226,6 +226,26 @@ class Dataset:
             output.append(o)
         return output
 
+    def load_design(self, sid, task, run, fp_version=None):
+        if fp_version is None:
+            fp_version = self.fp_version
+        suffix = 'design.json'
+        if self.renaming is None:
+            fn = [
+                fp_version,
+                'design',
+                f'sub-{sid}_task-{task}_run-{run:02d}_{suffix}',
+            ]
+        else:
+            fn = [
+                fp_version,
+                'renamed_design',
+                f'sub-{sid}_task-{task}_run-{run:02d}_{suffix}',
+            ]
+        fn = self.renaming['/'.join(fn)].split('/')
+        output = self.dl_dset.get(fn, on_missing='raise')
+        return output
+
     def get_data(
         self,
         sid,
