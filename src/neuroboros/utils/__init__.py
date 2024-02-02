@@ -79,6 +79,7 @@ def save(fn, data):
     If ``fn`` ends with ".pkl", save using ``pickle.dump``.
     If ``fn`` ends with ".png", save as PNG file (requires the Pillow
     package).
+    If ``fn`` ends with ".json", save as JSON file.
 
     The function also automatically create the directory ``fn`` is in if it
     does not exist.
@@ -140,6 +141,10 @@ def save(fn, data):
         gii = nib.gifti.GiftiImage(darrays=[darray])
         return nib.save(gii, fn)
 
+    if fn.endswith('.json'):
+        with open(fn, 'w') as f:
+            return json.dump(data, f)
+
     raise TypeError(f'`data` type {type(data)} not supported.')
 
 
@@ -155,7 +160,7 @@ def load(fn, **kwargs):
     -------
     ret
         Returned value of ``numpy.load``, ``scipy.sparse.load_npz``,
-        ``pickle.load``, or ``pandas.read_csv``.
+        ``pickle.load``, ``pandas.read_csv``, or ``json.load``.
 
     Raises
     ------
@@ -182,6 +187,9 @@ def load(fn, **kwargs):
             return pickle.load(f, **kwargs)
     if fn.endswith('.json.gz'):
         with gzip.open(fn, 'rb') as f:
+            return json.load(f, **kwargs)
+    if fn.endswith('.json'):
+        with open(fn, 'rb') as f:
             return json.load(f, **kwargs)
     raise TypeError(f'file type of `fn` is not supported.')
 
