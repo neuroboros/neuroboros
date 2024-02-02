@@ -720,6 +720,67 @@ class MonkeyKingdom(Dataset):
         ]
 
 
+class Life(Dataset):
+    def __init__(
+        self,
+        space=['onavg-ico32', 'mni-4mm'],
+        resample=['1step_pial_overlap', '1step_linear_overlap'],
+        prep='default',
+        fp_version='20.2.7',
+        name='life',
+        root_dir=None,
+        dl_source=None,
+    ):
+        super().__init__(
+            name,
+            dl_source=dl_source,
+            root_dir=root_dir,
+            space=space,
+            resample=resample,
+            prep=prep,
+            fp_version=fp_version,
+        )
+        self.tasks = ['life', 'tax', 'beh']
+        self.subject_sets = {
+            'attention': [
+                'rid000001',
+                'rid000012',
+                'rid000017',
+                'rid000024',
+                'rid000027',
+                'rid000031',
+                'rid000032',
+                'rid000033',
+                'rid000034',
+                'rid000036',
+                'rid000037',
+                'rid000041',
+            ],
+            'all': [
+                'rid000001',
+                'rid000005',
+                'rid000006',
+                'rid000009',
+                'rid000012',
+                'rid000014',
+                'rid000017',
+                'rid000019',
+                'rid000020',
+                'rid000024',
+                'rid000027',
+                'rid000031',
+                'rid000032',
+                'rid000033',
+                'rid000034',
+                'rid000036',
+                'rid000037',
+                'rid000038',
+                'rid000041',
+            ],
+        }
+        self.subjects = self.subject_sets['all']
+
+
 datasets = {
     'forrest': Forrest,
     'bologna': Bologna,
@@ -730,6 +791,7 @@ datasets = {
     'raiders': Raiders,
     'budapest': Budapest,
     'monkeykingdom': MonkeyKingdom,
+    'life': Life,
 }
 
 
