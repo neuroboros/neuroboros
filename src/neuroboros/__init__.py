@@ -19,11 +19,13 @@ from .datasets import (
     CamCAN,
     Dalmatians,
     Forrest,
+    Life,
     MonkeyKingdom,
     Raiders,
     SpaceTop,
 )
 from .datasets import get_dataset as dataset
+from .glm import glm
 from .plot2d import brain_plot as plot
 from .plot_mebrains import plot_mebrains as plot_mebrains
 from .searchlights import get_searchlights as sls
