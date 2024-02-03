@@ -242,7 +242,52 @@ class Dataset:
                 'renamed_design',
                 f'sub-{sid}_task-{task}_run-{run:02d}_{suffix}',
             ]
-        fn = self.renaming['/'.join(fn)].split('/')
+            fn = self.renaming['/'.join(fn)].split('/')
+        output = self.dl_dset.get(fn, on_missing='raise')
+        return output
+
+    def load_contrasts(
+        self,
+        sid,
+        task,
+        run,
+        lr,
+        kind='t',
+        space=None,
+        resample=None,
+        prep=None,
+        force_volume=False,
+        fp_version=None,
+    ):
+        if force_volume:
+            space_kind = 'volume'
+        else:
+            space_kind = guess_surface_volume(space, resample, lr)
+        if space is None:
+            space = {
+                'surface': self.surface_space,
+                'volume': self.volume_space,
+            }[space_kind]
+        if resample is None:
+            resample = {
+                'surface': self.surface_resample,
+                'volume': self.volume_resample,
+            }[space_kind]
+        if prep is None:
+            prep = self.prep
+
+        if fp_version is None:
+            fp_version = self.fp_version
+        suffix = f'{kind}.npy'
+        fn = [
+            fp_version,
+            'contrasts',
+            space,
+            f'{lr}-cerebrum',
+            resample,
+            prep,
+            f'sub-{sid}_task-{task}_run-{run:02d}_{suffix}',
+        ]
         output = self.dl_dset.get(fn, on_missing='raise')
         return output
 
@@ -799,6 +844,37 @@ class Life(Dataset):
             ],
         }
         self.subjects = self.subject_sets['all']
+        self.contrasts = [
+            'primate_eating',
+            'primate_fighting',
+            'primate_running',
+            'primate_swimming',
+            'ungulate_eating',
+            'ungulate_fighting',
+            'ungulate_running',
+            'ungulate_swimming',
+            'bird_eating',
+            'bird_fighting',
+            'bird_running',
+            'bird_swimming',
+            'reptile_eating',
+            'reptile_fighting',
+            'reptile_running',
+            'reptile_swimming',
+            'insect_eating',
+            'insect_fighting',
+            'insect_running',
+            'insect_swimming',
+            'primate',
+            'ungulate',
+            'bird',
+            'reptile',
+            'insect',
+            'eating',
+            'fighting',
+            'running',
+            'swimming',
+        ]
 
 
 datasets = {
