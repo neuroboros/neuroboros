@@ -106,7 +106,7 @@ class DatasetManager:
             else:
                 raise ValueError(f"Invalid value for `on_missing`: {on_missing}")
 
-        result = self.dset.get(fn)[0]
+        result = self.dset.get('/'.join(fn))[0]
         if result['status'] not in ['ok', 'notneeded']:
             raise RuntimeError(
                 f"datalad `get` status is {result['status']}, likely due "
