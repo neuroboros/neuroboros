@@ -7,6 +7,40 @@ from scipy.spatial.distance import cdist
 
 
 def subdivide_edges(coords, faces, n_div):
+    """Subdivide each edge into ``n_div`` parts.
+
+    This function adds new vertices to the mesh. The new vertices are placed
+    on each edge of the mesh. The number of new vertices on each edge is
+    ``n_div - 1``, which means each edge is now divided into ``n_div`` parts.
+
+    The new vertices are usually used to increase the accuracy of the
+    estimated geodesic distances using Dijkstra's algorithm.
+
+    Parameters
+    ----------
+    coords : ndarray of shape (nv, 3)
+        The coordinates of the vertices.
+    faces : ndarray of shape (nf, 3)
+        The indices of the vertices of each triangle face.
+    n_div : int
+        The number of segments to divide each edge into.
+
+
+    Returns
+    -------
+    new_coords : ndarray of shape (nv_new, 3)
+        The coordinates of the new vertices. It should be concatenated to the
+        original coordinates to get the full set of vertex coordinates.
+    e_mapping : dict
+        The mapping from the original edges to the new vertices. The keys are
+        tuples of sorted vertex indices of the original edges. The values are
+        the indices of the new vertices. Vertex indices start from ``nv``.
+    neighbors : dict
+        The neighbors of each vertex. The keys are the vertex indices. The
+        values are dictionaries. The keys of the dictionaries are the indices
+        of the neighboring vertices. The values of the dictionaries are the
+        distances between the vertex and the neighboring vertices.
+    """
     n_edges = faces.shape[0] * 3 // 2
     nv_new = n_edges * (n_div - 1)
     new_coords = np.zeros((nv_new, 3), dtype=coords.dtype)
@@ -73,6 +107,37 @@ def subdivide_edges(coords, faces, n_div):
 
 
 def dijkstra_distances(nv, candidates, neighbors, max_dist=None):
+    """Dijkstra's algorithm to estimate the geodesic distances.
+
+    This function estimates the geodesic distances between a vertex and all
+    vertices in the mesh using Dijkstra's algorithm. If the vertex is part of
+    the mesh, the ``candidates`` list should contain only one tuple
+    ``(0.0, idx)`` where ``idx`` is the index of the vertex. If the vertex is
+    not part of the mesh, the ``candidates`` list should contain tuples
+    ``(d, idx)`` where ``d`` is the distance between the vertex and the
+    neighboring vertices and ``idx`` is the index of the neighboring vertices.
+
+    Parameters
+    ----------
+    nv : int
+        The number of vertices.
+    candidates : list
+        The list of candidate vertices. Each element is a tuple of the
+        distance and the vertex index.
+    neighbors : dict
+        The neighbors of each vertex. The keys are the vertex indices. The
+        values are dictionaries. The keys of the dictionaries are the indices
+        of the neighboring vertices. The values of the dictionaries are the
+        distances between the vertex and the neighboring vertices.
+    max_dist : float or None, default=None
+        The maximum distance to search. If None, the maximum distance is
+        infinity.
+
+    Returns
+    -------
+    dists : ndarray of shape (nv,)
+        The estimated geodesic distances.
+    """
     dists = np.full((nv,), np.inf)
     finished = np.zeros((nv,), dtype=bool)
     for d, idx in candidates:
@@ -96,8 +161,60 @@ def dijkstra_distances(nv, candidates, neighbors, max_dist=None):
 
 
 def subdivision_voronoi(
-    coords, faces, e_mapping, neighbors, f_indices, weights, max_dist=None
+    coords,
+    faces,
+    e_mapping,
+    neighbors,
+    f_indices,
+    weights,
+    max_dist=None,
+    verbose=False,
 ):
+    """Voronoi diagram on a subdivided mesh.
+
+    This function estimates the nearest vertex on the target mesh for each
+    vertex of the subdivided mesh. The subdivided mesh is used to increase the
+    accuracy of the estimated geodesic distances using Dijkstra's algorithm.
+
+    Barycentric interpolation is used to map the vertices of the target mesh
+    to the subdivided mesh.
+
+    Parameters
+    ----------
+    coords : ndarray of shape (nv, 3)
+        The coordinates of the vertices of the subdivided mesh.
+    faces : ndarray of shape (nf, 3)
+        The vertex indices of each triangle face of the original mesh.
+    e_mapping : dict
+        The mapping from the original edges to the new vertices. The keys are
+        tuples of sorted vertex indices of the original edges. The values are
+        the indices of the new vertices.
+    neighbors : dict
+        The neighbors of each vertex. The keys are the vertex indices. The
+        values are dictionaries. The keys of the dictionaries are the indices
+        of the neighboring vertices. The values of the dictionaries are the
+        distances between the vertex and the neighboring vertices.
+    f_indices : ndarray of shape (nv_target,)
+        Each element is the index of the triangle face on the original mesh
+        that contains the corresponding vertex on the target mesh.
+    weights : ndarray of shape (nv_target, 3)
+        Each row is the barycentric weights of the three vertices of the face
+        for the corresponding vertex on the target mesh.
+    max_dist : float or None, default=None
+        The maximum distance to search. If None, the maximum distance is
+        infinity.
+    verbose : bool, default=False
+        Whether to print the progress or not.
+
+    Returns
+    -------
+    nn : ndarray of shape (nv,)
+        The indices of the nearest vertex on the target mesh for each vertex
+        of the subdivided mesh.
+    nnd : ndarray of shape (nv,)
+        The estimated geodesic distances between each vertex of the subdivided
+        mesh and the nearest vertex on the target mesh.
+    """
     nv = coords.shape[0]
     assert len(np.unique(f_indices)) == len(f_indices)
     if max_dist is None:
@@ -120,7 +237,7 @@ def subdivision_voronoi(
             mask = d < nnd
             nn[mask] = i
             nnd[mask] = d[mask]
-            if i % log_step == 0:
+            if verbose and i % log_step == 0:
                 print(
                     datetime.now(),
                     i,
@@ -137,7 +254,40 @@ def subdivision_voronoi(
     return nn, nnd
 
 
-def native_voronoi(coords, faces, e_mapping, neighbors):
+def native_voronoi(coords, faces, e_mapping, neighbors, verbose=False):
+    """Voronoi diagram on the original mesh.
+
+    This function estimates the nearest vertex on the original mesh for each
+    vertex of the subdivided mesh. The subdivided mesh is used to increase the
+    accuracy of the estimated geodesic distances using Dijkstra's algorithm.
+
+    Parameters
+    ----------
+    coords : ndarray of shape (nv, 3)
+        The coordinates of the vertices of the subdivided mesh.
+    faces : ndarray of shape (nf, 3)
+        The vertex indices of each triangle face of the original mesh.
+    e_mapping : dict
+        The mapping from the original edges to the new vertices. The keys are
+        tuples of sorted vertex indices of the original edges. The values are
+        the indices of the new vertices.
+    neighbors : dict
+        The neighbors of each vertex. The keys are the vertex indices. The
+        values are dictionaries. The keys of the dictionaries are the indices
+        of the neighboring vertices. The values of the dictionaries are the
+        distances between the vertex and the neighboring vertices.
+    verbose : bool, default=False
+        Whether to print the progress or not.
+
+    Returns
+    -------
+    nn : ndarray of shape (nv,)
+        The indices of the nearest vertex on the original mesh for each vertex
+        of the subdivided mesh.
+    nnd : ndarray of shape (nv,)
+        The estimated geodesic distances between each vertex of the subdivided
+        mesh and the nearest vertex on the original mesh.
+    """
     nv = coords.shape[0]
     nn = np.full((nv,), -1, dtype=int)
     nnd = np.full((nv,), np.inf)
@@ -173,17 +323,19 @@ def native_voronoi(coords, faces, e_mapping, neighbors):
             nn[indices[mask]] = f[min_idx[mask]]
         nn[f] = f
         nnd[f] = 0.0
-    print(np.isfinite(nnd).mean(), nnd.max())
+    if verbose:
+        print(np.isfinite(nnd).mean(), nnd.max())
 
     seeds = np.unique(seeds)
-    print(len(seeds), seeds[:10])
+    if verbose:
+        print(len(seeds), seeds[:10])
     for i, seed in enumerate(seeds):
         candidates = [(0.0, seed)]
         d = dijkstra_distances(nv, candidates, neighbors, max_dist=max_dist)
         mask = d < nnd
         nn[mask] = seed
         nnd[mask] = d[mask]
-        if i % 10000 == 0:
+        if verbose and i % 10000 == 0:
             print(
                 datetime.now(),
                 i,
@@ -201,6 +353,34 @@ def native_voronoi(coords, faces, e_mapping, neighbors):
 
 
 def inverse_face_mapping(f_indices, weights, coords, faces):
+    """Inverse face mapping.
+
+    This function computes the mapping from the original faces to the target
+    vertices. Given a triangle face on the original mesh, the mapping returns
+    the indices of the target vertices inside the triangle face and the
+    coordinates of the target vertices.
+
+    Parameters
+    ----------
+    f_indices : ndarray of shape (nv_target,)
+        Each element is the index of the triangle face on the original mesh
+        that contains the corresponding vertex on the target mesh.
+    weights : ndarray of shape (nv_target, 3)
+        Each row is the barycentric weights of the three vertices of the face
+        for the corresponding vertex on the target mesh.
+    coords : ndarray of shape (nv, 3)
+        The coordinates of the vertices of the original mesh.
+    faces : ndarray of shape (nf, 3)
+        The vertex indices of each triangle face of the original mesh.
+
+    Returns
+    -------
+    f_inv : dict
+        The inverse mapping from the original faces to the target vertices.
+        The keys are the indices of the original faces. The values are lists
+        of pairs of the indices of the target vertices and the coordinates of
+        the target vertices.
+    """
     f_inv = {}
     for i, f_idx in enumerate(f_indices):
         if f_idx not in f_inv:
