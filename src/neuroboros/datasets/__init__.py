@@ -786,6 +786,29 @@ class MonkeyKingdom(Dataset):
 
 
 class Life(Dataset):
+    """The Life dataset.
+
+    This dataset contains brain responses to the Life documentary ("life"),
+    as well as to video clips of various animals and actions ("attention").
+
+    During the attention tasks, participants attended to either behavior
+    ("beh") or taxonomy ("tax"). Each of the two tasks has 5 runs. In each
+    run, there were 20 conditions (5 taxonomic categories x 4 behavioral
+    categories). The 5 taxonomic categories were: primates, ungulates, birds,
+    reptiles, and insects. The 4 behavioral categories were: eating, fighting,
+    running, and swimming.
+
+    See Nastase et al. (2017, 2018) in the References for more details.
+
+    References
+    ----------
+    https://doi.org/10.1093/cercor/bhx138
+    https://doi.org/10.3389/fnins.2018.00316
+    https://datasets.datalad.org/?dir=/labs/haxby/life
+    https://datasets.datalad.org/?dir=/labs/haxby/attention
+    https://snastase.github.io/data/
+    """
+
     def __init__(
         self,
         space=['onavg-ico32', 'mni-4mm'],
@@ -794,7 +817,7 @@ class Life(Dataset):
         fp_version='20.2.7',
         name='life',
         root_dir=None,
-        dl_source=None,
+        dl_source='https://gin.g-node.org/neuroboros/life',
     ):
         super().__init__(
             name,
