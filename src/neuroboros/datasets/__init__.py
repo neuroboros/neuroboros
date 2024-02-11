@@ -429,6 +429,20 @@ class Bologna(Dataset):
 
 
 class Forrest(Dataset):
+    """The Forrest dataset.
+
+    This dataset contains fMRI responses while participants passively
+    viewed the audiovisual movie *Forrest Gump* (1994).
+
+    See Sengupta et al. (2016) in the References for more details.
+
+    References
+    ----------
+    https://doi.org/10.1038/sdata.2016.93
+    https://datasets.datalad.org/?dir=/studyforrest
+    https://www.studyforrest.org/
+    """
+    
     def __init__(
         self,
         space=['onavg-ico32', 'mni-4mm'],
@@ -631,6 +645,21 @@ class ID1000(Dataset):
 
 
 class Raiders(Dataset):
+    """The Raiders dataset.
+
+    This dataset contains fMRI responses while participants passively
+    viewed the audiovisual movie *Raiders of the Lost Ark* (1981).
+
+    See Haxby et al. (2011) and Guntupalli et al. (2016) in the References
+    for more details.
+
+    References
+    ----------
+    https://doi.org/10.1016/j.neuron.2011.08.026
+    https://doi.org/10.1093/cercor/bhw068
+    https://datasets.datalad.org/?dir=/labs/haxby/raiders
+    """
+    
     def __init__(
         self,
         space=['onavg-ico32', 'mni-4mm'],
@@ -691,6 +720,22 @@ class Raiders(Dataset):
 
 
 class Budapest(Dataset):
+    """The Budapest dataset.
+
+    This dataset contains fMRI responses while participants passively
+    viewed the audiovisual movie *The Grand Budapest Hotel* (2014).
+
+    See Visconti di Oleggio Castello et al. (2020) in the References
+    for more details.
+
+    References
+    ----------
+    https://doi.org/10.1038/s41597-020-00735-4
+    https://datasets.datalad.org/?dir=/labs/gobbini/budapest
+    https://openneuro.org/datasets/ds003017
+    https://doi.org/10.18112/openneuro.ds003017.v1.0.3
+    """
+    
     def __init__(
         self,
         space=['onavg-ico32', 'mni-4mm'],
@@ -788,16 +833,22 @@ class MonkeyKingdom(Dataset):
 class Life(Dataset):
     """The Life dataset.
 
-    This dataset contains brain responses to the Life documentary ("life"),
-    as well as to video clips of various animals and actions ("attention").
+    This dataset contains fMRI responses while participants passively
+    viewed four audiovisual segments of the *Life* (2009) nature documentary
+    ("life"), as well as fMRI responses while performing an attention task
+    while viewing video clips of various animals performing different
+    actions ("attention").
 
-    During the attention tasks, participants attended to either behavior
-    ("beh") or taxonomy ("tax"). Each of the two tasks has 5 runs. In each
-    run, there were 20 conditions (5 taxonomic categories x 4 behavioral
-    categories). The 5 taxonomic categories were: primates, ungulates, birds,
-    reptiles, and insects. The 4 behavioral categories were: eating, fighting,
+    During the "attention" session, participants were asked to attend to
+    either the behavior ("beh") or taxonomy ("tax") of the animal in the
+    video. Participants performed a 1-back repetition detection task for 
+    either the same behavior or same taxonomy category in two consecutive
+    videos. Participants performed 5 runs for each task. In each run, there
+    were 20 conditions (5 taxonomic categories x 4 behavioral categories).
+    The 5 taxonomic categories were: primates, ungulates, birds, reptiles,
+    and insects. The 4 behavioral categories were: eating, fighting,
     running, and swimming.
-
+    
     See Nastase et al. (2017, 2018) in the References for more details.
 
     References
@@ -806,6 +857,8 @@ class Life(Dataset):
     https://doi.org/10.3389/fnins.2018.00316
     https://datasets.datalad.org/?dir=/labs/haxby/life
     https://datasets.datalad.org/?dir=/labs/haxby/attention
+    https://openneuro.org/datasets/ds000233
+    https://doi.org/10.18112/openneuro.ds000233.v1.0.1
     https://snastase.github.io/data/
     """
 
