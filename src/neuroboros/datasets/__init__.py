@@ -442,7 +442,7 @@ class Forrest(Dataset):
     https://datasets.datalad.org/?dir=/studyforrest
     https://www.studyforrest.org/
     """
-    
+
     def __init__(
         self,
         space=['onavg-ico32', 'mni-4mm'],
@@ -645,21 +645,18 @@ class ID1000(Dataset):
 
 
 class Raiders(Dataset):
-    """The Raiders dataset.
+    """The Raiders dataset collected with the Siemens scanner.
 
     This dataset contains fMRI responses while participants passively
     viewed the audiovisual movie *Raiders of the Lost Ark* (1981).
 
-    See Haxby et al. (2011) and Guntupalli et al. (2016) in the References
-    for more details.
+    See Nastase (2018) in the References for more details.
 
     References
     ----------
-    https://doi.org/10.1016/j.neuron.2011.08.026
-    https://doi.org/10.1093/cercor/bhw068
-    https://datasets.datalad.org/?dir=/labs/haxby/raiders
+    https://www.proquest.com/docview/2018905893/abstract/F07E13FBBC234A93PQ/1
     """
-    
+
     def __init__(
         self,
         space=['onavg-ico32', 'mni-4mm'],
@@ -719,6 +716,43 @@ class Raiders(Dataset):
         return data
 
 
+class PhilipsRaiders(Dataset):
+    """The Raiders dataset collected using the Philips scanner.
+
+    This dataset contains fMRI responses while participants passively
+    viewed the audiovisual movie *Raiders of the Lost Ark* (1981).
+
+    See Haxby et al. (2011) and Guntupalli et al. (2016) in the References
+    for more details.
+
+    References
+    ----------
+    https://doi.org/10.1016/j.neuron.2011.08.026
+    https://doi.org/10.1093/cercor/bhw068
+    https://datasets.datalad.org/?dir=/labs/haxby/raiders
+    """
+
+    def __init__(
+        self,
+        space=['onavg-ico32', 'mni-4mm'],
+        resample=['1step_pial_overlap', '1step_linear_overlap'],
+        prep='default',
+        fp_version='20.2.7',
+        name='raiders',
+        root_dir=None,
+        dl_source=None,
+    ):
+        super().__init__(
+            name,
+            dl_source=dl_source,
+            root_dir=root_dir,
+            space=space,
+            resample=resample,
+            prep=prep,
+            fp_version=fp_version,
+        )
+
+
 class Budapest(Dataset):
     """The Budapest dataset.
 
@@ -735,7 +769,7 @@ class Budapest(Dataset):
     https://openneuro.org/datasets/ds003017
     https://doi.org/10.18112/openneuro.ds003017.v1.0.3
     """
-    
+
     def __init__(
         self,
         space=['onavg-ico32', 'mni-4mm'],
@@ -841,14 +875,14 @@ class Life(Dataset):
 
     During the "attention" session, participants were asked to attend to
     either the behavior ("beh") or taxonomy ("tax") of the animal in the
-    video. Participants performed a 1-back repetition detection task for 
+    video. Participants performed a 1-back repetition detection task for
     either the same behavior or same taxonomy category in two consecutive
     videos. Participants performed 5 runs for each task. In each run, there
     were 20 conditions (5 taxonomic categories x 4 behavioral categories).
     The 5 taxonomic categories were: primates, ungulates, birds, reptiles,
     and insects. The 4 behavioral categories were: eating, fighting,
     running, and swimming.
-    
+
     See Nastase et al. (2017, 2018) in the References for more details.
 
     References
