@@ -303,6 +303,7 @@ class Dataset:
         fp_version=None,
         force_volume=False,
         prep_kwargs=None,
+        slicer=None,
     ):
         if isinstance(run, (tuple, list)):
             ret = [
@@ -350,8 +351,10 @@ class Dataset:
             prep = self.prep
         if fp_version is None:
             fp_version = self.fp_version
+        if slicer is None:
+            slicer = getattr(self, 'slicer', None)
 
-        ds = self.load_data(sid, task, run, lr, space, resample, fp_version)
+        dm = self.load_data(sid, task, run, lr, space, resample, fp_version)
         confounds = self.load_confounds(sid, task, run, fp_version)
         if space_kind == 'surface':
             if lr == 'lr':
@@ -364,11 +367,11 @@ class Dataset:
             cortical_mask = None
         if isinstance(prep, str):
             prep = get_prep(prep, **(prep_kwargs if prep_kwargs is not None else {}))
-        if hasattr(self, 'slicer'):
-            ds = self.slicer(ds, task, run)
-            confounds = [self.slicer(c, task, run) for c in confounds]
-        ds = prep(ds, confounds, cortical_mask)
-        return ds
+        if slicer is not None:
+            dm = slicer(dm, task, run)
+            confounds = [slicer(c, task, run) for c in confounds]
+        dm = prep(dm, confounds, cortical_mask)
+        return dm
 
     def _get_anatomical_data(self, sid, which, lr, mask, space, fp_version):
         if fp_version is None:
@@ -883,6 +886,10 @@ class Life(Dataset):
     and insects. The 4 behavioral categories were: eating, fighting,
     running, and swimming.
 
+    The "life" data was collected with TR = 2.5 s and 3 mm isotropic
+    voxels. The "attention" data was collected with TR = 2 s and 3 mm
+    isotropic voxels.
+
     See Nastase et al. (2017, 2018) in the References for more details.
 
     References
@@ -985,6 +992,30 @@ class Life(Dataset):
             'running',
             'swimming',
         ]
+
+    def slicer(self, data, task, run):
+        """
+        The duration of the 4 video stimuli for the "life" data are: 15:21.32,
+        14:12.32, 15:28.33, 16:55.31. That is, 921.32, 852.32, 928.33, and
+        1015.31 seconds, respectively. For runs 1, 2, and 4, the first 8 s of
+        the video were skipped. For run 3, the first 8.6 seconds of the video
+        were skipped.
+        After accounting for the skipped video frames, the length of the
+        videos (in TRs) are 365.328, 337.728, 367.892, 402.924, respectively.
+
+        The 4 runs of the "life" data contain 374, 346, 377, and 412 volumes,
+        respectively. That is, 935, 865, 942, and 1030 seconds, respectively.
+
+        We remove the last few volumes, which hardly contain any responses
+        even after accounting for the hemodynamic delay. One participant only
+        has 366 and 338 volumes for the first two runs, respectively.
+        We keep the same number of volumes for all participants for the first
+        two runs, so that we can use the participant's data.
+        """
+        if task == 'life':
+            end = {1: 366, 2: 338, 3: 370, 4: 405}[run]
+            data = data[:end]
+        return data
 
 
 datasets = {
