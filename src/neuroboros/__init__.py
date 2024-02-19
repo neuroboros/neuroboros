@@ -13,6 +13,7 @@ from ._version import __version__, __version_tuple__
 # from . import idm as idm
 from .benchmark import classification
 from .datasets import (
+    HBNSSI,
     ID1000,
     Bologna,
     Budapest,

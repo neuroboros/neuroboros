@@ -1018,6 +1018,44 @@ class Life(Dataset):
         return data
 
 
+class HBNSSI(Dataset):
+    def __init__(
+        self,
+        space=['onavg-ico32', 'mni-4mm'],
+        resample=['1step_pial_overlap', '1step_linear_overlap'],
+        prep='default',
+        fp_version='23.2.0',
+        name='hbn-ssi',
+        root_dir=None,
+        dl_source=None,
+    ):
+        super().__init__(
+            name,
+            dl_source=dl_source,
+            root_dir=root_dir,
+            space=space,
+            resample=resample,
+            prep=prep,
+            fp_version=fp_version,
+        )
+        self.tasks = ['raiders', 'matrix', 'walle', 'afewgoodmen']
+        self.subjects = [
+            '0031121',
+            '0031122',
+            '0031123',
+            '0031126',
+            '0031127',
+            '0031130',
+            '0031131',
+            '0031132',
+            '0031133',
+            '0031124',
+            '0031125',
+            '0031128',
+            '0031129',
+        ]
+
+
 datasets = {
     'forrest': Forrest,
     'bologna': Bologna,
@@ -1029,6 +1067,7 @@ datasets = {
     'budapest': Budapest,
     'monkeykingdom': MonkeyKingdom,
     'life': Life,
+    'hbn-ssi': HBNSSI,
 }
 
 
