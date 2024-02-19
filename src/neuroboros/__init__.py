@@ -24,6 +24,7 @@ from .datasets import (
     MonkeyKingdom,
     Raiders,
     SpaceTop,
+    Whiplash,
 )
 from .datasets import get_dataset as dataset
 from .glm import glm

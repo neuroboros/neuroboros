@@ -1056,6 +1056,29 @@ class HBNSSI(Dataset):
         ]
 
 
+class Whiplash(Dataset):
+    def __init__(
+        self,
+        space=['onavg-ico32', 'mni-4mm'],
+        resample=['1step_pial_overlap', '1step_linear_overlap'],
+        prep='default',
+        fp_version='23.2.0',
+        name='whiplash',
+        root_dir=None,
+        dl_source=None,
+    ):
+        super().__init__(
+            name,
+            dl_source=dl_source,
+            root_dir=root_dir,
+            space=space,
+            resample=resample,
+            prep=prep,
+            fp_version=fp_version,
+        )
+        self.tasks = ['whiplash']
+
+
 datasets = {
     'forrest': Forrest,
     'bologna': Bologna,
@@ -1068,6 +1091,7 @@ datasets = {
     'monkeykingdom': MonkeyKingdom,
     'life': Life,
     'hbn-ssi': HBNSSI,
+    'whiplash': Whiplash,
 }
 
 
