@@ -1079,6 +1079,29 @@ class Whiplash(Dataset):
         self.tasks = ['whiplash']
 
 
+class IBC(Dataset):
+    def __init__(
+        self,
+        space=['onavg-ico32', 'mni-4mm'],
+        resample=['1step_pial_overlap', '1step_linear_overlap'],
+        prep='default',
+        fp_version='23.2.0',
+        name='IBC',
+        root_dir=None,
+        dl_source=None,
+    ):
+        super().__init__(
+            name,
+            dl_source=dl_source,
+            root_dir=root_dir,
+            space=space,
+            resample=resample,
+            prep=prep,
+            fp_version=fp_version,
+        )
+        self.tasks = ['raiders', 'goodbadugly']
+
+
 datasets = {
     'forrest': Forrest,
     'bologna': Bologna,
