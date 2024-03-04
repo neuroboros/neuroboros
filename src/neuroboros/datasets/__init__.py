@@ -15,6 +15,7 @@ Neuroboros datasets (:mod:`neuroboros.datasets`)
 
 import os
 from functools import partial
+from glob import glob
 
 import numpy as np
 from scipy.stats import zscore
@@ -157,6 +158,14 @@ class Dataset:
         self.prep = prep
 
         self.renaming = self.dl_dset.get('rename.json.gz')
+
+        self.subject_sets = {}
+        for fn in sorted(
+            glob(os.path.join(self.dl_dset.root, 'subject_sets', '*.txt'))
+        ):
+            task = os.path.basename(fn)[:-4]
+            with open(fn) as f:
+                self.subject_sets[task] = f.read().splitlines()
 
     def load_data(self, sid, task, run, lr, space, resample, fp_version=None):
         if lr == 'lr':
@@ -574,7 +583,7 @@ class SpaceTop(Dataset):
         space=['onavg-ico32', 'mni-4mm'],
         resample=['1step_pial_overlap', '1step_linear_overlap'],
         prep='default',
-        fp_version='20.2.7',
+        fp_version='23.2.0',
         name='spacetop',
         root_dir=None,
         dl_source=None,
@@ -588,7 +597,7 @@ class SpaceTop(Dataset):
             prep=prep,
             fp_version=fp_version,
         )
-        self.tasks = ['faces']
+        self.tasks = ['alignvideo', 'faces']
 
 
 class CamCAN(Dataset):
@@ -613,7 +622,6 @@ class CamCAN(Dataset):
         )
         self.tasks = ['bang', 'rest', 'smt']
 
-        self.subject_sets = {}
         mod_dir = os.path.dirname(os.path.realpath(__file__))
         for task in ['bang', 'rest', 'smt']:
             with open(os.path.join(mod_dir, f'camcan_{task}.txt')) as f:
@@ -665,7 +673,7 @@ class Raiders(Dataset):
         space=['onavg-ico32', 'mni-4mm'],
         resample=['1step_pial_overlap', '1step_linear_overlap'],
         prep='default',
-        fp_version='20.2.7',
+        fp_version='23.2.0',
         name='raiders',
         root_dir=None,
         dl_source=None,
@@ -778,7 +786,7 @@ class Budapest(Dataset):
         space=['onavg-ico32', 'mni-4mm'],
         resample=['1step_pial_overlap', '1step_linear_overlap'],
         prep='default',
-        fp_version='20.2.7',
+        fp_version='23.2.0',
         name='budapest',
         root_dir=None,
         dl_source=None,
@@ -824,7 +832,7 @@ class MonkeyKingdom(Dataset):
         space=['onavg-ico32', 'mni-4mm'],
         resample=['1step_pial_overlap', '1step_linear_overlap'],
         prep='default',
-        fp_version='20.2.7',
+        fp_version='23.2.0',
         name='monkey-kingdom',
         root_dir=None,
         dl_source=None,
@@ -923,43 +931,45 @@ class Life(Dataset):
             fp_version=fp_version,
         )
         self.tasks = ['life', 'tax', 'beh']
-        self.subject_sets = {
-            'attention': [
-                'rid000001',
-                'rid000012',
-                'rid000017',
-                'rid000024',
-                'rid000027',
-                'rid000031',
-                'rid000032',
-                'rid000033',
-                'rid000034',
-                'rid000036',
-                'rid000037',
-                'rid000041',
-            ],
-            'all': [
-                'rid000001',
-                'rid000005',
-                'rid000006',
-                'rid000009',
-                'rid000012',
-                'rid000014',
-                'rid000017',
-                'rid000019',
-                'rid000020',
-                'rid000024',
-                'rid000027',
-                'rid000031',
-                'rid000032',
-                'rid000033',
-                'rid000034',
-                'rid000036',
-                'rid000037',
-                'rid000038',
-                'rid000041',
-            ],
-        }
+        self.subject_sets.update(
+            {
+                'attention': [
+                    'rid000001',
+                    'rid000012',
+                    'rid000017',
+                    'rid000024',
+                    'rid000027',
+                    'rid000031',
+                    'rid000032',
+                    'rid000033',
+                    'rid000034',
+                    'rid000036',
+                    'rid000037',
+                    'rid000041',
+                ],
+                'all': [
+                    'rid000001',
+                    'rid000005',
+                    'rid000006',
+                    'rid000009',
+                    'rid000012',
+                    'rid000014',
+                    'rid000017',
+                    'rid000019',
+                    'rid000020',
+                    'rid000024',
+                    'rid000027',
+                    'rid000031',
+                    'rid000032',
+                    'rid000033',
+                    'rid000034',
+                    'rid000036',
+                    'rid000037',
+                    'rid000038',
+                    'rid000041',
+                ],
+            }
+        )
         self.subjects = self.subject_sets['all']
         self.contrasts = [
             'primate_eating',
@@ -1099,7 +1109,7 @@ class IBC(Dataset):
             prep=prep,
             fp_version=fp_version,
         )
-        self.tasks = ['raiders', 'goodbadugly']
+        self.tasks = ['raiders', 'tgbu']
 
 
 datasets = {
@@ -1115,6 +1125,7 @@ datasets = {
     'life': Life,
     'hbn-ssi': HBNSSI,
     'whiplash': Whiplash,
+    'ibc': IBC,
 }
 
 

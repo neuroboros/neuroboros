@@ -14,6 +14,7 @@ from ._version import __version__, __version_tuple__
 from .benchmark import classification
 from .datasets import (
     HBNSSI,
+    IBC,
     ID1000,
     Bologna,
     Budapest,
