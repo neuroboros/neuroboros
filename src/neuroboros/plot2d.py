@@ -190,6 +190,11 @@ def prepare_data(
 
     return values
 
+def textsize(text, font):                                     
+    im = PIL_Image.new(mode="P", size=(0, 0))            
+    draw = ImageDraw.Draw(im)                                              
+    _, _, width, height = draw.textbbox((0, 0), text=text, font=font)
+    return width, height
 
 def brain_plot(
     values,
@@ -335,7 +340,7 @@ def brain_plot(
                 font = font_manager.findfont(font_manager.FontProperties())
                 font = ImageFont.truetype(font, title_size)
                 draw = ImageDraw.Draw(img)
-                w, h = draw.textsize(title, font=font)
+                w, h = textsize(title, font=font)
                 x = (img.size[0] - w) / 2
                 y = 0
                 draw.text(
