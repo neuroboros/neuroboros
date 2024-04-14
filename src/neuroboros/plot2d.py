@@ -335,7 +335,10 @@ def brain_plot(
                 font = font_manager.findfont(font_manager.FontProperties())
                 font = ImageFont.truetype(font, title_size)
                 draw = ImageDraw.Draw(img)
-                w, h = draw.textsize(title, font=font)
+                if hasattr(draw, 'textsize'):
+                    w, h = draw.textsize(title, font=font)
+                else:
+                    w, h = draw.textbbox((0, 0), text=title, font=font)[2:]
                 x = (img.size[0] - w) / 2
                 y = 0
                 draw.text(
