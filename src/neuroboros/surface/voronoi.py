@@ -1,4 +1,5 @@
 import heapq
+import warnings
 from datetime import datetime
 
 import numpy as np
@@ -201,8 +202,9 @@ def subdivision_voronoi(
         Each row is the barycentric weights of the three vertices of the face
         for the corresponding vertex on the target mesh.
     max_dist : float or None, default=None
-        The maximum distance to search. If None, the maximum distance is
-        infinity.
+        The maximum distance of the initial search. If None, the maximum
+        distance is computed based on the number of vertices on the target
+        mesh.
     verbose : bool, default=False
         Whether to print the progress or not.
 
@@ -216,7 +218,9 @@ def subdivision_voronoi(
         mesh and the nearest vertex on the target mesh.
     """
     nv = coords.shape[0]
-    assert len(np.unique(f_indices)) == len(f_indices)
+    n1, n2 = len(np.unique(f_indices)), len(f_indices)
+    if n1 != n2:
+        warnings.warn(f"{n2} template vertices are mapped to {n1} faces.")
     if max_dist is None:
         max_dist = 4.0 * np.sqrt(10242 / f_indices.shape[0]) + 2.0
     log_step = f_indices.shape[0] // 100 + 1
@@ -407,12 +411,45 @@ def split_triangle(t_div):
 
 
 def compute_occupation(f_idx, f, coords, indices, nn, nnd, f_inv, ww):
+    """
+    Parameters
+    ----------
+    f_idx : int
+        The index of the triangular face on the original mesh.
+    f : ndarray of shape (3,)
+        The vertex indices of the triangular face.
+    coords : ndarray of shape (nv, 3)
+        The coordinates of the vertices of the subdivided mesh.
+    indices : ndarray of shape (n,)
+        The indices of all vertices of the subdivided mesh that are on the
+        edges of the triangular face.
+    nn : ndarray of shape (nv,)
+        The indices of the nearest vertex on the target mesh for each vertex
+        of the subdivided mesh.
+    nnd : ndarray of shape (nv,)
+        The geodesic distances between each vertex of the subdivided mesh and
+        the nearest vertex on the target mesh.
+    f_inv : dict
+        The inverse mapping from the original faces to the target vertices.
+    ww : ndarray of shape (m, 3)
+        The barycentric weights of the points on the triangular face. Usually
+        the output of the ``split_triangle`` function.
+
+    Returns
+    -------
+
+    """
     nn1 = [nn[indices]]
     u = np.unique(nn1)
+
+    # The same vertex of the target mesh is the nearest for all vertices on
+    # the edges of the triangular face.
     if len(u) == 1 and len(f_inv) == 0:
         return {u[0]: np.ones((ww.shape[0],), dtype=bool)}
+
     cc1 = [coords[indices]]
     dd1 = [nnd[indices]]
+    # Vertices of the target mesh that are within the triangular face.
     if f_idx in f_inv:
         for i, c in f_inv[f_idx]:
             cc1.append([c])
@@ -458,6 +495,40 @@ def compute_overlap(
                 if overlap:
                     mat[u1, u2] += overlap * face_areas[f_idx]
     return mat.tocsr()
+
+
+def overlap_transform(
+    anat,
+    sphere,
+    tpl_coords,
+    coords,
+    e_mapping,
+    neighbors,
+    native_nn,
+    native_nnd,
+    t_div=32,
+):
+    f_indices, weights = sphere.barycentric(tpl_coords, eps=1e-7, return_sparse=False)
+    nn, nnd = subdivision_voronoi(
+        coords, anat.faces, e_mapping, neighbors, f_indices, weights
+    )
+    f_inv = inverse_face_mapping(f_indices, weights, anat.coords, anat.faces)
+    mat = compute_overlap(
+        anat.faces,
+        anat.face_areas,
+        e_mapping,
+        coords,
+        native_nn,
+        native_nnd,
+        {},
+        nn,
+        nnd,
+        f_inv,
+        anat.nv,
+        tpl_coords.shape[0],
+        t_div=t_div,
+    )
+    return mat
 
 
 """
