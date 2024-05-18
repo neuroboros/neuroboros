@@ -1,7 +1,5 @@
 import os
-
 import numpy as np
-
 import neuroboros as nb
 
 from .io import core_dataset
@@ -15,9 +13,16 @@ def load_npz(npz_fn):
 
 
 def load_searchlights(lr, radius, space, center_space=None, **kwargs):
-    group = kwargs.get('group', 'on1031')
-    dist_type = kwargs.get('dist_type', 'dijkstra')
-    avg_type = kwargs.get('avg_type', 'trimmed')
+    species = 'macaque' if space.startswith('mkavg-') else 'human'
+    if species == 'human':
+        group, dist_type, avg_type = 'on1031', 'dijkstra', 'trimmed'
+    elif species == 'macaque':
+        group, dist_type, avg_type = 'mk12', 'geodesic', 'average'
+    else:
+        raise ValueError(f'Unknown species: {species}')
+    group = kwargs.get('group', group)
+    dist_type = kwargs.get('dist_type', dist_type)
+    avg_type = kwargs.get('avg_type', avg_type)
     if center_space is None:
         center_space = space
     npz_fn = os.path.join(
