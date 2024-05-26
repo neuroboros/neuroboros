@@ -342,9 +342,19 @@ def get_mapping(
         data matrix in the source space, then ``X @ M`` is the data matrix
         in the target space.
     """
-    group = kwargs.get('group', 'on1031')
+    species = (
+        'macaque' if source.startswith('mkavg-') or source == 'MEBRAIN' else 'human'
+    )
+    if species == 'human':
+        group, avg_type = 'on1031', 'trimmed'
+    elif species == 'macaque':
+        group, avg_type = 'mk12', 'average'
+    else:
+        raise ValueError(f'Unknown species: {species}')
+
+    group = kwargs.get('group', group)
     resample = kwargs.get('resample', 'overlap-8div')
-    avg_type = kwargs.get('avg_type', 'trimmed')
+    avg_type = kwargs.get('avg_type', avg_type)
 
     if source_mask is None:
         source_mask = mask

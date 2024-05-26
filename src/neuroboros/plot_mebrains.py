@@ -29,7 +29,86 @@ from .io import core_dataset
 from .spaces import get_mapping, get_mask
 from .utils import save
 
+GUESS_SEPARATE = {
+    (10242, 10242): ('mkavg-ico32', False),
+    (100988, 100974): ('MEBRAIN', False),
+}
+
+GUESS_COMBINED = {
+    20484: ('mkavg-ico32', False, [10242]),
+    201962: ('MEBRAIN', False, [100988]),
+}
+
 PLOT_MAPPING = {}
+
+
+def unmask_and_upsample(values, space, mask, nn=True):
+    if space is None and mask is None:
+        if isinstance(values, np.ndarray):
+            ret = GUESS_COMBINED[values.shape[0]]
+            if len(ret) == 4:
+                space, mask, boundary, flavor = ret
+                mask_kwargs = {'flavor': flavor, 'legacy': True}
+            else:
+                space, mask, boundary = ret
+                mask_kwargs = {}
+        elif isinstance(values, (tuple, list)):
+            ret = GUESS_SEPARATE[tuple([_.shape[0] for _ in values])]
+            if len(ret) == 3:
+                space, mask, flavor = ret
+                mask_kwargs = {'flavor': flavor, 'legacy': True}
+            else:
+                space, mask = ret
+                mask_kwargs = {}
+        else:
+            raise TypeError(
+                f"`values` has type `{type(values)}, " "which is not supported."
+            )
+    else:
+        boundary = None
+
+    if mask is not None and mask is not False:
+        use_mask = True
+        if isinstance(mask, (tuple, list)) and all(
+            [isinstance(_, np.ndarray) for _ in mask]
+        ):
+            masks = mask
+        else:
+            masks = [get_mask(lr, space, **mask_kwargs) for lr in 'lr']
+    else:
+        use_mask = False
+
+    if isinstance(values, np.ndarray):
+        if boundary is not None:
+            values = np.array_split(values, boundary)
+        elif use_mask:
+            values = np.array_split(values, [masks[0].sum()])
+        else:
+            values = np.split(values, 2)
+
+    if space != "MEBRAIN":
+        ico = int(space.split('-ico')[1])
+        nv = ico**2 * 10 + 2
+
+    new_values = []
+    for v, lr in zip(values, 'lr'):
+        if use_mask:
+            m = masks['lr'.index(lr)]
+            if space == "MEBRAIN":
+                nv = {'l': 100988, 'r': 100974}[lr]
+            vv = np.full((nv,) + v.shape[1:], np.nan)
+            vv[m] = v
+        else:
+            vv = v
+
+        if space != "MEBRAIN":
+            mapping = get_mapping(lr, space, 'MEBRAIN', nn=nn)
+            vv = mapping.T @ vv
+
+        new_values.append(vv)
+
+    new_values = np.concatenate(new_values, axis=0)
+    return new_values
 
 
 def to_color(values, cmap, vmax=None, vmin=None):
@@ -54,15 +133,7 @@ def prepare_data(
     medial_wall_color=[0.8, 0.8, 0.8, 1.0],
     background_color=[1.0, 1.0, 1.0, 0.0],
 ):
-    if isinstance(values, np.ndarray):
-        pass
-    elif isinstance(values, (tuple, list)):
-        values = np.concatenate(values, axis=0)
-    else:
-        raise TypeError(
-            "Expected `values` to be a numpy array or a list/"
-            f"tuple of numpy arrays. Got {type(values)}."
-        )
+    values = unmask_and_upsample(values, space, mask, nn=nn)
 
     if cmap is not None:
         nan_mask = np.isnan(values)
