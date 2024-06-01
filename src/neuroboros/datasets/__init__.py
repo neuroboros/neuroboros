@@ -44,32 +44,35 @@ def guess_surface_volume(space, resample, lr):
     return 'volume'
 
 
-def default_prep(ds, confounds, cortical_mask, z=True, mask=True, gsr=False):
+def default_prep(dm, confounds, cortical_mask, z=True, mask=True, gsr=False):
     if mask and cortical_mask is not None:
-        ds = ds[:, cortical_mask]
+        dm = dm[:, cortical_mask]
     conf = confounds[0]
     if gsr:
         gs = np.array(confounds[1]['global_signal'])
         conf = np.concatenate([conf, gs[:, np.newaxis]], axis=1)
-    beta = np.linalg.lstsq(conf, ds, rcond=None)[0]
-    ds = ds - conf @ beta
+    finite_mask = np.all(np.isfinite(dm), axis=0)
+    beta = np.linalg.lstsq(conf, dm[:, finite_mask], rcond=None)[0]
+    dm[:, finite_mask] = dm[:, finite_mask] - conf @ beta
     if z:
-        ds = np.nan_to_num(zscore(ds, axis=0))
-    return ds
+        dm = np.nan_to_num(zscore(dm, axis=0))
+    return dm
 
 
-def scrub_prep(ds, confounds, cortical_mask, z=True, mask=True, gsr=False):
+def scrub_prep(dm, confounds, cortical_mask, z=True, mask=True, gsr=False):
     if mask and cortical_mask is not None:
-        ds = ds[:, cortical_mask]
+        dm = dm[:, cortical_mask]
     conf, _, keep = confounds
     if gsr:
         gs = np.array(confounds[1]['global_signal'])
         conf = np.concatenate([conf, gs[:, np.newaxis]], axis=1)
-    beta = np.linalg.lstsq(conf[keep], ds[keep], rcond=None)[0]
-    ds = ds[keep] - conf[keep] @ beta
+    dm = dm[keep]
+    finite_mask = np.all(np.isfinite(dm), axis=0)
+    beta = np.linalg.lstsq(conf[keep], dm[:, finite_mask], rcond=None)[0]
+    dm[:, finite_mask] = dm[:, finite_mask] - conf[keep] @ beta
     if z:
-        ds = np.nan_to_num(zscore(ds, axis=0))
-    return ds, keep
+        dm = np.nan_to_num(zscore(dm, axis=0))
+    return dm, keep
 
 
 def get_prep(name, **kwargs):
