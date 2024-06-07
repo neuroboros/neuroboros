@@ -191,16 +191,20 @@ def prepare_data(
     return values
 
 
-def stack_images(images, vertical=True, offset=0):
+def stack_images(images, vertical=True, offset=0, padding=0):
     widths = [_.size[0] for _ in images]
     heights = [_.size[1] for _ in images]
     if vertical:
-        cum_heights = np.cumsum([offset] + heights)
+        heights_ = np.array([offset] + heights)
+        heights_[1:-1] += padding
+        cum_heights = np.cumsum(heights_)
         new_img = PIL_Image.new('RGBA', (max(widths), cum_heights[-1]))
         for img, h in zip(images, cum_heights):
             new_img.paste(img, (0, h))
     else:
-        cum_widths = np.cumsum([offset] + widths)
+        widths_ = np.array([offset] + widths)
+        widths_[1:-1] += padding
+        cum_widths = np.cumsum(widths_)
         new_img = PIL_Image.new('RGBA', (cum_widths[-1], max(heights)))
         for img, w in zip(images, cum_widths):
             new_img.paste(img, (w, 0))
@@ -219,22 +223,38 @@ class Image:
         return cls(img)
 
     @classmethod
-    def stack(cls, images, vertical=True, offset=0):
+    def stack(cls, images, vertical=True, offset=0, padding=0):
         images = [_.img if isinstance(_, Image) else _ for _ in images]
-        img = stack_images(images, vertical=vertical, offset=offset)
+        img = stack_images(images, vertical=vertical, offset=offset, padding=padding)
         return cls(img)
 
-    def vstack(self, others, offset=0):
-        if isinstance(others, Image):
-            others = [others]
-        images = [self] + others
-        return Image.stack(images, vertical=True, offset=offset)
+    @classmethod
+    def hstack(cls, images, offset=0, padding=0):
+        return cls.stack(images, vertical=False, offset=offset, padding=padding)
 
-    def hstack(self, others, offset=0):
+    @classmethod
+    def vstack(cls, images, offset=0, padding=0):
+        return cls.stack(images, vertical=True, offset=offset, padding=padding)
+
+    def add_above(self, others, offset=0, padding=0):
         if isinstance(others, Image):
             others = [others]
-        images = [self] + others
-        return Image.stack(images, vertical=False, offset=offset)
+        return Image.vstack(others + [self], offset=offset, padding=padding)
+
+    def add_below(self, others, offset=0, padding=0):
+        if isinstance(others, Image):
+            others = [others]
+        return Image.vstack([self] + others, offset=offset, padding=padding)
+
+    def add_left(self, others, offset=0, padding=0):
+        if isinstance(others, Image):
+            others = [others]
+        return Image.hstack(others + [self], offset=offset, padding=padding)
+
+    def add_right(self, others, offset=0, padding=0):
+        if isinstance(others, Image):
+            others = [others]
+        return Image.hstack([self] + others, offset=offset, padding=padding)
 
     def title(self, title, size=70):
         font = font_manager.findfont(font_manager.FontProperties())
