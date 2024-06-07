@@ -214,6 +214,11 @@ class Image:
         self.max_height = max_height
 
     @classmethod
+    def from_file(cls, fn):
+        img = PIL_Image.open(fn)
+        return cls(img)
+
+    @classmethod
     def stack(cls, images, vertical=True, offset=0):
         images = [_.img if isinstance(_, Image) else _ for _ in images]
         img = stack_images(images, vertical=vertical, offset=offset)
