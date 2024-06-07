@@ -14,18 +14,19 @@ try:
 except ImportError as e:
     PIL_ok = False
 
-try:
-    import IPython
-    from IPython.display import Image as IPythonImage
-    from IPython.display import display
+# try:
+#     import IPython
+#     from IPython.display import Image as IPythonImage
+#     from IPython.display import display
 
-    ipython_ok = True
-    # ipython_ok = (IPython.get_ipython().__class__.__name__
-    #               == 'ZMQInteractiveShell')
-except ImportError as e:
-    ipython_ok = False
+#     ipython_ok = True
+#     # ipython_ok = (IPython.get_ipython().__class__.__name__
+#     #               == 'ZMQInteractiveShell')
+# except ImportError as e:
+#     ipython_ok = False
 
 from .io import core_dataset
+from .plot2d import Image
 from .spaces import get_mapping, get_mask
 from .utils import save
 
@@ -166,13 +167,16 @@ def plot_mebrains(
     medial_wall_color=[0.8, 0.8, 0.8, 1.0],
     background_color=[1.0, 1.0, 1.0, 0.0],
     colorbar=True,
-    output='ipython',
-    width=None,
+    output=None,
+    width=500,
     title=None,
     title_size=70,
     fn=None,
     **kwargs,
 ):
+    if output is None and fn is None:
+        output = 'pillow'
+
     assert surf_type in [
         'inflated',
         'pial',
@@ -190,7 +194,7 @@ def plot_mebrains(
             f"tuple of numpy arrays. Got {type(values)}."
         )
     ndim = cat.ndim
-    percentiles = np.nanpercentile(cat, [5, 95])
+    percentiles = np.nanpercentile(cat, [1, 99])
     max_, min_ = np.nanmax(cat), np.nanmin(cat)
 
     if ndim not in [1, 2]:
@@ -241,105 +245,30 @@ def plot_mebrains(
 
     img = prepared_values[PLOT_MAPPING[surf_type]]
 
+    if output == 'raw':
+        if return_scale:
+            return img, scale
+        return img
+
+    img = np.round(img * 255.0).astype(np.uint8)
+    if not PIL_ok:
+        warn(
+            "Skipping conversion to `PIL.Image` because `Pillow` is not "
+            "installed. You can install it with `pip install Pillow`."
+        )
+        if return_scale:
+            return img, scale
+        return img
+
+    img = PIL_Image.fromarray(img)
+    img = Image(img)
+    if title is not None:
+        img = img.title(title, size=title_size)
     if colorbar:
-        if PIL_ok:
-            dpi = 300
-            if 'bar_title' in kwargs:
-                pix_size = (1728, 250)
-                top, bottom = 0.75, 0.55
-                fig, ax = plt.subplots(
-                    1, 1, figsize=[_ / dpi for _ in pix_size], dpi=dpi
-                )
-                ax.set_title(kwargs.pop('bar_title'))
-            else:
-                pix_size = (1728, 190)
-                fig, ax = plt.subplots(
-                    1, 1, figsize=[_ / dpi for _ in pix_size], dpi=dpi
-                )
-                top, bottom = 0.99, 0.7
-            plt.colorbar(
-                scale, shrink=1, aspect=1, cax=ax, orientation='horizontal', **kwargs
-            )
-            fig.subplots_adjust(left=0.03, right=0.97, top=top, bottom=bottom)
-            buffer = io.BytesIO()
-            fig.savefig(buffer, format='png', dpi=dpi, transparent=True)
-            buffer.seek(0)
-            cbar = PIL_Image.open(buffer)
-            plt.close(fig=fig)
-        else:
-            warn(
-                "Cannot convert to Image because Pillow is not installed. "
-                "You can install it with `pip install Pillow`."
-            )
+        img = img.colorbar(scale, **kwargs)
 
-    if output != 'raw':
-        img = np.round(img * 255.0).astype(np.uint8)
-    if output in ['ipython', 'pillow'] or fn is not None:
-        if PIL_ok:
-            img = PIL_Image.fromarray(img)
-            if title is not None:
-                offset = max(0, title_size - 20)
-            else:
-                offset = 0
-
-            if colorbar:
-                w1, h1 = img.size
-                w2, h2 = cbar.size
-                new_img = PIL_Image.new('RGBA', (max(w1, w2), h1 + h2))
-                # print(img.size, new_img.size, cbar.size)
-                new_img.paste(img, (0, offset))
-                new_img.paste(cbar, (0, offset + h1))
-                img = new_img
-            elif title is not None and offset:
-                new_img = PIL_Image.new('RGBA', (w1, 50 + h1))
-                new_img.paste(img, (0, 50))
-                img = new_img
-
-            if title is not None:
-                font = font_manager.findfont(font_manager.FontProperties())
-                font = ImageFont.truetype(font, title_size)
-                draw = ImageDraw.Draw(img)
-                w, h = draw.textsize(title, font=font)
-                x = (img.size[0] - w) / 2
-                y = 0
-                draw.text(
-                    (x, y),
-                    title,
-                    font=font,
-                    align='center',
-                    fill=(255, 255, 255, 127),
-                    stroke_width=3,
-                )
-                draw.text(
-                    (x, y),
-                    title,
-                    font=font,
-                    align='center',
-                    fill=(0, 0, 0, 255),
-                    stroke_width=0,
-                )
-
-            if fn is not None:
-                save(fn, img)
-
-            if output == 'ipython':
-                if ipython_ok:
-                    bb = io.BytesIO()
-                    img.save(bb, format='png')
-                    bb = bb.getvalue()
-                    img = IPythonImage(bb, format='png', width=width)
-                    display(img)
-                    return
-                else:
-                    warn(
-                        "Cannot import `IPython`, skipping conversion to "
-                        "`IPython.display.Image`."
-                    )
-        else:
-            warn(
-                "Skipping conversion to `PIL.Image` because `Pillow` is not "
-                "installed. You can install it with `pip install Pillow`."
-            )
+    if fn is not None:
+        img.save(fn)
 
     if return_scale:
         return img, scale
