@@ -3,27 +3,14 @@ import os
 from warnings import warn
 
 import numpy as np
-from matplotlib import cm, colors, font_manager
-from matplotlib import pyplot as plt
+from matplotlib import cm, colors
 
 try:
     from PIL import Image as PIL_Image
-    from PIL import ImageDraw, ImageFont
 
     PIL_ok = True
 except ImportError as e:
     PIL_ok = False
-
-# try:
-#     import IPython
-#     from IPython.display import Image as IPythonImage
-#     from IPython.display import display
-
-#     ipython_ok = True
-#     # ipython_ok = (IPython.get_ipython().__class__.__name__
-#     #               == 'ZMQInteractiveShell')
-# except ImportError as e:
-#     ipython_ok = False
 
 from .io import core_dataset
 from .plot2d import Image

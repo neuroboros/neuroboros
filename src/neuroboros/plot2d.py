@@ -14,17 +14,6 @@ try:
 except ImportError as e:
     PIL_ok = False
 
-# try:
-#     import IPython
-#     from IPython.display import Image as IPythonImage
-#     from IPython.display import display as IPythonDisplay
-
-#     ipython_ok = True
-#     # ipython_ok = (IPython.get_ipython().__class__.__name__
-#     #               == 'ZMQInteractiveShell')
-# except ImportError as e:
-#     ipython_ok = False
-
 from .io import core_dataset
 from .spaces import get_mapping, get_mask
 from .utils import save
