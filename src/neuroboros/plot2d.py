@@ -156,6 +156,7 @@ def prepare_data(
     cmap=None,
     vmax=None,
     vmin=None,
+    alpha=None,
     return_scale=False,
     medial_wall_color=[0.8, 0.8, 0.8, 1.0],
     background_color=[1.0, 1.0, 1.0, 0.0],
@@ -166,16 +167,23 @@ def prepare_data(
         nan_mask = np.isnan(values)
         values = to_color(values, cmap, vmax, vmin)
         values[nan_mask] = medial_wall_color
-        values = [
-            values,
-            [_[: values.shape[1]] for _ in [medial_wall_color, background_color]],
-        ]
-        values = np.concatenate(values, axis=0)
+        if alpha is not None:
+            alpha = np.clip(alpha, 0.0, 1.0)
+            alpha = unmask_and_upsample(alpha, space, mask, nn=nn)[:, np.newaxis]
+            values[:, :3] = values[:, :3] * alpha + np.array(medial_wall_color[:3]) * (
+                1.0 - alpha
+            )
 
-        if return_scale:
-            norm = colors.Normalize(vmax=vmax, vmin=vmin, clip=True)
-            scale = cm.ScalarMappable(norm=norm, cmap=cmap)
-            return values, scale
+    values = [
+        values,
+        [_[: values.shape[1]] for _ in [medial_wall_color, background_color]],
+    ]
+    values = np.concatenate(values, axis=0)
+
+    if return_scale:
+        norm = colors.Normalize(vmax=vmax, vmin=vmin, clip=True)
+        scale = cm.ScalarMappable(norm=norm, cmap=cmap)
+        return values, scale
 
     return values
 
@@ -327,6 +335,7 @@ def brain_plot(
     cmap=None,
     vmax=None,
     vmin=None,
+    alpha=None,
     space=None,
     mask=None,
     surf_type='inflated',
@@ -336,7 +345,7 @@ def brain_plot(
     background_color=[1.0, 1.0, 1.0, 0.0],
     colorbar=True,
     output=None,
-    width=500,
+    scale=None,
     title=None,
     title_size=70,
     fn=None,
@@ -383,7 +392,10 @@ def brain_plot(
                 f"or RGBA). Got {cat.shape[1]} columns."
             )
 
-    need_scale = return_scale or colorbar
+    if scale is None:
+        need_scale = return_scale or colorbar
+    else:
+        need_scale = False
 
     ret = prepare_data(
         values,
@@ -393,6 +405,7 @@ def brain_plot(
         cmap=cmap,
         vmax=vmax,
         vmin=vmin,
+        alpha=alpha,
         return_scale=need_scale,
         medial_wall_color=medial_wall_color,
         background_color=background_color,
