@@ -1,5 +1,6 @@
 import io
 import os
+import string
 from warnings import warn
 
 import numpy as np
@@ -258,9 +259,11 @@ class Image:
         font = ImageFont.truetype(font, size)
         draw = ImageDraw.Draw(self.img)
         if hasattr(draw, 'textsize'):
-            w, h = draw.textsize(title, font=font)
+            w = draw.textsize(title, font=font)[0]
+            h = draw.textsize(string.printable, font=font)[1]
         else:
-            w, h = draw.textbbox((0, 0), text=title, font=font)[2:]
+            w = draw.textbbox((0, 0), text=title, font=font)[0]
+            h = draw.textbbox((0, 0), text=string.printable, font=font)[1]
         xy = ((self.img.size[0] - w) / 2, 0)
 
         title_img = PIL_Image.new('RGBA', (self.img.size[0], h))
