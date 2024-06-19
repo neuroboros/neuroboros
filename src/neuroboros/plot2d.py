@@ -254,7 +254,7 @@ class Image:
             others = [others]
         return Image.hstack([self] + others, offset=offset, padding=padding)
 
-    def title(self, title, size=70):
+    def title(self, title, size=70, offset=0):
         font = font_manager.findfont(font_manager.FontProperties())
         font = ImageFont.truetype(font, size)
         draw = ImageDraw.Draw(self.img)
@@ -266,9 +266,10 @@ class Image:
             h = draw.textbbox((0, 0), text=string.printable, font=font)[1]
         xy = ((self.img.size[0] - w) / 2, 0)
 
-        title_img = PIL_Image.new('RGBA', (self.img.size[0], h))
-        draw = ImageDraw.Draw(title_img)
+        title_img = PIL_Image.new('RGBA', (self.img.size[0], max(h - offset, 0)))
+        self.img = stack_images([title_img, self.img], vertical=True)
 
+        draw = ImageDraw.Draw(self.img)
         draw.text(
             xy,
             title,
@@ -285,7 +286,6 @@ class Image:
             fill=(0, 0, 0, 255),
             stroke_width=0,
         )
-        self.img = stack_images([title_img, self.img], vertical=True)
         return self
 
     def colorbar(self, scale=None, **kwargs):
