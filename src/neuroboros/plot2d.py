@@ -258,12 +258,15 @@ class Image:
         font = font_manager.findfont(font_manager.FontProperties())
         font = ImageFont.truetype(font, size)
         draw = ImageDraw.Draw(self.img)
+        ss = string.ascii_letters + string.digits + string.punctuation
         if hasattr(draw, 'textsize'):
             w = draw.textsize(title, font=font)[0]
-            h = draw.textsize(string.printable, font=font)[1]
+            h = draw.textsize(ss, font=font)[1]
         else:
-            w = draw.textbbox((0, 0), text=title, font=font)[0]
-            h = draw.textbbox((0, 0), text=string.printable, font=font)[1]
+            bbox = draw.textbbox((0, 0), text=title, font=font)
+            w = bbox[2] - bbox[0]
+            bbox = draw.textbbox((0, 0), text=ss, font=font)
+            h = bbox[3] - bbox[1]
         xy = ((self.img.size[0] - w) / 2, 0)
 
         title_img = PIL_Image.new('RGBA', (self.img.size[0], max(h - offset, 0)))
