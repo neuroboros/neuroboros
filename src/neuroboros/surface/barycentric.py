@@ -3,7 +3,7 @@ import importlib
 import numpy as np
 import scipy.sparse as sparse
 
-if importlib.util.find_spec("nb_extra.surface.barycentric"):
+if importlib.util.find_spec("nb_extra"):
     from nb_extra.surface.barycentric import (
         barycentric_weights,
         barycentric_weights_multi_faces_multi_points,
