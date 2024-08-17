@@ -1,9 +1,6 @@
 import warnings
 
 import numpy as np
-from scipy.spatial import cKDTree
-
-cimport numpy as np
 
 
 def barycentric_weights(vecs, coords):
@@ -29,35 +26,33 @@ def barycentric_weights(vecs, coords):
     det = coords[0] * vecs[3, 0] + coords[1] * vecs[3, 1] + coords[2] * vecs[3, 2]
     if det == 0:
         if vecs[3, 0] == 0 and vecs[3, 1] == 0 and vecs[3, 2] == 0:
-            warnings.warn("Zero cross product of two edges: "
-                          "The three vertices are in the same line.")
+            warnings.warn(
+                "Zero cross product of two edges: "
+                "The three vertices are in the same line."
+            )
         else:
             print(vecs[3])
         y = coords - vecs[0]
         u, v = np.linalg.lstsq(vecs[1:3].T, y, rcond=None)[0]
-        t = 1.
+        t = 1.0
     else:
-        uu  = coords[0] * vecs[4, 0] + coords[1] * vecs[4, 1] + coords[2] * vecs[4, 2]
-        vv  = coords[0] * vecs[5, 0] + coords[1] * vecs[5, 1] + coords[2] * vecs[5, 2]
+        uu = coords[0] * vecs[4, 0] + coords[1] * vecs[4, 1] + coords[2] * vecs[4, 2]
+        vv = coords[0] * vecs[5, 0] + coords[1] * vecs[5, 1] + coords[2] * vecs[5, 2]
         u = uu / det
         v = vv / det
         tt = vecs[0, 0] * vecs[3, 0] + vecs[0, 1] * vecs[3, 1] + vecs[0, 2] * vecs[3, 2]
         t = tt / det
-    w = 1. - (u + v)
+    w = 1.0 - (u + v)
     return w, u, v, t
 
 
-def barycentric_weights_multi_faces_multi_points(
-        np.ndarray vecs, np.ndarray coords,
-        v2f, tree, double eps=5e-9):
+def barycentric_weights_multi_faces_multi_points(vecs, coords, v2f, tree, eps=5e-9):
     # eps up to 3.09e-10 for ds002330_02
     # changed from 1e-10 to 5e-10 on 2022-09-03
     # eps up to 3.46e-9 for ds002330_03
     # changed from 5e-10 to 5e-9 on 2022-09-06
-    cdef size_t i, j, k, c, nv, kk, max_kk
-    cdef double w, u, v, t, m, mm
     nv = coords.shape[0]
-    f_indices = np.zeros((nv, ), dtype=np.int64)
+    f_indices = np.zeros((nv,), dtype=np.int64)
     weights = np.zeros((nv, 3), dtype=np.float64)
     max_kk = tree.data.shape[0]
     for i in range(nv):

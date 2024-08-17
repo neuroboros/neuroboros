@@ -2,7 +2,6 @@
 requires = [
   "setuptools>=61.0",
   "setuptools_scm[toml]>=6.2",
-  "Cython",
   "numpy",
 ]
 build-backend = "setuptools.build_meta"
@@ -18,27 +17,31 @@ readme = "README.md"
 license = { file="LICENSE" }
 requires-python = ">=3.6"
 classifiers = [
-    "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3 :: Only",
-    "License :: OSI Approved :: MIT License",
-    "Operating System :: OS Independent",
-    "Intended Audience :: Science/Research",
-    "Topic :: Scientific/Engineering",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: OS Independent",
+  "Intended Audience :: Science/Research",
+  "Topic :: Scientific/Engineering",
 ]
 dependencies = [
-    "numpy",
-    "scipy",
-    "nibabel",
-    "requests",
-    "joblib",
-    "pandas",
-    "Pillow",
-    "matplotlib",
+  "numpy",
+  "scipy",
+  "nibabel",
+  "requests",
+  "joblib",
+  "pandas",
+  "Pillow",
+  "matplotlib",
 ]
 
 [project.optional-dependencies]
 full = [
-    "datalad",
+  "datalad",
+  "neuroboros-extra",
+]
+extra = [
+  "neuroboros-extra",
 ]
 test = [
      "pytest",
@@ -56,11 +59,6 @@ write_to = "src/neuroboros/_version.py"
 
 [tool.codespell]
 skip = '.git,*.pdf,*.svg'
-#
-# ignore-words-list = ''
-
-[tool.black]
-skip_string_normalization = "True"
 
 [tool.isort]
 profile = "black"
