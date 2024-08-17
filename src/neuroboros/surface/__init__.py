@@ -17,7 +17,13 @@ from .properties import (
 )
 from .subdivision import surface_subdivision
 from .union import compute_union_sphere
-from .voronoi import compute_occupation, native_voronoi, split_triangle, subdivide_edges
+from .voronoi import (
+    compute_occupation,
+    native_voronoi,
+    overlap_transform,
+    split_triangle,
+    subdivide_edges,
+)
 
 
 class Surface:
@@ -177,13 +183,6 @@ class Sphere(Surface):
         if not np.allclose(norm, 1):
             self.coords /= norm
 
-    @classmethod
-    def from_gifti(cls, fn):
-        gii = nib.load(fn)
-        coords, faces = (_.data for _ in gii.darrays)
-        instance = cls(coords, faces)
-        return instance
-
     @property
     def normals(self):
         if not hasattr(self, "_normals"):
@@ -229,17 +228,17 @@ class Sphere(Surface):
             mat = highres_sphere.areal(coords1, highres_anat, coords2)
         return mat
 
-    def dijkstra_subdivision(self, coords1, anat_coords, n_div=4):
-        f_indices, weights = barycentric(
-            self.vecs,
-            coords1,
-            self.v2f,
-            self.tree,
-            self.faces,
-            self.nv,
-            eps=1e-7,
-            return_sparse=False,
-        )
+    # def dijkstra_subdivision(self, coords1, anat_coords, n_div=4):
+    #     f_indices, weights = barycentric(
+    #         self.vecs,
+    #         coords1,
+    #         self.v2f,
+    #         self.tree,
+    #         self.faces,
+    #         self.nv,
+    #         eps=1e-7,
+    #         return_sparse=False,
+    #     )
 
     def union(self, to_unite, eps=1e-10):
         if isinstance(to_unite, Sphere):
