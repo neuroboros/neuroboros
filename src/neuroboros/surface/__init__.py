@@ -22,20 +22,20 @@ from .voronoi import compute_occupation, native_voronoi, split_triangle, subdivi
 
 class Surface:
     def __init__(self, coords, faces):
-        self.coords = coords.astype('float')
+        self.coords = coords.astype("float")
         self.faces = faces
         self.nv = self.coords.shape[0]
         self.nf = self.faces.shape[0]
 
     @property
     def neighbors(self):
-        if not hasattr(self, '_neighbors'):
+        if not hasattr(self, "_neighbors"):
             self._neighbors = compute_neighbors(self.faces, self.nv)
         return self._neighbors
 
     @property
     def neighbor_distances(self):
-        if not hasattr(self, '_neighbor_distances'):
+        if not hasattr(self, "_neighbor_distances"):
             self._neighbor_distances = compute_neighbor_distances(
                 self.coords, self.neighbors
             )
@@ -43,13 +43,13 @@ class Surface:
 
     @property
     def tree(self):
-        if not hasattr(self, '_tree'):
+        if not hasattr(self, "_tree"):
             self._tree = cKDTree(self.coords)
         return self._tree
 
     @property
     def vertex_areas(self):
-        if not hasattr(self, '_vertex_areas'):
+        if not hasattr(self, "_vertex_areas"):
             self._vertex_areas = compute_vertex_areas(
                 self.coords, self.faces, self.face_areas
             )
@@ -77,13 +77,13 @@ class Surface:
 
     @property
     def face_areas(self):
-        if not hasattr(self, '_face_areas'):
+        if not hasattr(self, "_face_areas"):
             self._face_areas = compute_face_areas(self.coords, self.faces)
         return self._face_areas
 
     @property
     def v2f(self):
-        if not hasattr(self, '_v2f'):
+        if not hasattr(self, "_v2f"):
             self._v2f = [[] for _ in range(self.nv)]
             for i, f in enumerate(self.faces):
                 for v in f:
@@ -107,9 +107,24 @@ class Surface:
         instance = cls(coords, faces)
         return instance
 
+    @classmethod
+    def from_fs(cls, fn):
+        coords, faces = nib.freesurfer.read_geometry(fn)
+        instance = cls(coords, faces)
+        return instance
+
+    @classmethod
+    def from_file(cls, fn):
+        try:
+            instance = cls.from_gifti(fn)
+            return instance
+        except Exception:
+            instance = cls.from_fs(fn)
+            return instance
+
     def to_gifti(self, fn):
         dirname = os.path.dirname(fn)
-        if dirname != '':
+        if dirname != "":
             os.makedirs(dirname, exist_ok=True)
 
         if isinstance(self, Sphere):
@@ -120,17 +135,36 @@ class Surface:
         darrays = [
             nib.gifti.GiftiDataArray(
                 coords.astype(np.float32),
-                intent=nib.nifti1.intent_codes['NIFTI_INTENT_POINTSET'],
-                datatype=nib.nifti1.data_type_codes['NIFTI_TYPE_FLOAT32'],
+                intent=nib.nifti1.intent_codes["NIFTI_INTENT_POINTSET"],
+                datatype=nib.nifti1.data_type_codes["NIFTI_TYPE_FLOAT32"],
             ),
             nib.gifti.GiftiDataArray(
                 self.faces.astype(np.int32),
-                intent=nib.nifti1.intent_codes['NIFTI_INTENT_TRIANGLE'],
-                datatype=nib.nifti1.data_type_codes['NIFTI_TYPE_INT32'],
+                intent=nib.nifti1.intent_codes["NIFTI_INTENT_TRIANGLE"],
+                datatype=nib.nifti1.data_type_codes["NIFTI_TYPE_INT32"],
             ),
         ]
         gii = nib.gifti.GiftiImage(darrays=darrays)
         nib.save(gii, fn)
+
+    def to_fs(self, fn):
+        dirname = os.path.dirname(fn)
+        if dirname != "":
+            os.makedirs(dirname, exist_ok=True)
+
+        if isinstance(self, Sphere):
+            coords = self.coords * 100
+        else:
+            coords = self.coords
+
+        nib.freesurfer.write_geometry(fn, coords, self.faces)
+
+    def __eq__(self, other):
+        if not np.array_equal(self.coords, other.coords):
+            return False
+        if not np.array_equal(self.faces, other.faces):
+            return False
+        return True
 
 
 class Sphere(Surface):
@@ -152,20 +186,20 @@ class Sphere(Surface):
 
     @property
     def normals(self):
-        if not hasattr(self, '_normals'):
+        if not hasattr(self, "_normals"):
             self._normals = compute_vertex_normals_equal_weight(self.coords, self.faces)
         return self._normals
 
     @property
     def normals_sine(self):
-        if not hasattr(self, '_normals_sine'):
+        if not hasattr(self, "_normals_sine"):
             self._normals_sine = compute_vertex_normals_sine_weight(
                 self.coords, self.faces
             )
         return self._normals_sine
 
     def prepare_barycentric(self):
-        if not hasattr(self, 'vecs'):
+        if not hasattr(self, "vecs"):
             f_coords = self.coords[self.faces, :]
             a = f_coords[:, 0, :]
             e1 = f_coords[:, 1, :] - f_coords[:, 0, :]
