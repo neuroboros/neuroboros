@@ -23,25 +23,25 @@ from scipy.stats import zscore
 from ..io import DatasetManager
 from ..spaces import get_mask
 
-SURFACE_SPACES = ['fsavg-ico32', 'onavg-ico32', 'onavg-ico48', 'onavg-ico64']
+SURFACE_SPACES = ["fsavg-ico32", "onavg-ico32", "onavg-ico48", "onavg-ico64"]
 SURFACE_RESAMPLES = [
-    '1step_pial_overlap',
-    '1step_pial_area',
-    '2step_normals-equal_nnfr',
-    '2step_normals-sine_nnfr',
+    "1step_pial_overlap",
+    "1step_pial_area",
+    "2step_normals-equal_nnfr",
+    "2step_normals-sine_nnfr",
 ]
-VOLUME_SPACES = ['mni-2mm', 'mni-3mm', 'mni-4mm']
-VOLUME_RESAMPLES = ['1step_linear_overlap', '1step_fmriprep_overlap']
+VOLUME_SPACES = ["mni-2mm", "mni-3mm", "mni-4mm"]
+VOLUME_RESAMPLES = ["1step_linear_overlap", "1step_fmriprep_overlap"]
 
 
 def guess_surface_volume(space, resample, lr):
     if space in SURFACE_SPACES or resample in SURFACE_RESAMPLES:
-        return 'surface'
+        return "surface"
     if space in VOLUME_SPACES or resample in VOLUME_RESAMPLES:
-        return 'volume'
-    if lr in ['l', 'r', 'l-cerebrum', 'r-cerebrum', 'lr']:
-        return 'surface'
-    return 'volume'
+        return "volume"
+    if lr in ["l", "r", "l-cerebrum", "r-cerebrum", "lr"]:
+        return "surface"
+    return "volume"
 
 
 def default_prep(dm, confounds, cortical_mask, z=True, mask=True, gsr=False):
@@ -49,7 +49,7 @@ def default_prep(dm, confounds, cortical_mask, z=True, mask=True, gsr=False):
         dm = dm[:, cortical_mask]
     conf = confounds[0]
     if gsr:
-        gs = np.array(confounds[1]['global_signal'])
+        gs = np.array(confounds[1]["global_signal"])
         conf = np.concatenate([conf, gs[:, np.newaxis]], axis=1)
     finite_mask = np.all(np.isfinite(dm), axis=0)
     beta = np.linalg.lstsq(conf, dm[:, finite_mask], rcond=None)[0]
@@ -64,7 +64,7 @@ def scrub_prep(dm, confounds, cortical_mask, z=True, mask=True, gsr=False):
         dm = dm[:, cortical_mask]
     conf, _, keep = confounds
     if gsr:
-        gs = np.array(confounds[1]['global_signal'])
+        gs = np.array(confounds[1]["global_signal"])
         conf = np.concatenate([conf, gs[:, np.newaxis]], axis=1)
     dm = dm[keep]
     finite_mask = np.all(np.isfinite(dm), axis=0)
@@ -76,15 +76,15 @@ def scrub_prep(dm, confounds, cortical_mask, z=True, mask=True, gsr=False):
 
 
 def get_prep(name, **kwargs):
-    if name.endswith('-gsr'):
+    if name.endswith("-gsr"):
         gsr = True
         name = name[:-4]
     else:
         gsr = False
 
     prep = {
-        'default': default_prep,
-        'scrub': scrub_prep,
+        "default": default_prep,
+        "scrub": scrub_prep,
     }[name]
     if gsr:
         prep = partial(prep, gsr=True)
@@ -105,8 +105,8 @@ class Dataset:
         surface_resample=None,
         volume_space=None,
         volume_resample=None,
-        prep='default',
-        fp_version='20.2.7',
+        prep="default",
+        fp_version="20.2.7",
     ):
         self.name = name
 
@@ -116,6 +116,9 @@ class Dataset:
         self.dl_dset = DatasetManager(
             self.name, root=self.root_dir, source=self.dl_source
         )
+
+        if not hasattr(self, "rename_func"):
+            self.rename_func = None
 
         # if self.dl_source is None:
         #     if self.root_dir is not None:
@@ -160,22 +163,23 @@ class Dataset:
 
         self.prep = prep
 
-        self.renaming = self.dl_dset.get('rename.json.gz')
+        if self.rename_func is None:
+            self.renaming = self.dl_dset.get("rename.json.gz")
 
         self.subject_sets = {}
         for fn in sorted(
-            glob(os.path.join(self.dl_dset.root, 'subject_sets', '*.txt'))
+            glob(os.path.join(self.dl_dset.root, "subject_sets", "*.txt"))
         ):
             task = os.path.basename(fn)[:-4]
             with open(fn) as f:
                 self.subject_sets[task] = f.read().splitlines()
 
     def load_data(self, sid, task, run, lr, space, resample, fp_version=None):
-        if lr == 'lr':
+        if lr == "lr":
             dm = np.concatenate(
                 [
                     self.load_data(sid, task, run, lr_, space, resample, fp_version)
-                    for lr_ in 'lr'
+                    for lr_ in "lr"
                 ],
                 axis=1,
             )
@@ -184,30 +188,39 @@ class Dataset:
         if fp_version is None:
             fp_version = self.fp_version
 
-        if lr in ['l', 'r']:
-            lr = f'{lr}-cerebrum'
+        if lr in ["l", "r"]:
+            lr = f"{lr}-cerebrum"
 
-        if self.renaming is None:
+        if self.rename_func is not None:
             fn = [
                 fp_version,
-                'resampled',
+                "resampled",
                 space,
                 lr,
                 resample,
-                f'sub-{sid}_task-{task}_run-{run:02d}.npy',
+                self.rename_func(sid, task, run),
+            ]
+        elif self.renaming is None:
+            fn = [
+                fp_version,
+                "resampled",
+                space,
+                lr,
+                resample,
+                f"sub-{sid}_task-{task}_run-{run:02d}.npy",
             ]
         else:
             fn = [
                 fp_version,
-                'renamed',
+                "renamed",
                 space,
                 lr,
                 resample,
-                f'sub-{sid}_task-{task}_run-{run:02d}.npy',
+                f"sub-{sid}_task-{task}_run-{run:02d}.npy",
             ]
-            fn = self.renaming['/'.join(fn)].split('/')
+            fn = self.renaming["/".join(fn)].split("/")
 
-        dm = self.dl_dset.get(fn, on_missing='raise').astype(np.float64)
+        dm = self.dl_dset.get(fn, on_missing="raise").astype(np.float64)
 
         return dm
 
@@ -215,47 +228,53 @@ class Dataset:
         if fp_version is None:
             fp_version = self.fp_version
         suffix_li = [
-            'desc-confounds_timeseries.npy',
-            'desc-confounds_timeseries.tsv',
-            'desc-mask_timeseries.npy',
+            "desc-confounds_timeseries.npy",
+            "desc-confounds_timeseries.tsv",
+            "desc-mask_timeseries.npy",
         ]
         output = []
         for suffix in suffix_li:
-            if self.renaming is None:
+            if self.rename_func is not None:
                 fn = [
                     fp_version,
-                    'confounds',
-                    f'sub-{sid}_task-{task}_run-{run}_{suffix}',
+                    "confounds",
+                    self.rename_func(sid, task, run, "_" + suffix),
+                ]
+            elif self.renaming is None:
+                fn = [
+                    fp_version,
+                    "confounds",
+                    f"sub-{sid}_task-{task}_run-{run}_{suffix}",
                 ]
             else:
                 fn = [
                     fp_version,
-                    'renamed_confounds',
-                    f'sub-{sid}_task-{task}_run-{run:02d}_{suffix}',
+                    "renamed_confounds",
+                    f"sub-{sid}_task-{task}_run-{run:02d}_{suffix}",
                 ]
-                fn = self.renaming['/'.join(fn)].split('/')
-            o = self.dl_dset.get(fn, on_missing='raise')
+                fn = self.renaming["/".join(fn)].split("/")
+            o = self.dl_dset.get(fn, on_missing="raise")
             output.append(o)
         return output
 
     def load_design(self, sid, task, run, fp_version=None):
         if fp_version is None:
             fp_version = self.fp_version
-        suffix = 'design.json'
+        suffix = "design.json"
         if self.renaming is None:
             fn = [
                 fp_version,
-                'design',
-                f'sub-{sid}_task-{task}_run-{run:02d}_{suffix}',
+                "design",
+                f"sub-{sid}_task-{task}_run-{run:02d}_{suffix}",
             ]
         else:
             fn = [
                 fp_version,
-                'renamed_design',
-                f'sub-{sid}_task-{task}_run-{run:02d}_{suffix}',
+                "renamed_design",
+                f"sub-{sid}_task-{task}_run-{run:02d}_{suffix}",
             ]
-            fn = self.renaming['/'.join(fn)].split('/')
-        output = self.dl_dset.get(fn, on_missing='raise')
+            fn = self.renaming["/".join(fn)].split("/")
+        output = self.dl_dset.get(fn, on_missing="raise")
         return output
 
     def load_contrasts(
@@ -264,7 +283,7 @@ class Dataset:
         task,
         run,
         lr,
-        kind='t',
+        kind="t",
         space=None,
         resample=None,
         prep=None,
@@ -272,35 +291,35 @@ class Dataset:
         fp_version=None,
     ):
         if force_volume:
-            space_kind = 'volume'
+            space_kind = "volume"
         else:
             space_kind = guess_surface_volume(space, resample, lr)
         if space is None:
             space = {
-                'surface': self.surface_space,
-                'volume': self.volume_space,
+                "surface": self.surface_space,
+                "volume": self.volume_space,
             }[space_kind]
         if resample is None:
             resample = {
-                'surface': self.surface_resample,
-                'volume': self.volume_resample,
+                "surface": self.surface_resample,
+                "volume": self.volume_resample,
             }[space_kind]
         if prep is None:
             prep = self.prep
 
         if fp_version is None:
             fp_version = self.fp_version
-        suffix = f'{kind}.npy'
+        suffix = f"{kind}.npy"
         fn = [
             fp_version,
-            'contrasts',
+            "contrasts",
             space,
-            f'{lr}-cerebrum',
+            f"{lr}-cerebrum",
             resample,
             prep,
-            f'sub-{sid}_task-{task}_run-{run:02d}_{suffix}',
+            f"sub-{sid}_task-{task}_run-{run:02d}_{suffix}",
         ]
-        output = self.dl_dset.get(fn, on_missing='raise')
+        output = self.dl_dset.get(fn, on_missing="raise")
         return output
 
     def get_data(
@@ -346,32 +365,32 @@ class Dataset:
             return ret
 
         if force_volume:
-            space_kind = 'volume'
+            space_kind = "volume"
         else:
             space_kind = guess_surface_volume(space, resample, lr)
         if space is None:
             space = {
-                'surface': self.surface_space,
-                'volume': self.volume_space,
+                "surface": self.surface_space,
+                "volume": self.volume_space,
             }[space_kind]
         if resample is None:
             resample = {
-                'surface': self.surface_resample,
-                'volume': self.volume_resample,
+                "surface": self.surface_resample,
+                "volume": self.volume_resample,
             }[space_kind]
         if prep is None:
             prep = self.prep
         if fp_version is None:
             fp_version = self.fp_version
         if slicer is None:
-            slicer = getattr(self, 'slicer', None)
+            slicer = getattr(self, "slicer", None)
 
         dm = self.load_data(sid, task, run, lr, space, resample, fp_version)
         confounds = self.load_confounds(sid, task, run, fp_version)
-        if space_kind == 'surface':
-            if lr == 'lr':
+        if space_kind == "surface":
+            if lr == "lr":
                 cortical_mask = np.concatenate(
-                    [get_mask(lr_, space) for lr_ in 'lr'], axis=0
+                    [get_mask(lr_, space) for lr_ in "lr"], axis=0
                 )
             else:
                 cortical_mask = get_mask(lr, space)
@@ -391,9 +410,9 @@ class Dataset:
         if space is None:
             space = self.surface_space
         fn = os.path.join(
-            fp_version, 'anatomy', space, 'overlap', which, f'{sid}_{lr}h.npy'
+            fp_version, "anatomy", space, "overlap", which, f"{sid}_{lr}h.npy"
         )
-        d = self.dl_dset.get(fn, on_missing='raise')
+        d = self.dl_dset.get(fn, on_missing="raise")
         d = d.astype(np.float64)
         if mask is not False and mask is not None:
             if isinstance(mask, np.ndarray):
@@ -411,7 +430,7 @@ class Dataset:
     def parcellation(self, sid, which, lr, mask=True, space=None, fp_version=None):
         return self._get_anatomical_data(
             sid=sid,
-            which=which + '.annot',
+            which=which + ".annot",
             lr=lr,
             mask=mask,
             space=space,
@@ -422,11 +441,11 @@ class Dataset:
 class Bologna(Dataset):
     def __init__(
         self,
-        space=['onavg-ico32', 'mni-4mm'],
-        resample=['1step_pial_overlap', '1step_linear_overlap'],
-        prep='default',
-        fp_version='20.2.7',
-        name='bologna',
+        space=["onavg-ico32", "mni-4mm"],
+        resample=["1step_pial_overlap", "1step_linear_overlap"],
+        prep="default",
+        fp_version="20.2.7",
+        name="bologna",
         root_dir=None,
         dl_source=None,
     ):
@@ -439,8 +458,8 @@ class Bologna(Dataset):
             prep=prep,
             fp_version=fp_version,
         )
-        self.subjects = [f'{_+1:02d}' for _ in range(69)]
-        self.tasks = ['rest']
+        self.subjects = [f"{_+1:02d}" for _ in range(69)]
+        self.tasks = ["rest"]
 
 
 class Forrest(Dataset):
@@ -460,13 +479,13 @@ class Forrest(Dataset):
 
     def __init__(
         self,
-        space=['onavg-ico32', 'mni-4mm'],
-        resample=['1step_pial_overlap', '1step_linear_overlap'],
-        prep='default',
-        fp_version='20.2.7',
-        name='forrest',
+        space=["onavg-ico32", "mni-4mm"],
+        resample=["1step_pial_overlap", "1step_linear_overlap"],
+        prep="default",
+        fp_version="20.2.7",
+        name="forrest",
         root_dir=None,
-        dl_source='https://gin.g-node.org/neuroboros/forrest',
+        dl_source="https://gin.g-node.org/neuroboros/forrest",
     ):
         super().__init__(
             name,
@@ -478,21 +497,21 @@ class Forrest(Dataset):
             fp_version=fp_version,
         )
         self.subjects = [
-            '01',
-            '02',
-            '03',
-            '04',
-            '05',
-            '06',
-            '09',
-            '10',
-            '14',
-            '15',
-            '16',
-            '17',
-            '18',
-            '19',
-            '20',
+            "01",
+            "02",
+            "03",
+            "04",
+            "05",
+            "06",
+            "09",
+            "10",
+            "14",
+            "15",
+            "16",
+            "17",
+            "18",
+            "19",
+            "20",
         ]
         self.tasks = [
             "forrest",
@@ -508,11 +527,11 @@ class Forrest(Dataset):
 class Dalmatians(Dataset):
     def __init__(
         self,
-        space=['onavg-ico32', 'mni-4mm'],
-        resample=['1step_pial_overlap', '1step_linear_overlap'],
-        prep='default',
-        fp_version='20.2.7',
-        name='dalmatians',
+        space=["onavg-ico32", "mni-4mm"],
+        resample=["1step_pial_overlap", "1step_linear_overlap"],
+        prep="default",
+        fp_version="20.2.7",
+        name="dalmatians",
         root_dir=None,
         dl_source=None,
     ):
@@ -526,68 +545,68 @@ class Dalmatians(Dataset):
             fp_version=fp_version,
         )
         self.subjects = [
-            'AB033',
-            'AB034',
-            'AB035',
-            'AB036',
-            'AB037',
-            'AB038',
-            'AB039',
-            'AB041',
-            'AB042',
-            'AB043',
-            'AB053',
-            'AO003',
-            'AO004',
-            'AO005',
-            'AO006',
-            'AO007',
-            'AO008',
-            'AO009',
-            'AO010',
-            'AO011',
-            'AO027',
-            'AV012',
-            'AV013',
-            'AV014',
-            'AV015',
-            'AV016',
-            'AV017',
-            'AV018',
-            'AV019',
-            'AV022',
-            'AV032',
-            'VD044',
-            'VD045',
-            'VD046',
-            'VD047',
-            'VD048',
-            'VD049',
-            'VD050',
-            'VD051',
-            'VD052',
-            'VO020',
-            'VO021',
-            'VO023',
-            'VO024',
-            'VO025',
-            'VO026',
-            'VO028',
-            'VO029',
-            'VO030',
-            'VO031',
+            "AB033",
+            "AB034",
+            "AB035",
+            "AB036",
+            "AB037",
+            "AB038",
+            "AB039",
+            "AB041",
+            "AB042",
+            "AB043",
+            "AB053",
+            "AO003",
+            "AO004",
+            "AO005",
+            "AO006",
+            "AO007",
+            "AO008",
+            "AO009",
+            "AO010",
+            "AO011",
+            "AO027",
+            "AV012",
+            "AV013",
+            "AV014",
+            "AV015",
+            "AV016",
+            "AV017",
+            "AV018",
+            "AV019",
+            "AV022",
+            "AV032",
+            "VD044",
+            "VD045",
+            "VD046",
+            "VD047",
+            "VD048",
+            "VD049",
+            "VD050",
+            "VD051",
+            "VD052",
+            "VO020",
+            "VO021",
+            "VO023",
+            "VO024",
+            "VO025",
+            "VO026",
+            "VO028",
+            "VO029",
+            "VO030",
+            "VO031",
         ]
-        self.tasks = ['dalmatians', 'scrambled']
+        self.tasks = ["dalmatians", "scrambled"]
 
 
 class SpaceTop(Dataset):
     def __init__(
         self,
-        space=['onavg-ico32', 'mni-4mm'],
-        resample=['1step_pial_overlap', '1step_linear_overlap'],
-        prep='default',
-        fp_version='23.2.0',
-        name='spacetop',
+        space=["onavg-ico32", "mni-4mm"],
+        resample=["1step_pial_overlap", "1step_linear_overlap"],
+        prep="default",
+        fp_version="23.2.0",
+        name="spacetop",
         root_dir=None,
         dl_source=None,
     ):
@@ -600,17 +619,17 @@ class SpaceTop(Dataset):
             prep=prep,
             fp_version=fp_version,
         )
-        self.tasks = ['alignvideo', 'faces']
+        self.tasks = ["alignvideo", "faces"]
 
 
 class CamCAN(Dataset):
     def __init__(
         self,
-        space=['onavg-ico32', 'mni-4mm'],
-        resample=['1step_pial_overlap', '1step_linear_overlap'],
-        prep='default',
-        fp_version='20.2.7',
-        name='camcan',
+        space=["onavg-ico32", "mni-4mm"],
+        resample=["1step_pial_overlap", "1step_linear_overlap"],
+        prep="default",
+        fp_version="20.2.7",
+        name="camcan",
         root_dir=None,
         dl_source=None,
     ):
@@ -623,22 +642,22 @@ class CamCAN(Dataset):
             prep=prep,
             fp_version=fp_version,
         )
-        self.tasks = ['bang', 'rest', 'smt']
+        self.tasks = ["bang", "rest", "smt"]
 
         mod_dir = os.path.dirname(os.path.realpath(__file__))
-        for task in ['bang', 'rest', 'smt']:
-            with open(os.path.join(mod_dir, f'camcan_{task}.txt')) as f:
+        for task in ["bang", "rest", "smt"]:
+            with open(os.path.join(mod_dir, f"camcan_{task}.txt")) as f:
                 self.subject_sets[task] = f.read().splitlines()
 
 
 class ID1000(Dataset):
     def __init__(
         self,
-        space=['onavg-ico32', 'mni-4mm'],
-        resample=['1step_pial_overlap', '1step_linear_overlap'],
-        prep='default',
-        fp_version='20.2.7',
-        name='id1000',
+        space=["onavg-ico32", "mni-4mm"],
+        resample=["1step_pial_overlap", "1step_linear_overlap"],
+        prep="default",
+        fp_version="20.2.7",
+        name="id1000",
         root_dir=None,
         dl_source=None,
     ):
@@ -651,10 +670,10 @@ class ID1000(Dataset):
             prep=prep,
             fp_version=fp_version,
         )
-        self.tasks = ['moviewatching']
+        self.tasks = ["moviewatching"]
 
         mod_dir = os.path.dirname(os.path.realpath(__file__))
-        with open(os.path.join(mod_dir, f'id1000.txt')) as f:
+        with open(os.path.join(mod_dir, f"id1000.txt")) as f:
             self.subjects = f.read().splitlines()
 
 
@@ -673,11 +692,11 @@ class Raiders(Dataset):
 
     def __init__(
         self,
-        space=['onavg-ico32', 'mni-4mm'],
-        resample=['1step_pial_overlap', '1step_linear_overlap'],
-        prep='default',
-        fp_version='23.2.0',
-        name='raiders',
+        space=["onavg-ico32", "mni-4mm"],
+        resample=["1step_pial_overlap", "1step_linear_overlap"],
+        prep="default",
+        fp_version="23.2.0",
+        name="raiders",
         root_dir=None,
         dl_source=None,
     ):
@@ -690,35 +709,35 @@ class Raiders(Dataset):
             prep=prep,
             fp_version=fp_version,
         )
-        self.tasks = ['raiders', 'actions']
+        self.tasks = ["raiders", "actions"]
         self.subjects = [
-            'sid000005',
-            'sid000007',
-            'sid000009',
-            'sid000010',
-            'sid000012',
-            'sid000013',
-            'sid000020',
-            'sid000021',
-            'sid000024',
-            'sid000029',
-            'sid000034',
-            'sid000052',
-            'sid000102',
-            'sid000114',
-            'sid000120',
-            'sid000134',
-            'sid000142',
-            'sid000278',
-            'sid000416',
-            'sid000433',
-            'sid000499',
-            'sid000522',
-            'sid000535',
+            "sid000005",
+            "sid000007",
+            "sid000009",
+            "sid000010",
+            "sid000012",
+            "sid000013",
+            "sid000020",
+            "sid000021",
+            "sid000024",
+            "sid000029",
+            "sid000034",
+            "sid000052",
+            "sid000102",
+            "sid000114",
+            "sid000120",
+            "sid000134",
+            "sid000142",
+            "sid000278",
+            "sid000416",
+            "sid000433",
+            "sid000499",
+            "sid000522",
+            "sid000535",
         ]
 
     def slicer(self, data, task, run):
-        if task == 'raiders':  # stimulus overlap between runs
+        if task == "raiders":  # stimulus overlap between runs
             if run == 1:
                 data = data[:-10]
             elif run == 4:
@@ -748,11 +767,11 @@ class PhilipsRaiders(Dataset):
 
     def __init__(
         self,
-        space=['onavg-ico32', 'mni-4mm'],
-        resample=['1step_pial_overlap', '1step_linear_overlap'],
-        prep='default',
-        fp_version='20.2.7',
-        name='raiders',
+        space=["onavg-ico32", "mni-4mm"],
+        resample=["1step_pial_overlap", "1step_linear_overlap"],
+        prep="default",
+        fp_version="20.2.7",
+        name="raiders",
         root_dir=None,
         dl_source=None,
     ):
@@ -786,11 +805,11 @@ class Budapest(Dataset):
 
     def __init__(
         self,
-        space=['onavg-ico32', 'mni-4mm'],
-        resample=['1step_pial_overlap', '1step_linear_overlap'],
-        prep='default',
-        fp_version='23.2.0',
-        name='budapest',
+        space=["onavg-ico32", "mni-4mm"],
+        resample=["1step_pial_overlap", "1step_linear_overlap"],
+        prep="default",
+        fp_version="23.2.0",
+        name="budapest",
         root_dir=None,
         dl_source=None,
     ):
@@ -803,40 +822,40 @@ class Budapest(Dataset):
             prep=prep,
             fp_version=fp_version,
         )
-        self.tasks = ['budapest', 'hyperface', 'localizer']
+        self.tasks = ["budapest", "hyperface", "localizer"]
         self.subjects = [
-            'sid000005',
-            'sid000007',
-            'sid000009',
-            'sid000010',
-            'sid000013',
-            'sid000020',
-            'sid000021',
-            'sid000024',
-            'sid000029',
-            'sid000034',
-            'sid000052',
-            'sid000114',
-            'sid000120',
-            'sid000134',
-            'sid000142',
-            'sid000278',
-            'sid000416',
-            'sid000499',
-            'sid000522',
-            'sid000535',
-            'sid000560',
+            "sid000005",
+            "sid000007",
+            "sid000009",
+            "sid000010",
+            "sid000013",
+            "sid000020",
+            "sid000021",
+            "sid000024",
+            "sid000029",
+            "sid000034",
+            "sid000052",
+            "sid000114",
+            "sid000120",
+            "sid000134",
+            "sid000142",
+            "sid000278",
+            "sid000416",
+            "sid000499",
+            "sid000522",
+            "sid000535",
+            "sid000560",
         ]
 
 
 class MonkeyKingdom(Dataset):
     def __init__(
         self,
-        space=['onavg-ico32', 'mni-4mm'],
-        resample=['1step_pial_overlap', '1step_linear_overlap'],
-        prep='default',
-        fp_version='23.2.0',
-        name='monkey-kingdom',
+        space=["onavg-ico32", "mni-4mm"],
+        resample=["1step_pial_overlap", "1step_linear_overlap"],
+        prep="default",
+        fp_version="23.2.0",
+        name="monkey-kingdom",
         root_dir=None,
         dl_source=None,
     ):
@@ -849,33 +868,39 @@ class MonkeyKingdom(Dataset):
             prep=prep,
             fp_version=fp_version,
         )
-        self.tasks = ['monkey', 'rest', 'localizer', 'language']
+        self.tasks = ["monkey", "rest", "localizer", "language"]
         self.subjects = [
-            'sid001123',
-            'sid001293',
-            'sid001294',
-            'sid001678',
-            'sid001784',
-            'sid001830',
-            'sid001835',
-            'sid001986',
-            'sid002015',
-            'sid002161',
-            'sid002180',
-            'sid002317',
-            'sid002325',
-            'sid002406',
-            'sid002414',
-            'sid002435',
-            'sid002446',
-            'sid002449',
-            'sid002454',
-            'sid002471',
-            'sid002499',
-            'sid002509',
-            'sid002519',
-            'sid002570',
+            "sid001123",
+            "sid001293",
+            "sid001294",
+            "sid001678",
+            "sid001784",
+            "sid001830",
+            "sid001835",
+            "sid001986",
+            "sid002015",
+            "sid002161",
+            "sid002180",
+            "sid002317",
+            "sid002325",
+            "sid002406",
+            "sid002414",
+            "sid002435",
+            "sid002446",
+            "sid002449",
+            "sid002454",
+            "sid002471",
+            "sid002499",
+            "sid002509",
+            "sid002519",
+            "sid002570",
         ]
+
+    def slicer(self, data, task, run):
+        if task == "monkey":
+            assert data.shape[0] == 955
+            data = data[40:940]
+        return data
 
 
 class Life(Dataset):
@@ -916,13 +941,13 @@ class Life(Dataset):
 
     def __init__(
         self,
-        space=['onavg-ico32', 'mni-4mm'],
-        resample=['1step_pial_overlap', '1step_linear_overlap'],
-        prep='default',
-        fp_version='20.2.7',
-        name='life',
+        space=["onavg-ico32", "mni-4mm"],
+        resample=["1step_pial_overlap", "1step_linear_overlap"],
+        prep="default",
+        fp_version="20.2.7",
+        name="life",
         root_dir=None,
-        dl_source='https://gin.g-node.org/neuroboros/life',
+        dl_source="https://gin.g-node.org/neuroboros/life",
     ):
         super().__init__(
             name,
@@ -933,77 +958,77 @@ class Life(Dataset):
             prep=prep,
             fp_version=fp_version,
         )
-        self.tasks = ['life', 'tax', 'beh']
+        self.tasks = ["life", "tax", "beh"]
         self.subject_sets.update(
             {
-                'attention': [
-                    'rid000001',
-                    'rid000012',
-                    'rid000017',
-                    'rid000024',
-                    'rid000027',
-                    'rid000031',
-                    'rid000032',
-                    'rid000033',
-                    'rid000034',
-                    'rid000036',
-                    'rid000037',
-                    'rid000041',
+                "attention": [
+                    "rid000001",
+                    "rid000012",
+                    "rid000017",
+                    "rid000024",
+                    "rid000027",
+                    "rid000031",
+                    "rid000032",
+                    "rid000033",
+                    "rid000034",
+                    "rid000036",
+                    "rid000037",
+                    "rid000041",
                 ],
-                'all': [
-                    'rid000001',
-                    'rid000005',
-                    'rid000006',
-                    'rid000009',
-                    'rid000012',
-                    'rid000014',
-                    'rid000017',
-                    'rid000019',
-                    'rid000020',
-                    'rid000024',
-                    'rid000027',
-                    'rid000031',
-                    'rid000032',
-                    'rid000033',
-                    'rid000034',
-                    'rid000036',
-                    'rid000037',
-                    'rid000038',
-                    'rid000041',
+                "all": [
+                    "rid000001",
+                    "rid000005",
+                    "rid000006",
+                    "rid000009",
+                    "rid000012",
+                    "rid000014",
+                    "rid000017",
+                    "rid000019",
+                    "rid000020",
+                    "rid000024",
+                    "rid000027",
+                    "rid000031",
+                    "rid000032",
+                    "rid000033",
+                    "rid000034",
+                    "rid000036",
+                    "rid000037",
+                    "rid000038",
+                    "rid000041",
                 ],
             }
         )
-        self.subjects = self.subject_sets['all']
+        self.subjects = self.subject_sets["all"]
         self.contrasts = [
-            'primate_eating',
-            'primate_fighting',
-            'primate_running',
-            'primate_swimming',
-            'ungulate_eating',
-            'ungulate_fighting',
-            'ungulate_running',
-            'ungulate_swimming',
-            'bird_eating',
-            'bird_fighting',
-            'bird_running',
-            'bird_swimming',
-            'reptile_eating',
-            'reptile_fighting',
-            'reptile_running',
-            'reptile_swimming',
-            'insect_eating',
-            'insect_fighting',
-            'insect_running',
-            'insect_swimming',
-            'primate',
-            'ungulate',
-            'bird',
-            'reptile',
-            'insect',
-            'eating',
-            'fighting',
-            'running',
-            'swimming',
+            "primate_eating",
+            "primate_fighting",
+            "primate_running",
+            "primate_swimming",
+            "ungulate_eating",
+            "ungulate_fighting",
+            "ungulate_running",
+            "ungulate_swimming",
+            "bird_eating",
+            "bird_fighting",
+            "bird_running",
+            "bird_swimming",
+            "reptile_eating",
+            "reptile_fighting",
+            "reptile_running",
+            "reptile_swimming",
+            "insect_eating",
+            "insect_fighting",
+            "insect_running",
+            "insect_swimming",
+            "primate",
+            "ungulate",
+            "bird",
+            "reptile",
+            "insect",
+            "eating",
+            "fighting",
+            "running",
+            "swimming",
         ]
 
     def slicer(self, data, task, run):
@@ -1025,7 +1050,7 @@ class Life(Dataset):
         We keep the same number of volumes for all participants for the first
         two runs, so that we can use the participant's data.
         """
-        if task == 'life':
+        if task == "life":
             end = {1: 366, 2: 338, 3: 370, 4: 405}[run]
             data = data[:end]
         return data
@@ -1034,11 +1059,11 @@ class Life(Dataset):
 class HBNSSI(Dataset):
     def __init__(
         self,
-        space=['onavg-ico32', 'mni-4mm'],
-        resample=['1step_pial_overlap', '1step_linear_overlap'],
-        prep='default',
-        fp_version='23.2.0',
-        name='hbn-ssi',
+        space=["onavg-ico32", "mni-4mm"],
+        resample=["1step_pial_overlap", "1step_linear_overlap"],
+        prep="default",
+        fp_version="23.2.0",
+        name="hbn-ssi",
         root_dir=None,
         dl_source=None,
     ):
@@ -1051,32 +1076,32 @@ class HBNSSI(Dataset):
             prep=prep,
             fp_version=fp_version,
         )
-        self.tasks = ['raiders', 'matrix', 'walle', 'afewgoodmen']
+        self.tasks = ["raiders", "matrix", "walle", "afewgoodmen"]
         self.subjects = [
-            '0031121',
-            '0031122',
-            '0031123',
-            '0031126',
-            '0031127',
-            '0031130',
-            '0031131',
-            '0031132',
-            '0031133',
-            '0031124',
-            '0031125',
-            '0031128',
-            '0031129',
+            "0031121",
+            "0031122",
+            "0031123",
+            "0031126",
+            "0031127",
+            "0031130",
+            "0031131",
+            "0031132",
+            "0031133",
+            "0031124",
+            "0031125",
+            "0031128",
+            "0031129",
         ]
 
 
-class Whiplash(Dataset):
+class WhiplashC1(Dataset):
     def __init__(
         self,
-        space=['onavg-ico32', 'mni-4mm'],
-        resample=['1step_pial_overlap', '1step_linear_overlap'],
-        prep='default',
-        fp_version='23.2.0',
-        name='whiplash',
+        space=["onavg-ico32", "mni-4mm"],
+        resample=["1step_pial_overlap", "1step_linear_overlap"],
+        prep="default",
+        fp_version="20.2.7",
+        name="whiplash-c1",
         root_dir=None,
         dl_source=None,
     ):
@@ -1089,17 +1114,84 @@ class Whiplash(Dataset):
             prep=prep,
             fp_version=fp_version,
         )
-        self.tasks = ['whiplash']
+        self.tasks = ["whiplash"]
+
+    def rename_func(self, sid, task, run, suffix=".npy"):
+        if task == "whiplash":
+            assert run == 1
+            if suffix == ".npy":
+                basename = f"sub-{sid}_ses-3_task-movie_run-02" + suffix
+            else:
+                basename = f"sub-{sid}_ses-3_task-movie_run-2" + suffix
+        else:
+            raise ValueError(f"Task {task} not recognized.")
+        return basename
+
+
+class WhiplashC2(Dataset):
+    def __init__(
+        self,
+        space=["onavg-ico32", "mni-4mm"],
+        resample=["1step_pial_overlap", "1step_linear_overlap"],
+        prep="default",
+        fp_version="23.2.0",
+        name="whiplash-c2",
+        root_dir=None,
+        dl_source=None,
+    ):
+        super().__init__(
+            name,
+            dl_source=dl_source,
+            root_dir=root_dir,
+            space=space,
+            resample=resample,
+            prep=prep,
+            fp_version=fp_version,
+        )
+        self.tasks = ["whiplash"]
+
+
+class WhiplashC3(Dataset):
+    def __init__(
+        self,
+        space=["onavg-ico32", "mni-4mm"],
+        resample=["1step_pial_overlap", "1step_linear_overlap"],
+        prep="default",
+        fp_version="23.2.0",
+        name="whiplash-c3",
+        root_dir=None,
+        dl_source=None,
+    ):
+        super().__init__(
+            name,
+            dl_source=dl_source,
+            root_dir=root_dir,
+            space=space,
+            resample=resample,
+            prep=prep,
+            fp_version=fp_version,
+        )
+        self.tasks = ["whiplash", "localizer"]
+
+    def rename_func(self, sid, task, run, suffix=".npy"):
+        if task == "whiplash":
+            assert run == 1
+            basename = f"sub-{sid}_task-video_run-01" + suffix
+        elif task == "localizer":
+            basename = f"sub-{sid}_task-localizer_run-01" + suffix
+        else:
+            raise ValueError(f"Task {task} not recognized.")
+        return basename
 
 
 class IBC(Dataset):
     def __init__(
         self,
-        space=['onavg-ico32', 'mni-4mm'],
-        resample=['1step_pial_overlap', '1step_linear_overlap'],
-        prep='default',
-        fp_version='23.2.0',
-        name='IBC',
+        space=["onavg-ico32", "mni-4mm"],
+        resample=["1step_pial_overlap", "1step_linear_overlap"],
+        prep="default",
+        fp_version="23.2.0",
+        name="IBC",
         root_dir=None,
         dl_source=None,
     ):
@@ -1112,23 +1204,25 @@ class IBC(Dataset):
             prep=prep,
             fp_version=fp_version,
         )
-        self.tasks = ['raiders', 'tgbu']
+        self.tasks = ["raiders", "tgbu"]
 
 
 datasets = {
-    'forrest': Forrest,
-    'bologna': Bologna,
-    'dalmatians': Dalmatians,
-    'spacetop': SpaceTop,
-    'camcan': CamCAN,
-    'id1000': ID1000,
-    'raiders': Raiders,
-    'budapest': Budapest,
-    'monkeykingdom': MonkeyKingdom,
-    'life': Life,
-    'hbn-ssi': HBNSSI,
-    'whiplash': Whiplash,
-    'ibc': IBC,
+    "forrest": Forrest,
+    "bologna": Bologna,
+    "dalmatians": Dalmatians,
+    "spacetop": SpaceTop,
+    "camcan": CamCAN,
+    "id1000": ID1000,
+    "raiders": Raiders,
+    "budapest": Budapest,
+    "monkeykingdom": MonkeyKingdom,
+    "life": Life,
+    "hbn-ssi": HBNSSI,
+    "whiplash-c1": WhiplashC1,
+    "whiplash-c2": WhiplashC2,
+    "whiplash-c3": WhiplashC3,
+    "ibc": IBC,
 }
 
 
