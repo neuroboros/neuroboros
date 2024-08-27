@@ -101,6 +101,7 @@ class Dataset:
         root_dir,
         space,
         resample,
+        mask=None,
         surface_space=None,
         surface_resample=None,
         volume_space=None,
@@ -133,6 +134,7 @@ class Dataset:
         # else:
         #     self.dl_dset = DefaultDataset(self.name, self.dl_source, self.root_dir)
 
+        self.mask = mask
         self.fp_version = fp_version
         self.surface_space = surface_space
         self.volume_space = volume_space
@@ -330,6 +332,7 @@ class Dataset:
         lr,
         space=None,
         resample=None,
+        mask=None,
         prep=None,
         fp_version=None,
         force_volume=False,
@@ -396,8 +399,14 @@ class Dataset:
                 cortical_mask = get_mask(lr, space)
         else:
             cortical_mask = None
+
+        if prep_kwargs is None:
+            prep_kwargs = {}
+        mask = self.mask if mask is None else mask
+        if mask is not None:
+            prep_kwargs["mask"] = mask
         if isinstance(prep, str):
-            prep = get_prep(prep, **(prep_kwargs if prep_kwargs is not None else {}))
+            prep = get_prep(prep, **prep_kwargs)
         if slicer is not None:
             dm = slicer(dm, task, run)
             confounds = [slicer(c, task, run) for c in confounds]
@@ -854,7 +863,7 @@ class MonkeyKingdom(Dataset):
         space=["onavg-ico32", "mni-4mm"],
         resample=["1step_pial_overlap", "1step_linear_overlap"],
         prep="default",
-        fp_version="23.2.0",
+        fp_version="20.2.7",
         name="monkey-kingdom",
         root_dir=None,
         dl_source=None,
