@@ -1,39 +1,40 @@
 import os
+
 import numpy as np
-import neuroboros as nb
 
 from .io import core_dataset
+from .spaces import get_mask
 
 
 def load_npz(npz_fn):
     npz = np.load(npz_fn)
-    sls = np.array_split(npz['concatenated_searchlights'], npz['boundaries'])
-    dists = np.array_split(npz['concatenated_distances'], npz['boundaries'])
+    sls = np.array_split(npz["concatenated_searchlights"], npz["boundaries"])
+    dists = np.array_split(npz["concatenated_distances"], npz["boundaries"])
     return sls, dists
 
 
 def load_searchlights(lr, radius, space, center_space=None, **kwargs):
-    species = 'macaque' if space.startswith('mkavg-') else 'human'
-    if species == 'human':
-        group, dist_type, avg_type = 'on1031', 'dijkstra', 'trimmed'
-    elif species == 'macaque':
-        group, dist_type, avg_type = 'mk12', 'geodesic', 'average'
+    species = "macaque" if space.startswith("mkavg-") else "human"
+    if species == "human":
+        group, dist_type, avg_type = "on1031", "dijkstra", "trimmed"
+    elif species == "macaque":
+        group, dist_type, avg_type = "mk12", "geodesic", "average"
     else:
-        raise ValueError(f'Unknown species: {species}')
-    group = kwargs.get('group', group)
-    dist_type = kwargs.get('dist_type', dist_type)
-    avg_type = kwargs.get('avg_type', avg_type)
+        raise ValueError(f"Unknown species: {species}")
+    group = kwargs.get("group", group)
+    dist_type = kwargs.get("dist_type", dist_type)
+    avg_type = kwargs.get("avg_type", avg_type)
     if center_space is None:
         center_space = space
     npz_fn = os.path.join(
         space,
-        'searchlights',
-        f'{center_space}_center',
-        f'{lr}h',
-        f'{group}_{avg_type}',
-        f'{dist_type}_{radius}mm.npz',
+        "searchlights",
+        f"{center_space}_center",
+        f"{lr}h",
+        f"{group}_{avg_type}",
+        f"{dist_type}_{radius}mm.npz",
     )
-    sls, dists = core_dataset.get(npz_fn, load_func=load_npz, on_missing='raise')
+    sls, dists = core_dataset.get(npz_fn, load_func=load_npz, on_missing="raise")
     return sls, dists
 
 
@@ -89,7 +90,7 @@ def convert_searchlights(sls, dists, radius, mask, center_mask):
 def get_searchlights(
     lr,
     radius,
-    space='onavg-ico32',
+    space="onavg-ico32",
     center_space=None,
     mask=True,
     center_mask=None,
@@ -102,14 +103,14 @@ def get_searchlights(
         center_mask = mask
 
     if mask and not isinstance(mask, np.ndarray):
-        mask = nb.mask(lr, space, **kwargs)
+        mask = get_mask(lr, space, **kwargs)
 
     if center_space is None:
         center_space = space
         center_mask = mask
     else:
         if center_mask is True:
-            center_mask = nb.mask(lr, center_space, **kwargs)
+            center_mask = get_mask(lr, center_space, **kwargs)
 
     sls, dists = load_searchlights(
         lr, radius_, space, center_space=center_space, **kwargs
