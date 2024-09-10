@@ -5,6 +5,7 @@ Neuroboros (:mod:`neuroboros`)
 
 """
 
+from . import ensemble as ensemble
 from . import linalg as linalg
 from . import stats as stats
 from . import surface as surface
