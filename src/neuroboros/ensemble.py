@@ -30,22 +30,19 @@ def kfold_bagging(n, n_folds=5, n_perms=20, seed=0):
 
     Returns
     -------
-    train_idx_li : list of arrays
-        List of training indices.
-    test_idx_li : list of arrays
-        List of test indices.
+    indices_li : list of tuples
+        List of tuples of training and test indices.
     """
     rng = np.random.default_rng(seed=seed)
     arng = np.arange(n)
 
-    train_idx_li, test_idx_li = [], []
+    indices_li = []
     for i in range(n_perms):
         folds = np.array_split(rng.permutation(n), n_folds)
         for test_idx in folds:
             train_idx = np.setdiff1d(arng, test_idx)
             train_idx = rng.choice(train_idx, size=n, replace=True)
             test_idx = np.setdiff1d(arng, train_idx)
-            train_idx_li.append(train_idx)
-            test_idx_li.append(test_idx)
+            indices_li.append((train_idx, test_idx))
 
-    return train_idx_li, test_idx_li
+    return indices_li

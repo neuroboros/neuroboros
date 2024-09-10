@@ -14,6 +14,7 @@ Linear algebra utilities (:mod:`neuroboros.linalg`)
 
 """
 import numpy as np
+from joblib import Parallel, cpu_count, delayed
 from scipy.linalg import LinAlgError, eigh, polar, svd
 from scipy.stats import zscore
 
@@ -131,7 +132,24 @@ def gram_pca(gram, tol=1e-7):
     return PCs
 
 
-def ensemble_lstsq(X, Y, n_folds=5, n_perms=20, seed=0):
+def _ensemble_lstsq_chunk(X, Y, indices_li):
+    n_samples, n_features = X.shape
+    n_targets = Y.shape[1]
+
+    beta = np.zeros((n_features, n_targets))
+    Yhat = np.zeros((n_samples, n_targets))
+    counts = np.zeros((n_samples,))
+
+    for train_idx, test_idx in indices_li:
+        b = np.linalg.lstsq(X[train_idx], Y[train_idx], rcond=None)[0]
+        beta += b
+        Yhat[test_idx] += X[test_idx] @ b
+        counts[test_idx] += 1
+
+    return beta, Yhat, counts
+
+
+def ensemble_lstsq(X, Y, n_folds=5, n_perms=20, seed=0, n_jobs=1):
     """
     Linear regression with k-fold bagging.
 
@@ -163,20 +181,22 @@ def ensemble_lstsq(X, Y, n_folds=5, n_perms=20, seed=0):
     n_samples, n_features = X.shape
     n_targets = Y.shape[1]
 
-    train_indices, test_indices = kfold_bagging(
-        n_samples, n_folds=n_folds, n_perms=n_perms, seed=seed
-    )
-
-    beta = np.zeros((n_features, n_targets))
-    Yhat = np.zeros((n_samples, n_targets))
-    counts = np.zeros((n_samples,))
-
-    for train_idx, test_idx in zip(train_indices, test_indices):
-        b = np.linalg.lstsq(X[train_idx], Y[train_idx], rcond=None)[0]
-        beta += b
-        Yhat[test_idx] += X[test_idx] @ b
-        counts[test_idx] += 1
-    beta /= len(train_indices)
+    indices_li = kfold_bagging(n_samples, n_folds=n_folds, n_perms=n_perms, seed=seed)
+    if n_jobs == 1:
+        beta, Yhat, counts = _ensemble_lstsq_chunk(X, Y, indices_li)
+    else:
+        if n_jobs < 0:
+            n_jobs = int(cpu_count() - n_jobs)
+        chunks = np.array_split(np.arange(len(indices_li)), n_jobs)
+        with Parallel(n_jobs=n_jobs) as parallel:
+            results = parallel(
+                delayed(_ensemble_lstsq_chunk)(X, Y, [indices_li[_] for _ in chunk])
+                for chunk in chunks
+            )
+        beta = np.sum([result[0] for result in results], axis=0)
+        Yhat = np.sum([result[1] for result in results], axis=0)
+        counts = np.sum([result[2] for result in results], axis=0)
+    beta /= len(indices_li)
     Yhat /= counts[:, np.newaxis]
 
     Yhat0 = (np.sum(Y, axis=0, keepdims=True) - Y) / (n_samples - 1)
