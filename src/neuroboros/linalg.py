@@ -146,7 +146,22 @@ def _ensemble_lstsq_chunk(X, Y, indices_li):
         Yhat[test_idx] += X[test_idx] @ b
         counts[test_idx] += 1
 
-    return beta, Yhat, counts
+    beta /= len(indices_li)
+    Yhat /= counts[:, np.newaxis]
+
+    Yhat0 = (np.sum(Y, axis=0, keepdims=True) - Y) / (n_samples - 1)
+    ss0 = np.sum((Y - Yhat0) ** 2, axis=0)
+    ss = np.sum((Y - Yhat) ** 2, axis=0)
+    R2 = 1 - ss / ss0
+
+    r = np.mean(zscore(Yhat, axis=0) * zscore(Y, axis=0), axis=0)
+
+    ss0 = np.sum((Y - Yhat0) ** 2, axis=0)
+    ss = np.sum((Y - Yhat) ** 2, axis=0)
+    R2 = 1 - ss / ss0
+    r = np.mean(zscore(Yhat, axis=0) * zscore(Y, axis=0), axis=0)
+
+    return beta, Yhat, R2, r
 
 
 def ensemble_lstsq(X, Y, n_folds=5, n_perms=20, seed=0, n_jobs=1):
@@ -183,27 +198,19 @@ def ensemble_lstsq(X, Y, n_folds=5, n_perms=20, seed=0, n_jobs=1):
 
     indices_li = kfold_bagging(n_samples, n_folds=n_folds, n_perms=n_perms, seed=seed)
     if n_jobs == 1:
-        beta, Yhat, counts = _ensemble_lstsq_chunk(X, Y, indices_li)
+        beta, Yhat, R2, r = _ensemble_lstsq_chunk(X, Y, indices_li)
     else:
         if n_jobs < 0:
-            n_jobs = int(cpu_count() - n_jobs)
-        chunks = np.array_split(np.arange(len(indices_li)), n_jobs)
+            n_jobs = int(cpu_count() + n_jobs + 1)
+        n_chunks = min(n_jobs, n_targets)
+        Ys = np.array_split(Y, n_chunks, axis=1)
         with Parallel(n_jobs=n_jobs) as parallel:
             results = parallel(
-                delayed(_ensemble_lstsq_chunk)(X, Y, [indices_li[_] for _ in chunk])
-                for chunk in chunks
+                delayed(_ensemble_lstsq_chunk)(X, Y_, indices_li) for Y_ in Ys
             )
-        beta = np.sum([result[0] for result in results], axis=0)
-        Yhat = np.sum([result[1] for result in results], axis=0)
-        counts = np.sum([result[2] for result in results], axis=0)
-    beta /= len(indices_li)
-    Yhat /= counts[:, np.newaxis]
-
-    Yhat0 = (np.sum(Y, axis=0, keepdims=True) - Y) / (n_samples - 1)
-    ss0 = np.sum((Y - Yhat0) ** 2, axis=0)
-    ss = np.sum((Y - Yhat) ** 2, axis=0)
-    R2 = 1 - ss / ss0
-
-    r = np.mean(zscore(Yhat, axis=0) * zscore(Y, axis=0), axis=0)
+        beta = np.concatenate([result[0] for result in results], axis=1)
+        Yhat = np.concatenate([result[1] for result in results], axis=1)
+        R2 = np.concatenate([result[2] for result in results], axis=0)
+        r = np.concatenate([result[3] for result in results], axis=0)
 
     return beta, Yhat, R2, r
