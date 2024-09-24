@@ -60,7 +60,7 @@ def barycentric_weights_multi_faces_multi_points(vecs, coords, v2f, tree, eps=5e
         kk = 1
         while mm < -eps:
             c = tree.query(coords[i], [kk])[1]
-            ff = v2f[c]
+            ff = v2f[c[0]]
             for f in ff:
                 w, u, v, t = barycentric_weights(vecs[f], coords[i])
                 m = min(min(w, u), v)
