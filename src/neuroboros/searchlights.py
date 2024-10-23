@@ -101,7 +101,7 @@ def get_searchlights(
     if center_mask is None:
         center_mask = mask
 
-    if mask and not isinstance(mask, np.ndarray):
+    if not isinstance(mask, np.ndarray) and mask:
         mask = nb.mask(lr, space, **kwargs)
 
     if center_space is None:
