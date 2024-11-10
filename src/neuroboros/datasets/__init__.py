@@ -1216,6 +1216,50 @@ class IBC(Dataset):
         self.tasks = ["raiders", "tgbu"]
 
 
+class GoodBadUgly(Dataset):
+    """The Good, the Bad, and the Ugly dataset.
+
+    This dataset contains fMRI responses while participants passively viewed
+    the Italian version of the movie *The Good, the Bad, and the Ugly*. The
+    3 clips used in the fMRI scan was 10 minutes each (30 minutes in total,
+    from 16 min 48 s to 46 min 48 s), with viewing angles of 24 x 10.2 visual
+    degrees.
+
+    Accordingly, each run was 10 minutes long (300 volumes, TR = 2 s). The
+    voxel size was 2.875 mm x 2.875 mm x 3.5 mm, with a 80 x 80 in-plane
+    matrix and 32 slices. The coverage was 230 mm x 230 mm x 112 mm.
+
+    Of the 23 participants, 22 had complete data (3 runs) and 1 participant
+    had only 2 runs. The NIFTI data was provided by Haiyan Wang and Wim
+    Vanduffel.
+
+    The data were used in Mantini et al. (2012, Nature Methods,
+    https://doi.org/10.1038/nmeth.1868). Please contact Dr. Wim Vanduffel
+    (https://www.kuleuven.be/wieiswie/en/person/00010250) if you are interested
+    in using the data.
+    """
+    def __init__(
+        self,
+        space=["onavg-ico32", "mni-4mm"],
+        resample=["1step_pial_overlap", "1step_linear_overlap"],
+        prep="default",
+        fp_version="20.2.7",
+        name="GoodBadUgly",
+        root_dir=None,
+        dl_source=None,
+    ):
+        super().__init__(
+            name,
+            dl_source=dl_source,
+            root_dir=root_dir,
+            space=space,
+            resample=resample,
+            prep=prep,
+            fp_version=fp_version,
+        )
+        self.tasks = ["goodbadugly"]
+
+
 datasets = {
     "forrest": Forrest,
     "bologna": Bologna,
@@ -1232,6 +1276,7 @@ datasets = {
     "whiplash-c2": WhiplashC2,
     "whiplash-c3": WhiplashC3,
     "ibc": IBC,
+    "goodbadugly": GoodBadUgly,
 }
 
 
