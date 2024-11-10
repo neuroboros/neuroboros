@@ -14,7 +14,11 @@ Linear algebra utilities (:mod:`neuroboros.linalg`)
 
 """
 import numpy as np
+from joblib import Parallel, cpu_count, delayed
 from scipy.linalg import LinAlgError, eigh, polar, svd
+from scipy.stats import zscore
+
+from .ensemble import kfold_bagging
 
 
 def safe_svd(X, remove_mean=True):
@@ -54,12 +58,12 @@ def safe_svd(X, remove_mean=True):
     try:
         U, s, Vt = svd(X, full_matrices=False)
     except LinAlgError:
-        U, s, Vt = svd(X, full_matrices=False, lapack_driver='gesvd')
+        U, s, Vt = svd(X, full_matrices=False, lapack_driver="gesvd")
 
     return U, s, Vt
 
 
-def safe_polar(a, side='left'):
+def safe_polar(a, side="left"):
     """
     Polar decomposition without occasional LinAlgError crashes.
 
@@ -93,7 +97,7 @@ def safe_polar(a, side='left'):
     except Exception as e:
         w, s, vh = safe_svd(a)
         u = w.dot(vh)
-        if side == 'right':
+        if side == "right":
             # a = up
             p = (vh.T.conj() * s).dot(vh)
         else:
@@ -126,3 +130,87 @@ def gram_pca(gram, tol=1e-7):
     s = np.sqrt(w[::-1][:-1])
     PCs = U * s[np.newaxis]
     return PCs
+
+
+def _ensemble_lstsq_chunk(X, Y, indices_li):
+    n_samples, n_features = X.shape
+    n_targets = Y.shape[1]
+
+    beta = np.zeros((n_features, n_targets))
+    Yhat = np.zeros((n_samples, n_targets))
+    counts = np.zeros((n_samples,))
+
+    for train_idx, test_idx in indices_li:
+        b = np.linalg.lstsq(X[train_idx], Y[train_idx], rcond=None)[0]
+        beta += b
+        Yhat[test_idx] += X[test_idx] @ b
+        counts[test_idx] += 1
+
+    beta /= len(indices_li)
+    Yhat /= counts[:, np.newaxis]
+
+    Yhat0 = (np.sum(Y, axis=0, keepdims=True) - Y) / (n_samples - 1)
+    ss0 = np.sum((Y - Yhat0) ** 2, axis=0)
+    ss = np.sum((Y - Yhat) ** 2, axis=0)
+    R2 = 1 - ss / ss0
+
+    r = np.mean(zscore(Yhat, axis=0) * zscore(Y, axis=0), axis=0)
+
+    ss0 = np.sum((Y - Yhat0) ** 2, axis=0)
+    ss = np.sum((Y - Yhat) ** 2, axis=0)
+    R2 = 1 - ss / ss0
+    r = np.mean(zscore(Yhat, axis=0) * zscore(Y, axis=0), axis=0)
+
+    return beta, Yhat, R2, r
+
+
+def ensemble_lstsq(X, Y, n_folds=5, n_perms=20, seed=0, n_jobs=1):
+    """
+    Linear regression with k-fold bagging.
+
+    Parameters
+    ----------
+    X : ndarray of shape (n_samples, n_features)
+        The design matrix.
+    Y : ndarray of shape (n_samples, n_targets)
+        The target matrix.
+    n_folds : int, default=5
+        Number of folds.
+    n_perms : int, default=20
+        Number of permutations.
+    seed : int, default=0
+        Random seed for the random number generator.
+
+    Returns
+    -------
+    beta : ndarray of shape (n_features, n_targets)
+        The regression coefficients.
+    Yhat : ndarray of shape (n_samples, n_targets)
+        The predicted values (out-of-bag cross-validation).
+    R2 : ndarray of shape (n_targets,)
+        The R-squared values (cross-validated).
+    r : ndarray of shape (n_targets,)
+        The correlation coefficients between the predicted and actual values.
+    """
+    assert X.shape[0] == Y.shape[0]
+    n_samples, n_features = X.shape
+    n_targets = Y.shape[1]
+
+    indices_li = kfold_bagging(n_samples, n_folds=n_folds, n_perms=n_perms, seed=seed)
+    if n_jobs == 1:
+        beta, Yhat, R2, r = _ensemble_lstsq_chunk(X, Y, indices_li)
+    else:
+        if n_jobs < 0:
+            n_jobs = int(cpu_count() + n_jobs + 1)
+        n_chunks = min(n_jobs, n_targets)
+        Ys = np.array_split(Y, n_chunks, axis=1)
+        with Parallel(n_jobs=n_jobs) as parallel:
+            results = parallel(
+                delayed(_ensemble_lstsq_chunk)(X, Y_, indices_li) for Y_ in Ys
+            )
+        beta = np.concatenate([result[0] for result in results], axis=1)
+        Yhat = np.concatenate([result[1] for result in results], axis=1)
+        R2 = np.concatenate([result[2] for result in results], axis=0)
+        r = np.concatenate([result[3] for result in results], axis=0)
+
+    return beta, Yhat, R2, r

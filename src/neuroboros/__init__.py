@@ -5,6 +5,7 @@ Neuroboros (:mod:`neuroboros`)
 
 """
 
+from . import ensemble as ensemble
 from . import linalg as linalg
 from . import stats as stats
 from . import surface as surface
@@ -25,10 +26,13 @@ from .datasets import (
     MonkeyKingdom,
     Raiders,
     SpaceTop,
-    Whiplash,
+    WhiplashC1,
+    WhiplashC2,
+    WhiplashC3,
 )
 from .datasets import get_dataset as dataset
 from .glm import glm
+from .isc import compute_isc as isc
 from .plot2d import Image
 from .plot2d import brain_plot as plot
 from .plot_mebrains import plot_mebrains as plot_mebrains
