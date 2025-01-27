@@ -31,7 +31,7 @@ def compute_isc_ovr(dms, metric="correlation", n_jobs=-1):
     jobs = [delayed(compute_isc_ovr_single)(_, dm_sum, metric) for _ in dms]
     with Parallel(n_jobs=n_jobs) as parallel:
         isc = parallel(jobs)
-    isc = np.stack(isc, axis=1)
+    isc = np.stack(isc, axis=0)
     return isc
 
 
@@ -59,8 +59,8 @@ def compute_isc(dms, pairwise=False, metric="correlation", n_jobs=-1):
     Returns
     -------
     isc : ndarray
-        ISC of shape (n_vertices, n_subjects) if pairwise is False, or
-        (n_vertices, n_pairs_of_subjects) if pairwise is True.
+        ISC of shape (n_subjects, n_vertices) if pairwise is False, or
+        (n_pairs_of_subjects, n_vertices) if pairwise is True.
     """
     if pairwise:
         isc = compute_isc_pairwise(dms, metric=metric, n_jobs=n_jobs)
