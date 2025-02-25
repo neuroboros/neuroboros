@@ -113,7 +113,7 @@ def save(fn, data):
             warnings.warn('`data` is not an ndarray, trying to convert.')
         return np.save(fn, data)
 
-    if sparse.isspmatrix(data):
+    if sparse.issparse(data):
         return sparse.save_npz(fn, data)
     if fn.endswith('.npz') and isinstance(data, dict):
         return np.savez(fn, **data)

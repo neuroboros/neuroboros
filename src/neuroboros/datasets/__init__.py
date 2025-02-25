@@ -348,6 +348,7 @@ class Dataset:
                     lr,
                     space,
                     resample,
+                    mask,
                     prep,
                     fp_version,
                     force_volume,
@@ -756,6 +757,20 @@ class Raiders(Dataset):
             else:
                 raise ValueError(f"Run {run} not recognized.")
         return data
+
+    def rename_func(self, sid, task, run, suffix=".npy"):
+        if task == "raiders":
+            basename = f"sub-{sid}_ses-raiders_task-movie_run-{run:02d}{suffix}"
+        elif task == "actions":
+            if run in [1, 2, 3, 4]:
+                basename = f"sub-{sid}_ses-actions1_task-actions_run-{run:02d}{suffix}"
+            elif run in [5, 6, 7, 8]:
+                basename = (
+                    f"sub-{sid}_ses-actions2_task-actions_run-{run-4:02d}{suffix}"
+                )
+        else:
+            raise ValueError(f"Task {task} not recognized.")
+        return basename
 
 
 class PhilipsRaiders(Dataset):
@@ -1238,6 +1253,7 @@ class GoodBadUgly(Dataset):
     (https://www.kuleuven.be/wieiswie/en/person/00010250) if you are interested
     in using the data.
     """
+
     def __init__(
         self,
         space=["onavg-ico32", "mni-4mm"],
@@ -1268,6 +1284,7 @@ datasets = {
     "camcan": CamCAN,
     "id1000": ID1000,
     "raiders": Raiders,
+    "praiders": PhilipsRaiders,
     "budapest": Budapest,
     "monkeykingdom": MonkeyKingdom,
     "life": Life,
