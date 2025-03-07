@@ -86,7 +86,13 @@ def areal(sphere, coords1, anat_coords, coords2=None):
     mat : sparse matrix
         The transformation matrix between the two spaces.
     """
+    norm1 = np.sqrt(np.sum(coords1**2, axis=1))[:, np.newaxis]
+    if not np.allclose(norm1, 1):
+        coords1 = coords1 / norm1
     if coords2 is not None:
+        norm2 = np.sqrt(np.sum(coords2**2, axis=1))[:, np.newaxis]
+        if not np.allclose(norm2, 1):
+            coords2 = coords2 / norm2
         coords12, indices1in12, indices2in12 = compute_union_coords(coords1, coords2)
         combined_sphere, indices0, indices12 = sphere.union(coords12)
         indices1, indices2 = indices12[indices1in12], indices12[indices2in12]
