@@ -760,16 +760,18 @@ class Raiders(Dataset):
 
     def rename_func(self, sid, task, run, suffix=".npy"):
         if task == "raiders":
-            basename = f"sub-{sid}_ses-raiders_task-movie_run-{run:02d}{suffix}"
+            basename = f"sub-{sid}_ses-raiders_task-movie"
         elif task == "actions":
             if run in [1, 2, 3, 4]:
-                basename = f"sub-{sid}_ses-actions1_task-actions_run-{run:02d}{suffix}"
+                basename = f"sub-{sid}_ses-actions1_task-actions"
             elif run in [5, 6, 7, 8]:
-                basename = (
-                    f"sub-{sid}_ses-actions2_task-actions_run-{run-4:02d}{suffix}"
-                )
+                basename = f"sub-{sid}_ses-actions2_task-actions"
         else:
             raise ValueError(f"Task {task} not recognized.")
+        if suffix == ".npy":
+            basename = basename + f"_run-{run:02d}{suffix}"
+        else:
+            basename = basename + f"_run-{run:d}{suffix}"
         return basename
 
 
