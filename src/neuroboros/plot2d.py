@@ -21,54 +21,54 @@ from .utils import save
 
 GUESS_SEPARATE = {
     # masked
-    (154786, 154560): ('onavg-ico128', True),
-    (9675, 9666): ('onavg-ico32', True),
-    (9519, 9506): ('fsavg-ico32', True),
-    (9504, 9483): ('fslr-ico32', True),
-    (38698, 38628): ('onavg-ico64', True),
-    (38073, 38040): ('fsavg-ico64', True),
-    (38018, 37943): ('fslr-ico64', True),
-    (21779, 21731): ('onavg-ico48', True),
-    (30153, 30079): ('fslr-ico57', True),
-    (152, 151): ('onavg-ico4', True),
-    (603, 607): ('onavg-ico8', True),
-    (2417, 2414): ('onavg-ico16', True),
+    (154786, 154560): ("onavg-ico128", True),
+    (9675, 9666): ("onavg-ico32", True),
+    (9519, 9506): ("fsavg-ico32", True),
+    (9504, 9483): ("fslr-ico32", True),
+    (38698, 38628): ("onavg-ico64", True),
+    (38073, 38040): ("fsavg-ico64", True),
+    (38018, 37943): ("fslr-ico64", True),
+    (21779, 21731): ("onavg-ico48", True),
+    (30153, 30079): ("fslr-ico57", True),
+    (152, 151): ("onavg-ico4", True),
+    (603, 607): ("onavg-ico8", True),
+    (2417, 2414): ("onavg-ico16", True),
     # masked, legacy
-    (9372, 9370): ('fsavg-ico32', True, 'fsaverage'),
+    (9372, 9370): ("fsavg-ico32", True, "fsaverage"),
     # non-masked
-    (10242, 10242): ('onavg-ico32', False),
-    (40962, 40962): ('onavg-ico64', False),
-    (23042, 23042): ('onavg-ico48', False),
-    (32492, 32492): ('fslr-ico57', False),
-    (162, 162): ('onavg-ico4', False),
-    (642, 642): ('onavg-ico8', False),
-    (2562, 2562): ('onavg-ico16', False),
+    (10242, 10242): ("onavg-ico32", False),
+    (40962, 40962): ("onavg-ico64", False),
+    (23042, 23042): ("onavg-ico48", False),
+    (32492, 32492): ("fslr-ico57", False),
+    (162, 162): ("onavg-ico4", False),
+    (642, 642): ("onavg-ico8", False),
+    (2562, 2562): ("onavg-ico16", False),
 }
 
 GUESS_COMBINED = {
     # masked
-    309346: ('onavg-ico128', True, [154786]),
-    19341: ('onavg-ico32', True, [9675]),
-    19025: ('fsavg-ico32', True, [9519]),
-    18987: ('fslr-ico32', True, [9504]),
-    77326: ('onavg-ico64', True, [38698]),
-    76113: ('fsavg-ico64', True, [38073]),
-    75961: ('fslr-ico64', True, [38018]),
-    43510: ('onavg-ico48', True, [21779]),
-    60232: ('fslr-ico57', True, [30153]),
-    303: ('onavg-ico4', True, [152]),
-    1210: ('onavg-ico8', True, [603]),
-    4831: ('onavg-ico16', True, [2417]),
+    309346: ("onavg-ico128", True, [154786]),
+    19341: ("onavg-ico32", True, [9675]),
+    19025: ("fsavg-ico32", True, [9519]),
+    18987: ("fslr-ico32", True, [9504]),
+    77326: ("onavg-ico64", True, [38698]),
+    76113: ("fsavg-ico64", True, [38073]),
+    75961: ("fslr-ico64", True, [38018]),
+    43510: ("onavg-ico48", True, [21779]),
+    60232: ("fslr-ico57", True, [30153]),
+    303: ("onavg-ico4", True, [152]),
+    1210: ("onavg-ico8", True, [603]),
+    4831: ("onavg-ico16", True, [2417]),
     # masked, legacy
-    18742: ('fsavg-ico32', True, [9372], 'fsaverage'),
+    18742: ("fsavg-ico32", True, [9372], "fsaverage"),
     # non-masked
-    20484: ('onavg-ico32', False, [10242]),
-    81924: ('onavg-ico64', False, [40962]),
-    46084: ('onavg-ico48', False, [23042]),
-    64984: ('fslr-ico57', False, [32492]),
-    324: ('onavg-ico4', False, [162]),
-    1284: ('onavg-ico8', False, [642]),
-    5124: ('onavg-ico16', False, [2562]),
+    20484: ("onavg-ico32", False, [10242]),
+    81924: ("onavg-ico64", False, [40962]),
+    46084: ("onavg-ico48", False, [23042]),
+    64984: ("fslr-ico57", False, [32492]),
+    324: ("onavg-ico4", False, [162]),
+    1284: ("onavg-ico8", False, [642]),
+    5124: ("onavg-ico16", False, [2562]),
 }
 
 PLOT_MAPPING = {}
@@ -80,7 +80,7 @@ def unmask_and_upsample(values, space, mask, nn=True):
             ret = GUESS_COMBINED[values.shape[0]]
             if len(ret) == 4:
                 space, mask, boundary, flavor = ret
-                mask_kwargs = {'flavor': flavor, 'legacy': True}
+                mask_kwargs = {"flavor": flavor, "legacy": True}
             else:
                 space, mask, boundary = ret
                 mask_kwargs = {}
@@ -88,7 +88,7 @@ def unmask_and_upsample(values, space, mask, nn=True):
             ret = GUESS_SEPARATE[tuple([_.shape[0] for _ in values])]
             if len(ret) == 3:
                 space, mask, flavor = ret
-                mask_kwargs = {'flavor': flavor, 'legacy': True}
+                mask_kwargs = {"flavor": flavor, "legacy": True}
             else:
                 space, mask = ret
                 mask_kwargs = {}
@@ -99,7 +99,7 @@ def unmask_and_upsample(values, space, mask, nn=True):
     else:
         boundary = None
 
-    ico = int(space.split('-ico')[1])
+    ico = int(space.split("-ico")[1])
     nv = ico**2 * 10 + 2
 
     if mask is not None and mask is not False:
@@ -109,7 +109,7 @@ def unmask_and_upsample(values, space, mask, nn=True):
         ):
             masks = mask
         else:
-            masks = [get_mask(lr, space, **mask_kwargs) for lr in 'lr']
+            masks = [get_mask(lr, space, **mask_kwargs) for lr in "lr"]
     else:
         use_mask = False
 
@@ -122,15 +122,15 @@ def unmask_and_upsample(values, space, mask, nn=True):
             values = np.split(values, 2)
 
     new_values = []
-    for v, lr in zip(values, 'lr'):
+    for v, lr in zip(values, "lr"):
         if use_mask:
-            m = masks['lr'.index(lr)]
+            m = masks["lr".index(lr)]
             vv = np.full((nv,) + v.shape[1:], np.nan)
             vv[m] = v
         else:
             vv = v
 
-        mapping = get_mapping(lr, space, 'onavg-ico128', nn=nn)
+        mapping = get_mapping(lr, space, "onavg-ico128", nn=nn)
         vv = mapping.T @ vv
 
         new_values.append(vv)
@@ -196,14 +196,14 @@ def stack_images(images, vertical=True, offset=0, padding=0):
         heights_ = np.array([offset] + heights)
         heights_[1:-1] += padding
         cum_heights = np.cumsum(heights_)
-        new_img = PIL_Image.new('RGBA', (max(widths), cum_heights[-1]))
+        new_img = PIL_Image.new("RGBA", (max(widths), cum_heights[-1]))
         for img, h in zip(images, cum_heights):
             new_img.paste(img, (0, h))
     else:
         widths_ = np.array([offset] + widths)
         widths_[1:-1] += padding
         cum_widths = np.cumsum(widths_)
-        new_img = PIL_Image.new('RGBA', (cum_widths[-1], max(heights)))
+        new_img = PIL_Image.new("RGBA", (cum_widths[-1], max(heights)))
         for img, w in zip(images, cum_widths):
             new_img.paste(img, (w, 0))
     return new_img
@@ -259,7 +259,7 @@ class Image:
         font = ImageFont.truetype(font, size)
         draw = ImageDraw.Draw(self.img)
         ss = string.ascii_letters + string.digits + string.punctuation
-        if hasattr(draw, 'textsize'):
+        if hasattr(draw, "textsize"):
             w = draw.textsize(title, font=font)[0]
             h = draw.textsize(ss, font=font)[1]
         else:
@@ -269,7 +269,7 @@ class Image:
             h = bbox[3] - bbox[1]
         xy = ((self.img.size[0] - w) / 2, 0)
 
-        title_img = PIL_Image.new('RGBA', (self.img.size[0], max(h - offset, 0)))
+        title_img = PIL_Image.new("RGBA", (self.img.size[0], max(h - offset, 0)))
         self.img = stack_images([title_img, self.img], vertical=True)
 
         draw = ImageDraw.Draw(self.img)
@@ -277,7 +277,7 @@ class Image:
             xy,
             title,
             font=font,
-            align='center',
+            align="center",
             fill=(255, 255, 255, 127),
             stroke_width=3,
         )
@@ -285,7 +285,7 @@ class Image:
             xy,
             title,
             font=font,
-            align='center',
+            align="center",
             fill=(0, 0, 0, 255),
             stroke_width=0,
         )
@@ -297,21 +297,21 @@ class Image:
             raise ValueError("No scale provided for plotting colorbar.")
 
         dpi = 300
-        if 'bar_title' in kwargs:
+        if "bar_title" in kwargs:
             pix_size = (1728, 250)
             top, bottom = 0.75, 0.55
             fig, ax = plt.subplots(1, 1, figsize=[_ / dpi for _ in pix_size], dpi=dpi)
-            ax.set_title(kwargs.pop('bar_title'))
+            ax.set_title(kwargs.pop("bar_title"))
         else:
             pix_size = (1728, 190)
             fig, ax = plt.subplots(1, 1, figsize=[_ / dpi for _ in pix_size], dpi=dpi)
             top, bottom = 0.99, 0.7
         plt.colorbar(
-            scale, shrink=1, aspect=1, cax=ax, orientation='horizontal', **kwargs
+            scale, shrink=1, aspect=1, cax=ax, orientation="horizontal", **kwargs
         )
         fig.subplots_adjust(left=0.03, right=0.97, top=top, bottom=bottom)
         buffer = io.BytesIO()
-        fig.savefig(buffer, format='png', dpi=dpi, transparent=True)
+        fig.savefig(buffer, format="png", dpi=dpi, transparent=True)
         buffer.seek(0)
         cbar = PIL_Image.open(buffer)
         plt.close(fig=fig)
@@ -325,7 +325,7 @@ class Image:
                 width = self.max_height * self.img.size[0] // self.img.size[1]
                 img = self.img.resize((width, self.max_height))
         bb = io.BytesIO()
-        img.save(bb, format='png')
+        img.save(bb, format="png")
         bb = bb.getvalue()
         return bb
         # Alternatively, this displays the original image with specified width
@@ -344,7 +344,7 @@ def brain_plot(
     alpha=None,
     space=None,
     mask=None,
-    surf_type='inflated',
+    surf_type="inflated",
     nn=True,
     return_scale=False,
     medial_wall_color=[0.8, 0.8, 0.8, 1.0],
@@ -358,13 +358,13 @@ def brain_plot(
     **kwargs,
 ):
     if output is None and fn is None:
-        output = 'pillow'
+        output = "pillow"
 
     assert surf_type in [
-        'inflated',
-        'pial',
-        'midthickness',
-        'white',
+        "inflated",
+        "pial",
+        "midthickness",
+        "white",
     ], f"Surface type '{surf_type}' is not recognized."
 
     if isinstance(values, np.ndarray):
@@ -384,7 +384,7 @@ def brain_plot(
         raise ValueError(f"Expected `values` to be 1D or 2D. Got {ndim}D.")
     if ndim == 1:
         if cmap is None:
-            cmap = 'viridis'
+            cmap = "viridis"
         if vmax is None:
             vmax = percentiles[1]
         if vmin is None:
@@ -423,14 +423,14 @@ def brain_plot(
 
     if surf_type not in PLOT_MAPPING:
         mapping = core_dataset.get(
-            os.path.join('2d_plotting_data', f'onavg-ico128_to_{surf_type}_image.npy'),
-            on_missing='raise',
+            os.path.join("2d_plotting_data", f"onavg-ico128_to_{surf_type}_image.npy"),
+            on_missing="raise",
         )
         PLOT_MAPPING[surf_type] = mapping
 
     img = prepared_values[PLOT_MAPPING[surf_type]]
 
-    if output == 'raw':
+    if output == "raw":
         if return_scale:
             return img, scale
         return img

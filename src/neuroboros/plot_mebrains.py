@@ -18,13 +18,13 @@ from .spaces import get_mapping, get_mask
 from .utils import save
 
 GUESS_SEPARATE = {
-    (10242, 10242): ('mkavg-ico32', False),
-    (100988, 100974): ('MEBRAIN', False),
+    (10242, 10242): ("mkavg-ico32", False),
+    (100988, 100974): ("MEBRAIN", False),
 }
 
 GUESS_COMBINED = {
-    20484: ('mkavg-ico32', False, [10242]),
-    201962: ('MEBRAIN', False, [100988]),
+    20484: ("mkavg-ico32", False, [10242]),
+    201962: ("MEBRAIN", False, [100988]),
 }
 
 PLOT_MAPPING = {}
@@ -36,7 +36,7 @@ def unmask_and_upsample(values, space, mask, nn=True):
             ret = GUESS_COMBINED[values.shape[0]]
             if len(ret) == 4:
                 space, mask, boundary, flavor = ret
-                mask_kwargs = {'flavor': flavor, 'legacy': True}
+                mask_kwargs = {"flavor": flavor, "legacy": True}
             else:
                 space, mask, boundary = ret
                 mask_kwargs = {}
@@ -44,7 +44,7 @@ def unmask_and_upsample(values, space, mask, nn=True):
             ret = GUESS_SEPARATE[tuple([_.shape[0] for _ in values])]
             if len(ret) == 3:
                 space, mask, flavor = ret
-                mask_kwargs = {'flavor': flavor, 'legacy': True}
+                mask_kwargs = {"flavor": flavor, "legacy": True}
             else:
                 space, mask = ret
                 mask_kwargs = {}
@@ -62,7 +62,7 @@ def unmask_and_upsample(values, space, mask, nn=True):
         ):
             masks = mask
         else:
-            masks = [get_mask(lr, space, **mask_kwargs) for lr in 'lr']
+            masks = [get_mask(lr, space, **mask_kwargs) for lr in "lr"]
     else:
         use_mask = False
 
@@ -75,22 +75,22 @@ def unmask_and_upsample(values, space, mask, nn=True):
             values = np.split(values, 2)
 
     if space != "MEBRAIN":
-        ico = int(space.split('-ico')[1])
+        ico = int(space.split("-ico")[1])
         nv = ico**2 * 10 + 2
 
     new_values = []
-    for v, lr in zip(values, 'lr'):
+    for v, lr in zip(values, "lr"):
         if use_mask:
-            m = masks['lr'.index(lr)]
+            m = masks["lr".index(lr)]
             if space == "MEBRAIN":
-                nv = {'l': 100988, 'r': 100974}[lr]
+                nv = {"l": 100988, "r": 100974}[lr]
             vv = np.full((nv,) + v.shape[1:], np.nan)
             vv[m] = v
         else:
             vv = v
 
         if space != "MEBRAIN":
-            mapping = get_mapping(lr, space, 'MEBRAIN', nn=nn)
+            mapping = get_mapping(lr, space, "MEBRAIN", nn=nn)
             vv = mapping.T @ vv
 
         new_values.append(vv)
@@ -148,7 +148,7 @@ def plot_mebrains(
     vmin=None,
     space=None,
     mask=None,
-    surf_type='inflated',
+    surf_type="inflated",
     nn=True,
     return_scale=False,
     medial_wall_color=[0.8, 0.8, 0.8, 1.0],
@@ -162,13 +162,13 @@ def plot_mebrains(
     **kwargs,
 ):
     if output is None and fn is None:
-        output = 'pillow'
+        output = "pillow"
 
     assert surf_type in [
-        'inflated',
-        'pial',
-        'midthickness',
-        'white',
+        "inflated",
+        "pial",
+        "midthickness",
+        "white",
     ], f"Surface type '{surf_type}' is not recognized."
 
     if isinstance(values, np.ndarray):
@@ -188,7 +188,7 @@ def plot_mebrains(
         raise ValueError(f"Expected `values` to be 1D or 2D. Got {ndim}D.")
     if ndim == 1:
         if cmap is None:
-            cmap = 'viridis'
+            cmap = "viridis"
         if vmax is None:
             vmax = percentiles[1]
         if vmin is None:
@@ -224,15 +224,15 @@ def plot_mebrains(
     if surf_type not in PLOT_MAPPING:
         mapping = core_dataset.get(
             os.path.join(
-                '2d_plotting_data_mebrains', f'mebrains_to_{surf_type}_image.npy'
+                "2d_plotting_data_mebrains", f"mebrains_to_{surf_type}_image.npy"
             ),
-            on_missing='raise',
+            on_missing="raise",
         )
         PLOT_MAPPING[surf_type] = mapping
 
     img = prepared_values[PLOT_MAPPING[surf_type]]
 
-    if output == 'raw':
+    if output == "raw":
         if return_scale:
             return img, scale
         return img

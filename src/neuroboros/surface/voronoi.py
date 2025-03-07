@@ -233,7 +233,7 @@ def subdivision_voronoi(
             indices = np.concatenate(
                 [e_mapping[(a, b)], e_mapping[(a, c)], e_mapping[(b, c)], [a, b, c]]
             )
-            dd = cdist(cc[np.newaxis], coords[indices], 'euclidean').ravel()
+            dd = cdist(cc[np.newaxis], coords[indices], "euclidean").ravel()
             candidates = []
             for d, idx in zip(dd, indices):
                 heapq.heappush(candidates, (d, idx))
@@ -459,7 +459,7 @@ def compute_occupation(f_idx, f, coords, indices, nn, nnd, f_inv, ww):
     dd1 = np.concatenate(dd1)
     nn1 = np.concatenate(nn1)
     cc2 = ww @ coords[f]
-    d = cdist(cc1, cc2, 'euclidean') + dd1[:, np.newaxis]
+    d = cdist(cc1, cc2, "euclidean") + dd1[:, np.newaxis]
     idx = np.argmin(d, axis=0)
     occupation = nn1[idx]
     return {u: occupation == u for u in np.unique(occupation)}

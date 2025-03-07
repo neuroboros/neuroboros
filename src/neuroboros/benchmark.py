@@ -3,7 +3,7 @@ from scipy.spatial.distance import cdist
 
 
 def classification(
-    U, Uhat, size=None, npc=None, metric='correlation', reduce_func=np.mean
+    U, Uhat, size=None, npc=None, metric="correlation", reduce_func=np.mean
 ):
     """Movie time point/segment classification accuracy.
 
