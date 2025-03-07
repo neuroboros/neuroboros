@@ -64,7 +64,7 @@ def percentile(data, ignore_nan=False, **kwargs):
         if not ignore_nan:
             if not isinstance(data, np.ndarray):
                 data = np.asarray(data)
-            warnings.warn(f'{count} values out of {data.size} are NaNs.')
+            warnings.warn(f"{count} values out of {data.size} are NaNs.")
         print(np.nanpercentile(data, np.linspace(0, 100, 11), **kwargs))
     else:
         print(np.percentile(data, np.linspace(0, 100, 11), **kwargs))
@@ -108,21 +108,21 @@ def save(fn, data):
     if dirname:
         os.makedirs(dirname, exist_ok=True)
 
-    if fn.endswith('.npy'):
+    if fn.endswith(".npy"):
         if not isinstance(data, np.ndarray):
-            warnings.warn('`data` is not an ndarray, trying to convert.')
+            warnings.warn("`data` is not an ndarray, trying to convert.")
         return np.save(fn, data)
 
     if sparse.issparse(data):
         return sparse.save_npz(fn, data)
-    if fn.endswith('.npz') and isinstance(data, dict):
+    if fn.endswith(".npz") and isinstance(data, dict):
         return np.savez(fn, **data)
 
-    if fn.endswith('.pkl'):
-        with open(fn, 'wb') as f:
+    if fn.endswith(".pkl"):
+        with open(fn, "wb") as f:
             return pickle.dump(data, f)
 
-    if fn.endswith('.png'):
+    if fn.endswith(".png"):
         assert PIL_ok, "Needs the Pillow package to save images."
         if isinstance(data, Image.Image):
             im = data
@@ -132,20 +132,34 @@ def save(fn, data):
             raise TypeError(f"Cannot save '{type(data)}' to image.")
         return im.save(fn)
 
-    if fn.endswith('.shape.gii'):
+    if fn.endswith(".shape.gii"):
         darray = nib.gifti.GiftiDataArray(
             data.astype(np.float32),
-            intent=nib.nifti1.intent_codes['NIFTI_INTENT_SHAPE'],
-            datatype=nib.nifti1.data_type_codes['NIFTI_TYPE_FLOAT32'],
+            intent=nib.nifti1.intent_codes["NIFTI_INTENT_SHAPE"],
+            datatype=nib.nifti1.data_type_codes["NIFTI_TYPE_FLOAT32"],
         )
         gii = nib.gifti.GiftiImage(darrays=[darray])
         return nib.save(gii, fn)
 
-    if fn.endswith('.json'):
-        with open(fn, 'w') as f:
+    if fn.endswith(".func.gii"):
+        if data.ndim == 1:
+            data = data[:, None]
+        darrays = [
+            nib.gifti.GiftiDataArray(
+                d.astype(np.float32),
+                intent=nib.nifti1.intent_codes["NIFTI_INTENT_TIME_SERIES"],
+                datatype=nib.nifti1.data_type_codes["NIFTI_TYPE_FLOAT32"],
+            )
+            for d in data.T
+        ]
+        gii = nib.gifti.GiftiImage(darrays=darrays)
+        return nib.save(gii, fn)
+
+    if fn.endswith(".json"):
+        with open(fn, "w") as f:
             return json.dump(data, f)
 
-    raise TypeError(f'`data` type {type(data)} not supported.')
+    raise TypeError(f"`data` type {type(data)} not supported.")
 
 
 def load(fn, **kwargs):
@@ -167,31 +181,31 @@ def load(fn, **kwargs):
     TypeError
         Raised when the type of ``fn`` is not supported.
     """
-    if fn.endswith('.npy'):
+    if fn.endswith(".npy"):
         return np.load(fn, **kwargs)
-    if fn.endswith('.npz'):
+    if fn.endswith(".npz"):
         try:
             return sparse.load_npz(fn, **kwargs)
         except (OSError, ValueError):
             return np.load(fn, **kwargs)
-    if fn.endswith('.tsv'):
-        d = dict(delimiter='\t', na_values='n/a')
+    if fn.endswith(".tsv"):
+        d = dict(delimiter="\t", na_values="n/a")
         d.update(kwargs)
         return pd.read_csv(fn, **d)
-    if fn.endswith('.csv'):
-        d = dict(na_values='n/a')
+    if fn.endswith(".csv"):
+        d = dict(na_values="n/a")
         d.update(kwargs)
         return pd.read_csv(fn, **d)
-    if fn.endswith('.pkl'):
-        with open(fn, 'rb') as f:
+    if fn.endswith(".pkl"):
+        with open(fn, "rb") as f:
             return pickle.load(f, **kwargs)
-    if fn.endswith('.json.gz'):
-        with gzip.open(fn, 'rb') as f:
+    if fn.endswith(".json.gz"):
+        with gzip.open(fn, "rb") as f:
             return json.load(f, **kwargs)
-    if fn.endswith('.json'):
-        with open(fn, 'rb') as f:
+    if fn.endswith(".json"):
+        with open(fn, "rb") as f:
             return json.load(f, **kwargs)
-    raise TypeError(f'file type of `fn` is not supported.')
+    raise TypeError(f"file type of `fn` is not supported.")
 
 
 def parse_record(record_fn, assert_node=None):
@@ -217,7 +231,7 @@ def parse_record(record_fn, assert_node=None):
     cpu_time = int(lines[2]) - int(lines[1])
     wall_time = int(lines[4]) - int(lines[3])
     if assert_node is not None:
-        if assert_node not in [lines[5], lines[5].split('.')[0]]:
+        if assert_node not in [lines[5], lines[5].split(".")[0]]:
             raise ValueError(
                 f"Expecting Node `{assert_node}`, got {lines[5]} in record."
             )
@@ -253,7 +267,7 @@ def monitor(func, record_fn=None):
     wrapped_func : function
         The wrapped function that will record running information.
     """
-    fmt = '%Y-%m-%d %H:%M:%S.%f'
+    fmt = "%Y-%m-%d %H:%M:%S.%f"
 
     def monitored_func(*args, **kwargs):
         cpu_time_start = time.process_time_ns()
@@ -267,15 +281,15 @@ def monitor(func, record_fn=None):
         avail_cpus = joblib.cpu_count()
 
         info = (
-            f'Computation finished at {datetime.now().strftime(fmt)}\n'
-            f'{cpu_time_start}\n{cpu_time_end}\n'
-            f'{wall_time_start}\n{wall_time_end}\n'
-            f'{hostname}\n{avail_cpus}\n{total_cpus}\n'
+            f"Computation finished at {datetime.now().strftime(fmt)}\n"
+            f"{cpu_time_start}\n{cpu_time_end}\n"
+            f"{wall_time_start}\n{wall_time_end}\n"
+            f"{hostname}\n{avail_cpus}\n{total_cpus}\n"
         )
         if record_fn is None:
             return info, results
         else:
-            with open(record_fn, 'w') as f:
+            with open(record_fn, "w") as f:
                 f.write(info)
             return results
 
@@ -339,9 +353,9 @@ def save_results(
     if log_fn is None:
         log_fn = out_fns[0]
 
-    running_fn = log_fn + '.running'
-    finish_fn = log_fn + '.finish'
-    fmt = '%Y-%m-%d %H:%M:%S.%f'
+    running_fn = log_fn + ".running"
+    finish_fn = log_fn + ".finish"
+    fmt = "%Y-%m-%d %H:%M:%S.%f"
 
     monitored_func = monitor(func, finish_fn)
 
@@ -363,11 +377,11 @@ def save_results(
             if os.path.exists(finish_fn):
                 all_exist = True
                 if verbose:
-                    print(datetime.now(), f'`finish_fn` exists: {finish_fn}')
+                    print(datetime.now(), f"`finish_fn` exists: {finish_fn}")
             elif all([os.path.exists(_) for _ in out_fns]):
                 all_exist = True
                 if verbose:
-                    print(datetime.now(), f'All output files exist: {out_fns}')
+                    print(datetime.now(), f"All output files exist: {out_fns}")
 
             if all_exist:
                 if not return_results:
@@ -380,11 +394,11 @@ def save_results(
                         return results
 
         os.makedirs(os.path.dirname(log_fn), exist_ok=True)
-        with open(running_fn, 'w') as f:
+        with open(running_fn, "w") as f:
             f.write(datetime.now().strftime(fmt))
 
         if verbose:
-            print(datetime.now(), f'Starting to compute for: {out_fns}')
+            print(datetime.now(), f"Starting to compute for: {out_fns}")
 
         results = monitored_func(*args, **kwargs)
 
@@ -405,7 +419,7 @@ def save_results(
     return wrapped_func
 
 
-def assert_sufficient_time(minimum='1:00:00'):
+def assert_sufficient_time(minimum="1:00:00"):
     """Check if remaining SLURM walltime is sufficient.
 
     This function checks if the remaining walltime of SLURM is larger than the
@@ -419,16 +433,16 @@ def assert_sufficient_time(minimum='1:00:00'):
         The minimal walltime in SLURM format. E.g., '1-02:03:04' means 1 day,
         2 hours, 3 minutes, and 4 seconds.
     """
-    if 'SLURM_JOBID' not in os.environ:
+    if "SLURM_JOBID" not in os.environ:
         return
 
-    cmd = ['squeue', '-h', '-j', os.environ['SLURM_JOBID'], '-o', '"%L"']
+    cmd = ["squeue", "-h", "-j", os.environ["SLURM_JOBID"], "-o", '"%L"']
     sp = subprocess.run(cmd, capture_output=True)
-    remaining = sp.stdout.decode('ascii').split('"')[1]
+    remaining = sp.stdout.decode("ascii").split('"')[1]
 
     def parse_time(s):
-        days = int(s.split('-')[0]) if '-' in s else 0
-        parts = s.split('-')[-1].split(':')
+        days = int(s.split("-")[0]) if "-" in s else 0
+        parts = s.split("-")[-1].split(":")
         hours = int(parts[-3]) if len(parts) >= 3 else 0
         minutes = int(parts[-2]) if len(parts) >= 2 else 0
         seconds = int(parts[-1]) if len(parts) >= 1 else 0
@@ -436,10 +450,10 @@ def assert_sufficient_time(minimum='1:00:00'):
 
     r = parse_time(remaining)
     m = parse_time(minimum)
-    print(datetime.now(), 'Remaining walltime:', r)
-    print(datetime.now(), 'Minimal walltime:  ', m)
+    print(datetime.now(), "Remaining walltime:", r)
+    print(datetime.now(), "Minimal walltime:  ", m)
     if r < m:
-        print(datetime.now(), 'Insufficient remaining walltime time. Exiting.')
+        print(datetime.now(), "Insufficient remaining walltime time. Exiting.")
         exit(0)
 
 
