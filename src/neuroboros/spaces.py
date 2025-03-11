@@ -278,9 +278,15 @@ def smooth(lr, fwhm, space="onavg-ico32", mask=None, keep_sum=False):
     M : sparse matrix
         Smoothing matrix. Can be applied to data matrix ``X`` as ``X @ M``.
     """
+    if lr == "lr":
+        lh = smooth("l", fwhm=fwhm, space=space, mask=mask, keep_sum=keep_sum)
+        rh = smooth("r", fwhm=fwhm, space=space, mask=mask, keep_sum=keep_sum)
+        M = sparse.block_diag([lh, rh], format="csr")
+        return M
+
     d = get_distances(lr, space, space, mask=mask)
-    s2 = fwhm / (4.0 * np.log(2))
-    weights = np.exp(-(d**2) / s2)
+    s2 = fwhm / (4.0 * np.log(2))  # 2 * sigma^2
+    weights = np.exp(-(d**2) / s2)  # ignoring the 1/(2*pi*sigma^2) factor
     mat = sparse.csr_matrix(weights)
 
     if keep_sum:
