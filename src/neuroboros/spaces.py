@@ -253,7 +253,7 @@ def get_distances(
     return M
 
 
-def smooth(lr, fwhm, space="onavg-ico32", mask=None, keep_sum=False):
+def smooth(lr, fwhm=None, sigma=None, space="onavg-ico32", mask=None, keep_sum=False):
     """Get a smoothing matrix.
 
     Parameters
@@ -262,6 +262,8 @@ def smooth(lr, fwhm, space="onavg-ico32", mask=None, keep_sum=False):
         Hemisphere, either 'l' or 'r'.
     fwhm : float
         Full-width at half-maximum of the Gaussian kernel.
+    sigma : float
+        Standard deviation of the Gaussian kernel.
     space : str, default='onavg-ico32'
         Surface space where the data is in.
     mask : ndarray or bool or None, default=None
@@ -284,8 +286,16 @@ def smooth(lr, fwhm, space="onavg-ico32", mask=None, keep_sum=False):
         M = sparse.block_diag([lh, rh], format="csr")
         return M
 
+    if fwhm is None and sigma is None:
+        raise ValueError("Either `fwhm` or `sigma` must be provided.")
+    if fwhm is not None and sigma is not None:
+        raise ValueError("Only one of `fwhm` or `sigma` must be provided.")
+
+    if fwhm is not None:
+        s2 = fwhm**2 / (4.0 * np.log(2))  # 2 * sigma^2
+    else:
+        s2 = 2 * sigma**2
     d = get_distances(lr, space, space, mask=mask)
-    s2 = fwhm / (4.0 * np.log(2))  # 2 * sigma^2
     weights = np.exp(-(d**2) / s2)  # ignoring the 1/(2*pi*sigma^2) factor
     mat = sparse.csr_matrix(weights)
 
