@@ -292,9 +292,21 @@ def smooth(lr, fwhm=None, sigma=None, space="onavg-ico32", mask=None, keep_sum=F
         raise ValueError("Only one of `fwhm` or `sigma` must be provided.")
 
     if fwhm is not None:
+        assert fwhm >= 0
         s2 = fwhm**2 / (4.0 * np.log(2))  # 2 * sigma^2
     else:
+        assert sigma >= 0
         s2 = 2 * sigma**2
+
+    if fwhm == 0:
+        mask_arr = get_mask(lr, space=space)
+        if mask:
+            nv = mask_arr.sum()
+        else:
+            nv = mask_arr.shape[0]
+        M = sparse.eye(nv, format="csr")
+        return M
+
     d = get_distances(lr, space, space, mask=mask)
     weights = np.exp(-(d**2) / s2)  # ignoring the 1/(2*pi*sigma^2) factor
     mat = sparse.csr_matrix(weights)
