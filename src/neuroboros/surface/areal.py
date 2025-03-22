@@ -7,6 +7,27 @@ from .union import compute_union_coords
 
 
 def compute_vertex_nn(nv, indices2, neighbors, neighbor_distances):
+    """
+    Find each vertex's nearest neighbor among a subset of vertices.
+
+    Parameters
+    ----------
+    nv : int
+        The number of vertices.
+    indices2 : ndarray
+        The indices of the subset of vertices.
+    neighbors : list of ndarray
+        The neighbors of each vertex.
+    neighbor_distances : list of ndarray
+        The distances to the neighbors of each vertex, the neighbors have the
+        same order as in ``neighbors``.
+
+    Returns
+    -------
+    nn : ndarray
+        The indices of the nearest neighbor of each vertex, among the subset
+        of vertices. The range of values is [0, len(indices2)).
+    """
     nn = np.zeros((nv,), dtype=int)
     nnd = np.full((nv,), np.inf)
     for src in indices2:
@@ -34,7 +55,44 @@ def compute_vertex_nn(nv, indices2, neighbors, neighbor_distances):
 
 
 def areal(sphere, coords1, anat_coords, coords2=None):
+    """
+    Compute the transformation matrix between two spaces based on areal
+    overlap (legacy).
+
+    This is the legacy way of computing the transformation matrix between two
+    spaces, A and B. First, a spherical surface is created that contains all
+    vertices (``sphere.coords``, ``coords1``, and ``coords2`` if it's not
+    None). Then, the area of each vertex in the spherical surface is assigned
+    to its nearest vertex in A and nearest vertex in B. The weights of the
+    transformation matrix are the overlapping area for each pair of vertices
+    in A and B.
+
+    Parameters
+    ----------
+    sphere : Surface
+        The spherical surface.
+    coords1 : ndarray
+        The coordinates of the first surface.
+    anat_coords : ndarray
+        The coordinates of the anatomical surface associated with ``sphere``.
+    coords2 : ndarray, optional
+        The coordinates of the second surface. If provided, the interpolation
+        matrix will be computed between ``coords1`` and ``coords2``.
+        Otherwise, the interpolation matrix will be computed between
+        ``sphere`` and ``coords1``.
+
+    Returns
+    -------
+    mat : sparse matrix
+        The transformation matrix between the two spaces.
+    """
+    norm1 = np.sqrt(np.sum(coords1**2, axis=1))[:, np.newaxis]
+    if not np.allclose(norm1, 1):
+        coords1 = coords1 / norm1
     if coords2 is not None:
+        norm2 = np.sqrt(np.sum(coords2**2, axis=1))[:, np.newaxis]
+        if not np.allclose(norm2, 1):
+            coords2 = coords2 / norm2
         coords12, indices1in12, indices2in12 = compute_union_coords(coords1, coords2)
         combined_sphere, indices0, indices12 = sphere.union(coords12)
         indices1, indices2 = indices12[indices1in12], indices12[indices2in12]

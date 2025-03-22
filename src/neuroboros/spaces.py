@@ -253,7 +253,7 @@ def get_distances(
     return M
 
 
-def smooth(lr, fwhm, space="onavg-ico32", mask=None, keep_sum=False):
+def smooth(lr, fwhm=None, sigma=None, space="onavg-ico32", mask=None, keep_sum=False):
     """Get a smoothing matrix.
 
     Parameters
@@ -262,6 +262,8 @@ def smooth(lr, fwhm, space="onavg-ico32", mask=None, keep_sum=False):
         Hemisphere, either 'l' or 'r'.
     fwhm : float
         Full-width at half-maximum of the Gaussian kernel.
+    sigma : float
+        Standard deviation of the Gaussian kernel.
     space : str, default='onavg-ico32'
         Surface space where the data is in.
     mask : ndarray or bool or None, default=None
@@ -278,9 +280,35 @@ def smooth(lr, fwhm, space="onavg-ico32", mask=None, keep_sum=False):
     M : sparse matrix
         Smoothing matrix. Can be applied to data matrix ``X`` as ``X @ M``.
     """
+    if lr == "lr":
+        lh = smooth("l", fwhm=fwhm, space=space, mask=mask, keep_sum=keep_sum)
+        rh = smooth("r", fwhm=fwhm, space=space, mask=mask, keep_sum=keep_sum)
+        M = sparse.block_diag([lh, rh], format="csr")
+        return M
+
+    if fwhm is None and sigma is None:
+        raise ValueError("Either `fwhm` or `sigma` must be provided.")
+    if fwhm is not None and sigma is not None:
+        raise ValueError("Only one of `fwhm` or `sigma` must be provided.")
+
+    if fwhm is not None:
+        assert fwhm >= 0
+        s2 = fwhm**2 / (4.0 * np.log(2))  # 2 * sigma^2
+    else:
+        assert sigma >= 0
+        s2 = 2 * sigma**2
+
+    if fwhm == 0:
+        mask_arr = get_mask(lr, space=space)
+        if mask:
+            nv = mask_arr.sum()
+        else:
+            nv = mask_arr.shape[0]
+        M = sparse.eye(nv, format="csr")
+        return M
+
     d = get_distances(lr, space, space, mask=mask)
-    s2 = fwhm / (4.0 * np.log(2))
-    weights = np.exp(-(d**2) / s2)
+    weights = np.exp(-(d**2) / s2)  # ignoring the 1/(2*pi*sigma^2) factor
     mat = sparse.csr_matrix(weights)
 
     if keep_sum:
