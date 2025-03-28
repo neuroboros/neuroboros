@@ -259,7 +259,7 @@ def smooth(lr, fwhm=None, sigma=None, space="onavg-ico32", mask=None, keep_sum=F
     Parameters
     ----------
     lr : str
-        Hemisphere, either 'l' or 'r'.
+        Hemisphere(s), either 'l', 'r', or 'lr'.
     fwhm : float
         Full-width at half-maximum of the Gaussian kernel.
     sigma : float
@@ -339,7 +339,7 @@ def get_mapping(
     Parameters
     ----------
     lr : str
-        Hemisphere, either 'l' or 'r'.
+        Hemisphere(s), either 'l', 'r', or 'lr'.
     source : str
         Source space, the space where the data is currently in.
     target : str
@@ -370,6 +370,32 @@ def get_mapping(
         data matrix in the source space, then ``X @ M`` is the data matrix
         in the target space.
     """
+    if lr == "lr":
+        lh = get_mapping(
+            "l",
+            source,
+            target,
+            mask=mask,
+            nn=nn,
+            keep_sum=keep_sum,
+            source_mask=source_mask,
+            target_mask=target_mask,
+            **kwargs,
+        )
+        rh = get_mapping(
+            "r",
+            source,
+            target,
+            mask=mask,
+            nn=nn,
+            keep_sum=keep_sum,
+            source_mask=source_mask,
+            target_mask=target_mask,
+            **kwargs,
+        )
+        M = sparse.block_diag([lh, rh], format="csr")
+        return M
+
     species = (
         "macaque" if source.startswith("mkavg-") or source == "MEBRAIN" else "human"
     )
