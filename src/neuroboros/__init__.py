@@ -46,6 +46,8 @@ from .spaces import get_morphometry as morphometry
 from .spaces import get_parcellation as parcellation
 from .spaces import smooth as smooth
 from .surface import Sphere, Surface
+from .surface.align_surface import Aligner
 from .utils import load, percentile, save
 from .utils import save_results
 from .utils import save_results as record
+
