@@ -631,6 +631,27 @@ class SpaceTop(Dataset):
         )
         self.tasks = ["alignvideo", "faces"]
 
+    def rename_func(self, sid, task, run, suffix=".npy"):
+        "sub-0065_ses-01_task-alignvideo_acq-mb8_run-01.npy"
+        if task == "alignvideo":  # 4 + 4 + 3 + 2
+            if run in [1, 2, 3, 4]:
+                ses, run_ = "01", run
+            elif run in [5, 6, 7, 8]:
+                ses, run_ = "02", run - 4
+            elif run in [9, 10, 11]:
+                ses, run_ = "03", run - 8
+            elif run in [12, 13]:
+                ses, run_ = "04", run - 11
+            basename = f"sub-{sid}_ses-{ses}_task-alignvideo_acq-mb8"
+        else:
+            raise ValueError(f"Task {task} not recognized.")
+        basename = basename + f"_run-{run_:02d}{suffix}"
+        # if suffix == ".npy":
+        #     basename = basename + f"_run-{run:02d}{suffix}"
+        # else:
+        #     basename = basename + f"_run-{run:d}{suffix}"
+        return basename
+
 
 class CamCAN(Dataset):
     def __init__(
@@ -1175,6 +1196,17 @@ class WhiplashC2(Dataset):
             fp_version=fp_version,
         )
         self.tasks = ["whiplash"]
+
+    def rename_func(self, sid, task, run, suffix=".npy"):
+        if task == "whiplash":
+            assert run in [1, 2]
+            if suffix == ".npy":
+                basename = f"sub-{sid}_ses-{run+1}_task-movie_run-02" + suffix
+            else:
+                basename = f"sub-{sid}_ses-{run+1}_task-movie_run-02" + suffix
+        else:
+            raise ValueError(f"Task {task} not recognized.")
+        return basename
 
 
 class WhiplashC3(Dataset):
