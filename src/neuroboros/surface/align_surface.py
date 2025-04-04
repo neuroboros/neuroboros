@@ -35,28 +35,22 @@ class Aligner:
 
     @classmethod
     def from_fmriprep(cls, folder, lr, kind="pial"):
-        aid = os.path.basename(os.path.dirname(folder)).split("_")[0].split("-")[1]
-        sid = os.path.basename(folder).split("-")[1]
-        anat_dirs = sorted(glob(os.path.join(folder, "ses-*", "anat")))
+        anat_dirs = sorted(
+            glob(os.path.join(folder, "ses-*", "anat"))
+            + glob(os.path.join(folder, "anat"))
+        )
         if len(anat_dirs) != 1:
             print(folder)
             print(anat_dirs)
             raise RuntimeError
         anat_dir = anat_dirs[0]
-        ses = os.path.basename(os.path.dirname(anat_dir)).split("-")[1]
-        print(sid, ses, aid)
         sphere_fns = glob(
             os.path.join(
                 anat_dir,
-                f"sub-{sid}_ses-{ses}*_hemi-{lr.upper()}_"
-                "space-fsaverage_desc-reg_sphere.surf.gii",
+                f"*_hemi-{lr.upper()}_space-fsaverage_desc-reg_sphere.surf.gii",
             )
         )
-        anat_fns = glob(
-            os.path.join(
-                anat_dir, f"sub-{sid}_ses-{ses}*_hemi-{lr.upper()}_{kind}.surf.gii"
-            )
-        )
+        anat_fns = glob(os.path.join(anat_dir, f"*_hemi-{lr.upper()}_{kind}.surf.gii"))
         if len(sphere_fns) != 1:
             print(sphere_fns)
             raise RuntimeError
