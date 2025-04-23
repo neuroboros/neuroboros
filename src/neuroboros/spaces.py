@@ -93,7 +93,7 @@ def get_mask(lr, space="onavg-ico32", legacy=False, **kwargs):
     Parameters
     ----------
     lr : str
-        Hemisphere, either 'l' or 'r'.
+        Hemisphere, either 'l' or 'r' or 'lr'.
     space : str, default='onavg-ico32'
         Surface space.
     legacy : bool, default=False
@@ -105,6 +105,12 @@ def get_mask(lr, space="onavg-ico32", legacy=False, **kwargs):
     mask : ndarray
         Mask of the cortical surface. Shape (n_vertices,).
     """
+    if lr == "lr":
+        lh = get_mask("l", space=space, legacy=legacy, **kwargs)
+        rh = get_mask("r", space=space, legacy=legacy, **kwargs)
+        M = np.concatenate([lh, rh], axis=0)
+        return M
+
     resample = kwargs.get("resample", "overlap-8div")
     which = kwargs.get("which", "aparc.a2009s")
     assert lr in "lr"
