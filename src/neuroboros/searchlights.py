@@ -97,6 +97,46 @@ def get_searchlights(
     return_dists=False,
     **kwargs,
 ):
+    """
+    Get a list of vertex indices for searchlight analysis.
+
+    Parameters
+    ----------
+    lr : {'l', 'r', 'lr'}
+        'l' for left hemisphere, 'r' for right hemisphere, 'lr' for both.
+    radius : int or float
+        The searchlight radius in mm.
+    space : str, default='onavg-ico32'
+        The space in which the searchlights are defined. It should match the
+        space of the data to be analyzed.
+    center_space : str, default=None
+        The space in which the searchlight centers are defined. If None, it
+        will be the same as `space`.
+    mask : bool or ndarray, default=True
+        If True, use the default mask for the specified space. If False, no
+        mask is applied. If an ndarray, it should be a boolean array indicating
+        which vertices are included in the searchlight. The mask should match
+        the mask applied to the data to be analyzed.
+    center_mask : bool or ndarray, default=None
+        If True, use the default mask for the center space. If False, no mask
+        is applied. If an ndarray, it should be a boolean array indicating
+        which vertices are included in the searchlight center.
+    return_dists : bool, default=False
+        If True, return the distances of the vertices in the searchlight to
+        the center of the searchlight.
+    **kwargs : dict
+        Additional keyword arguments passed to the searchlight loading function.
+
+    Returns
+    -------
+    sls : list of ndarray
+        Each entry is an ndarray of integers, which are the indices of the
+        vertices in a searchlight.
+    dists : list of ndarray, optional
+        Each entry is an ndarray of float numbers, which are the distances
+        between vertices in a searchlight and the center of the searchlight.
+        Only returned if `return_dists` is True.
+    """
     if lr == "lr":
         nv = 0
         if isinstance(mask, np.ndarray):
@@ -133,6 +173,11 @@ def get_searchlights(
             return sls
 
     radius_ = 20
+    if radius > radius_:
+        raise ValueError(
+            f"Searchlight radius {radius}mm is larger than the maximum "
+            f"supported radius {radius_}mm. Please use a smaller radius."
+        )
 
     if center_mask is None:
         center_mask = mask
