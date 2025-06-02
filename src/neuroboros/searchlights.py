@@ -154,23 +154,21 @@ def get_searchlights(
                 "center_space": center_space,
                 "mask": mask,
                 "center_mask": center_mask,
-                "return_dists": return_dists,
+                "return_dists": True,
             }
         )
-        lh = get_searchlights("l", **kwargs)
-        rh = get_searchlights("r", **kwargs)
+        sls_l, dists_l = get_searchlights("l", **kwargs)
+        sls_r, dists_r = get_searchlights("r", **kwargs)
+
+        # Ensure dtype is sufficient using int64
+        sls_r = [s.astype(np.int64) + nv for s in sls_r]
+        sls = sls_l + sls_r
+
         if return_dists:
-            sls_l, dists_l = lh
-            sls_r, dists_r = rh
-            sls_r = [s + nv for s in sls_r]
-            sls = sls_l + sls_r
             dists = dists_l + dists_r
             return sls, dists
-        else:
-            sls_l, sls_r = lh, rh
-            sls_r = [s + nv for s in rh]
-            sls = sls_l + sls_r
-            return sls
+
+        return sls
 
     radius_ = 20
     if radius > radius_:
