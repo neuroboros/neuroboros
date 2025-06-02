@@ -98,64 +98,39 @@ def get_searchlights(
     **kwargs,
 ):
     if lr == "lr":
-        vertex_num = 0
+        nv = 0
         if isinstance(mask, np.ndarray):
             raise NotImplementedError
         if space.startswith("mkavg-ico"):
             ico = int(space.split("-ico")[-1])
-            vertex_num = 10 * ico**2 + 2
+            nv = 10 * ico**2 + 2
         else:
-            tmp_mask = get_mask("l", space, **kwargs)
-            if mask:
-                vertex_num = np.sum(tmp_mask)
-            else:
-                vertex_num = len(tmp_mask)
+            m = get_mask("l", space, **kwargs)
+            nv = m.sum() if mask else m.size
+        kwargs.update(
+            {
+                "radius": radius,
+                "space": space,
+                "center_space": center_space,
+                "mask": mask,
+                "center_mask": center_mask,
+                "return_dists": return_dists,
+            }
+        )
+        lh = get_searchlights("l", **kwargs)
+        rh = get_searchlights("r", **kwargs)
         if return_dists:
-            sls_l, dists_l = get_searchlights(
-                "l",
-                radius,
-                space=space,
-                center_space=center_space,
-                mask=mask,
-                center_mask=center_mask,
-                return_dists=return_dists,
-                **kwargs,
-            )
-            sls_r, dists_r = get_searchlights(
-                "r",
-                radius,
-                space=space,
-                center_space=center_space,
-                mask=mask,
-                center_mask=center_mask,
-                return_dists=return_dists,
-                **kwargs,
-            )
-            sls_r = [s + vertex_num for s in sls_r]
-            return sls_l + sls_r, dists_l + dists_r
+            sls_l, dists_l = lh
+            sls_r, dists_r = rh
+            sls_r = [s + nv for s in sls_r]
+            sls = sls_l + sls_r
+            dists = dists_l + dists_r
+            return sls, dists
         else:
-            sls_l = get_searchlights(
-                "l",
-                radius,
-                space=space,
-                center_space=center_space,
-                mask=mask,
-                center_mask=center_mask,
-                return_dists=return_dists,
-                **kwargs,
-            )
-            sls_r = get_searchlights(
-                "r",
-                radius,
-                space=space,
-                center_space=center_space,
-                mask=mask,
-                center_mask=center_mask,
-                return_dists=return_dists,
-                **kwargs,
-            )
-            sls_r = [s + vertex_num for s in sls_r]
-            return sls_l + sls_r
+            sls_l, sls_r = lh, rh
+            sls_r = [s + nv for s in rh]
+            sls = sls_l + sls_r
+            return sls
 
     radius_ = 20
 
