@@ -148,6 +148,7 @@ def plot_mebrains(
     vmin=None,
     space=None,
     mask=None,
+    alpha=None,
     surf_type="inflated",
     nn=True,
     return_scale=False,
@@ -155,7 +156,7 @@ def plot_mebrains(
     background_color=[1.0, 1.0, 1.0, 0.0],
     colorbar=True,
     output=None,
-    width=500,
+    # width=500,
     title=None,
     title_size=70,
     fn=None,
@@ -220,6 +221,13 @@ def plot_mebrains(
         prepared_values, scale = ret
     else:
         prepared_values = ret
+    if alpha is not None:
+        alpha = unmask_and_upsample(alpha, space, mask, nn=nn)
+        alpha = np.concatenate([alpha, [1, 1]])
+        alpha = np.clip(alpha, 0.0, 1.0)[:, np.newaxis]
+        prepared_values = prepared_values * alpha + np.array(medial_wall_color) * (
+            1 - alpha
+        )
 
     if surf_type not in PLOT_MAPPING:
         mapping = core_dataset.get(
