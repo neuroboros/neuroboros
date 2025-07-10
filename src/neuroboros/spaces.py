@@ -110,11 +110,17 @@ def get_mask(lr, space="onavg-ico32", legacy=False, **kwargs):
         rh = get_mask("r", space=space, legacy=legacy, **kwargs)
         M = np.concatenate([lh, rh], axis=0)
         return M
+    assert lr in "lr"
 
     resample = kwargs.get("resample", "overlap-8div")
     which = kwargs.get("which", "aparc.a2009s")
-    assert lr in "lr"
-    if legacy:
+    if space == "MEBRAIN" or space.startswith("mkavg-ico"):
+        flavor = "MEBRAIN"
+        which = "MEBRAIN"
+        fn = os.path.join(
+            space, "masks", which, f"{lr}h", f"{flavor}", f"{resample}.npy"
+        )
+    elif legacy:
         if space.startswith("fsavg-ico"):
             flavor = kwargs.get("flavor", "fsaverage")
         elif space.startswith("fslr-ico"):
