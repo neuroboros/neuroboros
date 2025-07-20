@@ -141,12 +141,8 @@ def get_searchlights(
         nv = 0
         if isinstance(mask, np.ndarray):
             raise NotImplementedError
-        if space.startswith("mkavg-ico"):
-            ico = int(space.split("-ico")[-1])
-            nv = 10 * ico**2 + 2
-        else:
-            m = get_mask("l", space, **kwargs)
-            nv = m.sum() if mask else m.size
+        m = get_mask("l", space, **kwargs)
+        nv = m.sum() if mask else m.size
         kwargs.update(
             {
                 "radius": radius,
