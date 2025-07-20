@@ -5,7 +5,7 @@ import neuroboros as nb
 
 class TestSearchlights:
     def test_basic(self):
-        for space in [_ + "-ico32" for _ in ["onavg", "fsavg", "fslr"]]:
+        for space in [_ + "-ico32" for _ in ["onavg", "fsavg", "fslr", "mkavg"]]:
             for lr in "lr":
                 sls = nb.sls(lr, 20, space, mask=False)
                 assert len(sls) == 10242
@@ -14,7 +14,7 @@ class TestSearchlights:
                 assert np.concatenate(sls).min() == 0
 
     def test_masked(self):
-        for space in [_ + "-ico32" for _ in ["onavg", "fsavg", "fslr"]]:
+        for space in [_ + "-ico32" for _ in ["onavg", "fsavg", "fslr", "mkavg"]]:
             for lr in "lr":
                 sls = nb.sls(lr, 20, space, mask=True)
                 nv = nb.mask(lr, space).sum()
@@ -24,7 +24,7 @@ class TestSearchlights:
                 assert np.concatenate(sls).min() == 0
 
     def test_radius(self):
-        for space in [_ + "-ico32" for _ in ["onavg", "fsavg", "fslr"]]:
+        for space in [_ + "-ico32" for _ in ["onavg", "fsavg", "fslr", "mkavg"]]:
             for lr in "lr":
                 radius = 10
                 dists = nb.sls(lr, radius, space, mask=False, return_dists=True)[1]
@@ -103,7 +103,7 @@ class TestSearchlights:
 
     def test_lr(self):
         rng = np.random.default_rng(0)
-        for space in [_ + "-ico32" for _ in ["onavg", "fsavg", "fslr"]]:
+        for space in [_ + "-ico32" for _ in ["onavg", "fsavg", "fslr", "mkavg"]]:
             lh = rng.standard_normal((10, 10242))
             rh = rng.standard_normal((10, 10242))
             dm = np.concatenate([lh, rh], axis=1)
@@ -117,7 +117,7 @@ class TestSearchlights:
                 m, np.concatenate([lh_m, rh_m], axis=1), atol=1e-6
             )
 
-        for space in [_ + "-ico32" for _ in ["onavg", "fsavg", "fslr"]]:
+        for space in [_ + "-ico32" for _ in ["onavg", "fsavg", "fslr", "mkavg"]]:
             lh_nv = nb.mask("l", space).sum()
             rh_nv = nb.mask("r", space).sum()
             lh = rng.standard_normal((10, lh_nv))
