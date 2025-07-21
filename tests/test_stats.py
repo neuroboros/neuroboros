@@ -92,3 +92,26 @@ class TestAlpha:
             np.testing.assert_array_equal(alphas1, alphas2)
             np.testing.assert_array_equal(cis1, cis2)
         np.testing.assert_array_less(cis1[:, 0], cis1[:, 1])
+
+
+class TestPearsonR:
+    def test_pearsonr(self):
+        rng = np.random.default_rng(0)
+        X = rng.standard_normal((100, 10))
+        Y = rng.standard_normal((100, 10))
+        r = nb.stats.pearsonr(X, Y, axis=0)
+        from scipy.stats import pearsonr as scipy_pearsonr
+        for i in range(10):
+            r1 = scipy_pearsonr(X[:, i], Y[:, i])[0]
+            np.testing.assert_allclose(r[i], r1)
+            r2 = nb.stats.pearsonr(X[:, i], Y[:, i], axis=0)
+            np.testing.assert_allclose(r[i], r2)
+
+    def test_keepdim(self):
+        rng = np.random.default_rng(0)
+        X = rng.standard_normal((100, 10))
+        Y = rng.standard_normal((100, 10))
+        r = nb.stats.pearsonr(X, Y, axis=0, keepdims=True)
+        np.testing.assert_array_equal(r.shape, (1, 10))
+        r = nb.stats.pearsonr(X, Y, axis=0, keepdims=False)
+        np.testing.assert_array_equal(r.shape, (10,))
