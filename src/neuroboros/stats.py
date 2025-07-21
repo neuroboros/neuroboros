@@ -212,3 +212,35 @@ def normalize(d, clip=(0.0005, 0.9995), keep_stats=True):
     else:
         d_new = norm.ppf(pct, loc=0, scale=1)
     return d_new
+
+
+def pearsonr(X, Y, axis=0, keepdims=False, nan=None):
+    """
+    Pearson correlation coefficient.
+
+    Parameters
+    ----------
+    X : ndarray
+        First input array.
+    Y : ndarray
+        Second input array.
+    axis : int, default=0
+        Axis along which to compute the correlation.
+    keepdims : bool, default=False
+        If True, the output will have the same number of dimensions as the
+        input arrays.
+    nan : float or None, default=None
+        If not None, NaNs in the input arrays will be replaced with this
+        value.
+
+    Returns
+    -------
+    r : float or ndarray
+        Pearson correlation coefficient.
+    """
+    X = zscore(X, axis=axis)
+    Y = zscore(Y, axis=axis)
+    r = np.mean(X * Y, axis=axis, keepdims=keepdims)
+    if nan is not None:
+        r = np.nan_to_num(r, copy=False, nan=nan)
+    return r
