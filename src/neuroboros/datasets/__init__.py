@@ -127,7 +127,7 @@ def get_prep(name, **kwargs):
 
 class Dataset:
     """
-    Unified interface for loading, nuissance regression, and accessing Neuroboros datasets.
+    Unified interface for loading, confound handling, and accessing Neuroboros datasets.
     Assumes a file structure similar to this and 
     the files named with subject id, task and runs (N.B. sometimes renamed in a way that does not match the original file output name in fmriprep)
     ├── 23.2.0
@@ -143,7 +143,7 @@ class Dataset:
     - dataset download (if available)
     - loading preprocessed fMRI data resampled to a surface/volume space 
     - loading confounds
-    - nuisance regression
+    - confound handling
     - loading contrasts, and anatomy (if available)
     """
     
@@ -162,36 +162,36 @@ class Dataset:
         prep="default",
         fp_version="20.2.7",
     ):
-    """
-    Initialize a Dataset object.
+        """
+        Initialize a Dataset object.
 
-    Parameters
-    ----------
-    name : str
-        Dataset name.
-    dl_source : str or None
-        Data source identifier used by DatasetManager.
-    root_dir : str
-        Root directory for dataset storage.
-    space : str or list[str]
-        Surface or volume space(s) to use.
-    resample : str or list[str]
-        Resampling method(s).
-    mask : ndarray or None, optional
-        Default mask applied during preprocessing.
-    surface_space : str, optional
-        Default surface space.
-    surface_resample : str, optional
-        Default surface resampling method.
-    volume_space : str, optional
-        Default volume space.
-    volume_resample : str, optional
-        Default volume resampling method.
-    prep : str or callable
-        Default nuissance regression pipeline.
-    fp_version : str
-        fmriprep version.
-    """
+        Parameters
+        ----------
+        name : str
+            Dataset name.
+        dl_source : str or None
+            Data source identifier used by DatasetManager.
+        root_dir : str
+            Root directory for dataset storage.
+        space : str or list[str]
+            Surface or volume space(s) to use.
+        resample : str or list[str]
+            Resampling method(s).
+        mask : ndarray or None, optional
+            Default mask applied during preprocessing.
+        surface_space : str, optional
+            Default surface space.
+        surface_resample : str, optional
+            Default surface resampling method.
+        volume_space : str, optional
+            Default volume space.
+        volume_resample : str, optional
+            Default volume resampling method.
+        prep : str or callable
+            Default nuissance regression pipeline.
+        fp_version : str
+            fmriprep version.
+        """
         self.name = name
 
         self.dl_source = dl_source
@@ -247,17 +247,17 @@ class Dataset:
                 self.subject_sets[task] = f.read().splitlines()
 
     def load_data(self, sid, task, run, lr, space, resample, fp_version=None):
-            """
-            Load preprocessed fMRI time series data for a subject, task, and run without additional confound handling.
-            If multiple runs are provided, data are concatenated along the time axis.
-            Parameters
-            ----------
-            sid : subject identifier
-            task :
-            Returns
-            -------
-            dm : ndarray, fMRI time series
-            """
+        """
+        Load preprocessed fMRI time series data for a subject, task, and run without additional confound handling.
+        If multiple runs are provided, data are concatenated along the time axis.
+        Parameters
+        ----------
+        sid : subject identifier
+        task :
+        Returns
+        -------
+        dm : ndarray, fMRI time series
+        """
         if lr == "lr":
             dm = np.concatenate(
                 [
@@ -380,9 +380,9 @@ class Dataset:
         force_volume=False,
         fp_version=None,
     ):
-    '''
-    load contrast map (if available)
-    '''
+        '''
+        load contrast map (if available)
+        '''
         if force_volume:
             space_kind = "volume"
         else:
@@ -430,15 +430,15 @@ class Dataset:
         prep_kwargs=None,
         slicer=None,
     ):
-    '''
-    This function does a few online preparation for the fMRI time series data to be used as final inputs to analyses:
-    1. Apply medial wall mask ("mask")
-    2. Confound handling and z-scoring within each run("prep") 
-    3. Remove certain time segments (e.g. overlapping segments in movies)("slicer")
-    Returns
-    -------
-    dm: cleaned fMRI time series ready to be used for analyses
-    '''
+        '''
+        This function does a few online preparation for the fMRI time series data to be used as final inputs to analyses:
+        1. Apply medial wall mask ("mask")
+        2. Confound handling and z-scoring within each run("prep") 
+        3. Remove certain time segments (e.g. overlapping segments in movies)("slicer")
+        Returns
+        -------
+        dm: cleaned fMRI time series ready to be used for analyses
+        '''
         if isinstance(run, (tuple, list)):
             ret = [
                 self.get_data(
