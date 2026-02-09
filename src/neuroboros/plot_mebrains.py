@@ -19,11 +19,21 @@ from .utils import save
 
 GUESS_SEPARATE = {
     (10242, 10242): ("mkavg-ico32", False),
+    (9930, 9933): ("mkavg-ico32", True),
+    (642, 642): ("mkavg-ico8", False),
+    (623, 621): ("mkavg-ico8", True),
+    (2562, 2562): ("mkavg-ico16", False),
+    (2485, 2484): ("mkavg-ico16", True),
     (100988, 100974): ("MEBRAIN", False),
 }
 
 GUESS_COMBINED = {
     20484: ("mkavg-ico32", False, [10242]),
+    19863: ("mkavg-ico32", True, [9930]),
+    1284: ("mkavg-ico8", False, [642]),
+    1244: ("mkavg-ico8", True, [623]),
+    5124: ("mkavg-ico16", False, [2562]),
+    4969: ("mkavg-ico16", True, [2485]),
     201962: ("MEBRAIN", False, [100988]),
 }
 
