@@ -313,7 +313,9 @@ class Image:
         cbar.ax.tick_params(labelsize=labelsize)
         fig.subplots_adjust(left=0.03, right=0.97, top=top, bottom=bottom)
         buffer = io.BytesIO()
-        fig.savefig(buffer, format="png", dpi=dpi, transparent=True,bbox_inches='tight')
+        fig.savefig(
+            buffer, format="png", dpi=dpi, transparent=True, bbox_inches="tight"
+        )
         buffer.seek(0)
         cbar = PIL_Image.open(buffer)
         plt.close(fig=fig)
