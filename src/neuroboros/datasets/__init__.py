@@ -897,6 +897,46 @@ class Budapest(Dataset):
             "sid000560",
         ]
 
+    def rename_func(self, sid, task, run, suffix=".npy"):
+        """
+        Renames the file base to the original data convention instead of by total runs
+        Returns
+        -------
+        """
+
+        # timing_dir = os.path.expanduser('~/hyperface/timing')  # commented out dependency
+        hyperface_runs = [2, 3, 4, 6, 7, 8]
+        # --- Task-specific renaming rules ---
+        if task == "budapest":
+            new_task = "movie"
+            new_run = run
+            new_ses = "budapest"
+            assert new_run <= 5, f"Invalid run {run} for budapest movie"
+
+        elif task == "localizer":
+            run_map = {
+                1: ("1", "1"),
+                2: ("1", "5"),
+                3: ("2", "1"),
+                4: ("2", "5"),
+                # for some reason the resampled data had run-01 but confounds have run-1...
+                # so I had to use wildcard below
+            }
+            new_task = "localizer"
+            new_ses, new_run = run_map[run]
+        elif task == "visualmemory":
+            run_ = hyperface_runs.index(run) + 1
+            new_task = "hyperface"
+            raise NotImplementedError(
+                "The hyperface renaming is inaccurate, please ignore it for now."
+            )
+        else:
+            raise ValueError(f"Unrecognized task '{task}' (run={run})")
+
+        # --- Construct standardized name ---
+        basename = f"sub-{sid}_ses-{new_ses}_task-{new_task}_run-*{new_run}{suffix}"
+        return basename
+
 
 class MonkeyKingdom(Dataset):
     def __init__(
