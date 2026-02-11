@@ -142,7 +142,7 @@ def unmask_and_upsample(values, space, mask, nn=True):
 def to_color(values, cmap, vmax=None, vmin=None):
     if vmin is None:
         vmin = -vmax
-    if vmax==vmin:
+    if vmax == vmin:
         r = np.ones_like(values)
     else:
         r = (values - vmin) / (vmax - vmin)
