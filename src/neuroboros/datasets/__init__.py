@@ -43,12 +43,14 @@ def guess_surface_volume(space, resample, lr):
         return "surface"
     return "volume"
 
-def basic_prep(dm,confounds,cortical_mask, z=True, mask=True):
+
+def basic_prep(dm, confounds, cortical_mask, z=True, mask=True):
     if mask and cortical_mask is not None:
         dm = dm[:, cortical_mask]
     if z:
         dm = np.nan_to_num(zscore(dm, axis=0))
     return dm
+
 
 def default_prep(dm, confounds, cortical_mask, z=True, mask=True, gsr=False):
     if mask and cortical_mask is not None:
@@ -91,8 +93,8 @@ def get_prep(name, **kwargs):
     prep = {
         "default": default_prep,
         "scrub": scrub_prep,
-        "basic":basic_prep,
-        "none": None
+        "basic": basic_prep,
+        "none": None,
     }[name]
     if gsr:
         prep = partial(prep, gsr=True)
@@ -206,7 +208,7 @@ class Dataset:
                     for roi in lr
                 ],
                 axis=1,
-                )
+            )
             return dm
         if fp_version is None:
             fp_version = self.fp_version
