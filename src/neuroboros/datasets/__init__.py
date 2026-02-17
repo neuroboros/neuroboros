@@ -49,7 +49,7 @@ def guess_surface_volume(space, resample, lr):
 
 def default_prep(dm, confounds, cortical_mask, z=True, mask=True, gsr=False):
     """
-    Default confound handling (nuisance regression) to remove confounds from BOLD data
+    Default confound handling (nuisance regression) to remove confounds from BOLD data, and (optionally, default) apply medial wall mask and z-score data
     Parameters
     ----------
         dm: preprocessed fMRI BOLD time series
@@ -78,6 +78,7 @@ def default_prep(dm, confounds, cortical_mask, z=True, mask=True, gsr=False):
 def scrub_prep(dm, confounds, cortical_mask, z=True, mask=True, gsr=False):
     """
     Nuisance regression with scrubbing similar to Power et al. 2012 Neuroimage
+    and (optionally, default) apply medial wall mask and z-score data
     Parameters
     ----------
         dm: preprocessed fMRI BOLD time series
