@@ -36,7 +36,7 @@ VOLUME_RESAMPLES = ["1step_linear_overlap", "1step_fmriprep_overlap"]
 
 def guess_surface_volume(space, resample, lr):
     """
-    Returns a boolean whether the space/resample pair refers to surface or volume
+    Returns a string whether the space/resample pair refers to surface or volume
     """
     if space in SURFACE_SPACES or resample in SURFACE_RESAMPLES:
         return "surface"
