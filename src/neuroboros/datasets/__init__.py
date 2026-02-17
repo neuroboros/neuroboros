@@ -20,7 +20,7 @@ from glob import glob
 import numpy as np
 from scipy.stats import zscore
 
-from ..io import DatasetManager,return_aseg_labels
+from ..io import DatasetManager, return_aseg_labels
 from ..spaces import get_mask
 
 SURFACE_SPACES = ["fsavg-ico32", "onavg-ico32", "onavg-ico48", "onavg-ico64"]
@@ -42,6 +42,7 @@ def guess_surface_volume(space, resample, lr):
     if lr in ["l", "r", "l-cerebrum", "r-cerebrum", "lr"]:
         return "surface"
     return "volume"
+
 
 def default_prep(dm, confounds, cortical_mask, z=True, mask=True, gsr=False):
     if mask and cortical_mask is not None:
@@ -84,8 +85,8 @@ def get_prep(name, **kwargs):
     prep = {
         "default": default_prep,
         "scrub": scrub_prep,
-        "none":None,
-        "saved_beta":saved_beta_prep
+        "none": None,
+        "saved_beta": saved_beta_prep,
     }[name]
     if gsr:
         prep = partial(prep, gsr=True)
@@ -338,8 +339,8 @@ class Dataset:
         prep_kwargs=None,
         slicer=None,
     ):
-        if isinstance(lr,str) and lr.lower()=='aseg_subcortex':
-            lr = return_aseg_labels() # Get all aseg rois in a list
+        if isinstance(lr, str) and lr.lower() == "aseg_subcortex":
+            lr = return_aseg_labels()  # Get all aseg rois in a list
         if isinstance(run, (tuple, list)):
             ret = [
                 self.get_data(
