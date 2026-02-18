@@ -189,10 +189,8 @@ class Dataset:
 
         if fp_version is None:
             fp_version = self.fp_version
-
         if lr in ["l", "r"]:
             lr = f"{lr}-cerebrum"
-
         if self.rename_func is not None:
             fn = [
                 fp_version,
@@ -506,6 +504,7 @@ class Forrest(Dataset):
             prep=prep,
             fp_version=fp_version,
         )
+        self.TR = 2.0
         self.subjects = [
             "01",
             "02",
@@ -716,6 +715,7 @@ class Raiders(Dataset):
 
     See Nastase (2018) in the References for more details.
 
+    This was referred to as "Sraiders dataset" in Jiahui et al. 2023 eLife
     References
     ----------
     https://www.proquest.com/docview/2018905893/abstract/F07E13FBBC234A93PQ/1
@@ -741,6 +741,7 @@ class Raiders(Dataset):
             fp_version=fp_version,
         )
         self.tasks = ["raiders", "actions"]
+        self.TR = 1.0
         self.subjects = [
             "sid000005",
             "sid000007",
@@ -787,6 +788,7 @@ class Raiders(Dataset):
                 basename = f"sub-{sid}_ses-actions1_task-actions"
             elif run in [5, 6, 7, 8]:
                 basename = f"sub-{sid}_ses-actions2_task-actions"
+                run -= 4
         else:
             raise ValueError(f"Task {task} not recognized.")
         if suffix == ".npy":
@@ -869,6 +871,7 @@ class Budapest(Dataset):
             prep=prep,
             fp_version=fp_version,
         )
+        self.TR = 1.0
         self.tasks = ["budapest", "hyperface", "localizer"]
         self.subjects = [
             "sid000005",
