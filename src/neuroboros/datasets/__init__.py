@@ -949,6 +949,45 @@ class MonkeyKingdom(Dataset):
             data = data[40:940]
         return data
 
+class MonkeyKingdomEng(Dataset):
+    def __init__(
+        self,
+        space=["onavg-ico32"],
+        resample=["1step_pial_overlap"],
+        prep="default",
+        fp_version="24.1.0",
+        name="monkey-kingdom-eng",
+        root_dir="/dartfs/rc/lab/H/HaxbyLab/yuqi/psyc60_monkey_kingdom/data/monkey-kingdom-eng",
+        dl_source=None,
+    ):
+        super().__init__(
+            name,
+            dl_source=dl_source,
+            root_dir=root_dir,
+            space=space,
+            resample=resample,
+            prep=prep,
+            fp_version=fp_version,
+        )
+        self.tasks = ["monkey", "rest"]
+        self.subjects = [
+            'sid002042', 
+            'sid002409', 
+            'sid002470', 
+            'sid002478', 
+            'sid002596',
+            'sid002918', 
+            'sid003221', 
+            'sid003222', 
+            'sid003223', 
+            'sid003224',
+        ]
+
+    def slicer(self, data, task, run):
+        if task == "monkey":
+            assert data.shape[0] == 955
+            data = data[40:940]
+        return data
 
 class Life(Dataset):
     """The Life dataset.

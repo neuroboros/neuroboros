@@ -25,6 +25,7 @@ from .datasets import (
     Forrest,
     Life,
     MonkeyKingdom,
+    MonkeyKingdomEng,
     Raiders,
     SpaceTop,
     WhiplashC1,
