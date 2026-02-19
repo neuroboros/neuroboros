@@ -29,6 +29,7 @@ SURFACE_RESAMPLES = [
     "1step_pial_area",
     "2step_normals-equal_nnfr",
     "2step_normals-sine_nnfr",
+    "msmsulc_uncleaned",
 ]
 VOLUME_SPACES = ["mni-2mm", "mni-3mm", "mni-4mm"]
 VOLUME_RESAMPLES = ["1step_linear_overlap", "1step_fmriprep_overlap"]
@@ -897,6 +898,63 @@ class Budapest(Dataset):
             "sid000560",
         ]
 
+class HCA(Dataset):
+    def __init__(
+        self,
+        space=["onavg-ico32"],
+        resample=["msmsulc_uncleaned"],
+        prep="default",
+        fp_version='HCA2.0',
+        name="HCA",
+        root_dir=None,
+        dl_source=None,
+    ):
+        super().__init__(
+            name,
+            dl_source=dl_source,
+            root_dir=root_dir,
+            space=space,
+            resample=resample,
+            prep=prep,
+            fp_version=fp_version,
+        )
+        self.tasks = ["restap", "restpa", "caritpa", "facenamepa", "vismotorpa"]    
+        
+    def load_confounds(self, sid, task, run, fp_version=None):
+        if fp_version is None:
+            fp_version = self.fp_version
+        suffix_li = [
+            "desc-confounds_timeseries.npy",
+        ]
+        output = []
+        for suffix in suffix_li:
+            if self.rename_func is not None:
+                fn = [
+                    fp_version,
+                    "confounds",
+                    self.rename_func(sid, task, run, "_" + suffix),
+                ]
+            elif self.renaming is None:
+                fn = [
+                    fp_version,
+                    "confounds",
+                    f"sub-{sid}_task-{task}_run-{run}_{suffix}",
+                ]
+            else:
+                fn = [
+                    fp_version,
+                    "renamed_confounds",
+                    f"sub-{sid}_task-{task}_run-{run:02d}_{suffix}",
+                ]
+                fn = self.renaming["/".join(fn)].split("/")
+            o = self.dl_dset.get(fn, on_missing="raise")
+            output.append(o)
+        return output
+    
+    def rename_func(self, sid, task, run, suffix=".npy"):
+        basename = f"sub-{sid}_ses-V1_task-{task}_run-{run:02d}{suffix}"
+        return basename
+        
 
 class MonkeyKingdom(Dataset):
     def __init__(
@@ -952,6 +1010,45 @@ class MonkeyKingdom(Dataset):
             data = data[40:940]
         return data
 
+class MonkeyKingdomEng(Dataset):
+    def __init__(
+        self,
+        space=["onavg-ico32"],
+        resample=["1step_pial_overlap"],
+        prep="default",
+        fp_version="24.1.0",
+        name="monkey-kingdom-eng",
+        root_dir="/dartfs/rc/lab/H/HaxbyLab/yuqi/psyc60_monkey_kingdom/data/monkey-kingdom-eng",
+        dl_source=None,
+    ):
+        super().__init__(
+            name,
+            dl_source=dl_source,
+            root_dir=root_dir,
+            space=space,
+            resample=resample,
+            prep=prep,
+            fp_version=fp_version,
+        )
+        self.tasks = ["monkey", "rest"]
+        self.subjects = [
+            'sid002042', 
+            'sid002409', 
+            'sid002470', 
+            'sid002478', 
+            'sid002596',
+            'sid002918', 
+            'sid003221', 
+            'sid003222', 
+            'sid003223', 
+            'sid003224',
+        ]
+
+    def slicer(self, data, task, run):
+        if task == "monkey":
+            assert data.shape[0] == 955
+            data = data[40:940]
+        return data
 
 class Life(Dataset):
     """The Life dataset.
@@ -1324,6 +1421,7 @@ datasets = {
     "praiders": PhilipsRaiders,
     "budapest": Budapest,
     "monkeykingdom": MonkeyKingdom,
+    "monkey-kingdom-eng": MonkeyKingdomEng,
     "life": Life,
     "hbn-ssi": HBNSSI,
     "whiplash-c1": WhiplashC1,
@@ -1331,6 +1429,7 @@ datasets = {
     "whiplash-c3": WhiplashC3,
     "ibc": IBC,
     "goodbadugly": GoodBadUgly,
+    "hca": HCA,
 }
 
 
