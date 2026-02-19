@@ -31,6 +31,7 @@ from .datasets import (
     WhiplashC1,
     WhiplashC2,
     WhiplashC3,
+    HCA,
 )
 from .datasets import get_dataset as dataset
 from .glm import glm
