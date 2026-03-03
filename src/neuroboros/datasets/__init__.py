@@ -1340,9 +1340,9 @@ datasets = {
 }
 
 
-def get_dataset(name):
+def get_dataset(name, **kwargs):
     if name not in datasets:
         raise ValueError(
             f"Dataset {name} not recognized. Valid datasets are: {datasets.keys()}"
         )
-    return datasets[name]()
+    return datasets[name](**kwargs)
