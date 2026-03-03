@@ -1,0 +1,198 @@
+#!/usr/bin/env python
+
+import os
+import sys
+import numpy as np
+import nibabel as nib
+
+
+GREEN = "\033[32m"
+RED = "\033[31m"
+RESET = "\033[0m"
+
+
+TEXT_EXTENSIONS = {
+    ".txt",
+    ".csv",
+    ".tsv",
+    ".json",
+    ".yaml",
+    ".yml",
+    ".md",
+    ".rst",
+    ".log",
+    ".ini",
+    ".cfg",
+    ".py",
+}
+
+
+def determine_file_type(fn):
+    base = os.path.basename(fn).lower()
+    root, ext = os.path.splitext(base)
+
+    if base.endswith(".nii.gz"):
+        return "nii.gz"
+    if ext == ".mgz":
+        return "mgz"
+    if ext == ".gii":
+        return "gii"
+    if ext == ".npy":
+        return "npy"
+    if ext == ".npz":
+        return "npz"
+    if ext in TEXT_EXTENSIONS or is_text_file(fn):
+        return "text"
+    return None
+
+
+def is_text_file(fn, chunk_size=4096):
+    try:
+        with open(fn, "rb") as f:
+            chunk = f.read(chunk_size)
+        if not chunk:
+            return True
+        chunk.decode("utf-8")
+        return True
+    except (UnicodeDecodeError, OSError):
+        return False
+
+
+def print_result(is_identical, fn1, fn2):
+    if is_identical:
+        status = f"{GREEN}identical{RESET}"
+    else:
+        status = f"{RED}different{RESET}"
+    print(status, fn1, fn2)
+
+
+def compare_volume_files(fn1, fn2):
+    img1 = nib.load(fn1)
+    img2 = nib.load(fn2)
+    d1 = img1.get_fdata()
+    d2 = img2.get_fdata()
+    return np.all(d1 == d2)
+
+
+def compare_surface_files(fn1, fn2):
+    img1 = nib.load(fn1)
+    img2 = nib.load(fn2)
+    da1, da2 = img1.darrays, img2.darrays
+    if len(da1) != len(da2):
+        return False
+    for i, (a1, a2) in enumerate(zip(da1, da2)):
+        d1, d2 = a1.data, a2.data
+        if d1.shape != d2.shape:
+            return False
+        if not np.all(d1 == d2):
+            return False
+    return True
+
+
+def compare_npy_files(fn1, fn2):
+    d1 = np.load(fn1, mmap_mode="r")
+    d2 = np.load(fn2, mmap_mode="r")
+    return np.array_equal(d1, d2)
+
+
+def compare_npz_files(fn1, fn2):
+    z1 = np.load(fn1)
+    z2 = np.load(fn2)
+    k1 = sorted(z1.files)
+    k2 = sorted(z2.files)
+    if k1 != k2:
+        return False
+    for key in k1:
+        if not np.array_equal(z1[key], z2[key]):
+            return False
+    return True
+
+
+def compare_text_files(fn1, fn2):
+    with open(fn1, "r", encoding="utf-8") as f:
+        d1 = f.read()
+    with open(fn2, "r", encoding="utf-8") as f:
+        d2 = f.read()
+    return d1 == d2
+
+
+def compare_files(fn1, fn2):
+    t1 = determine_file_type(fn1)
+    t2 = determine_file_type(fn2)
+
+    if t1 is None or t2 is None:
+        print("Unsupported file type.")
+        return 1
+    if t1 != t2:
+        print(f"File types differ: {fn1} is '{t1}', {fn2} is '{t2}'.")
+        return 1
+
+    if t1 in {"mgz", "nii.gz"}:
+        is_identical = compare_volume_files(fn1, fn2)
+    elif t1 == "gii":
+        is_identical = compare_surface_files(fn1, fn2)
+    elif t1 == "npy":
+        is_identical = compare_npy_files(fn1, fn2)
+    elif t1 == "npz":
+        is_identical = compare_npz_files(fn1, fn2)
+    elif t1 == "text":
+        is_identical = compare_text_files(fn1, fn2)
+
+    print_result(is_identical, fn1, fn2)
+
+    return 0 if is_identical else 1
+
+
+def collect_files(directory):
+    files = {}
+    for root, _, filenames in os.walk(directory):
+        for filename in filenames:
+            full_path = os.path.join(root, filename)
+            rel_path = os.path.relpath(full_path, directory)
+            files[rel_path] = full_path
+    return files
+
+
+def compare_directories(dir1, dir2):
+    files1 = collect_files(dir1)
+    files2 = collect_files(dir2)
+
+    rel1 = set(files1)
+    rel2 = set(files2)
+    common = sorted(rel1 & rel2)
+    only1 = sorted(rel1 - rel2)
+    only2 = sorted(rel2 - rel1)
+
+    status = 0
+
+    for rel_path in only1:
+        print(f"Only in {dir1}: {rel_path}")
+        status = 1
+    for rel_path in only2:
+        print(f"Only in {dir2}: {rel_path}")
+        status = 1
+
+    for rel_path in common:
+        fn1 = files1[rel_path]
+        fn2 = files2[rel_path]
+        result = compare_files(fn1, fn2)
+        if result != 0:
+            status = 1
+
+    return status
+
+
+if __name__ == "__main__":
+    if len(sys.argv) != 3:
+        print("Usage: nbdiff <path1> <path2>")
+        sys.exit(1)
+
+    fn1, fn2 = sys.argv[1:]
+
+    if os.path.isfile(fn1) and os.path.isfile(fn2):
+        sys.exit(compare_files(fn1, fn2))
+    if os.path.isdir(fn1) and os.path.isdir(fn2):
+        sys.exit(compare_directories(fn1, fn2))
+
+    print("Both inputs must be files or both must be directories.")
+    sys.exit(1)

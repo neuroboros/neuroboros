@@ -1,0 +1,43 @@
+#!/usr/bin/env python
+
+import os
+import sys
+from glob import glob
+import numpy as np
+import nibabel as nib
+
+
+def display_file(fn):
+    if fn.endswith('.npy'):
+        res = np.load(fn, 'r')
+        print(fn, res.shape, res.dtype)
+    elif fn.endswith('.npz'):
+        npz = np.load(fn)
+        for key in npz:
+            res = npz[key]
+            print(fn, key, res.shape, res.dtype)
+    elif any([fn.endswith(_) for _ in ['.nii.gz', '.nii', '.mgz']]):
+        img = nib.load(fn)
+        data = img.get_fdata()
+        u = np.unique(data)
+        if len(u) > 10:
+            v = np.percentile(data, np.linspace(0, 100, 11))
+        else:
+            v = u
+        print(fn, data.shape, data.dtype, len(u), v)
+
+
+def nbls():
+    args = sys.argv[1:]
+    for arg in args:
+        if (arg.endswith('.npy') or arg.endswith('.npz') or any([arg.endswith(_) for _ in ['.nii.gz', '.nii', '.mgz']])) and os.path.isfile(arg):
+            display_file(arg)
+        elif os.path.isdir(arg):
+            fns = sorted(glob(os.path.join(arg, '*.npy'))) + sorted(glob(os.path.join(arg, '*.npz'))) + sorted(glob(os.path.join(arg, '*.nii.gz'))) + sorted(glob(os.path.join(arg, '*.nii'))) + sorted(glob(os.path.join(arg, '*.mgz')))
+            for fn in fns:
+                display_file(fn)
+
+
+if __name__ == '__main__':
+    np.set_printoptions(precision=4, suppress=True)
+    nbls()
