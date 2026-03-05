@@ -21,10 +21,11 @@ def display_file(fn):
         data = img.get_fdata()
         u = np.unique(data)
         if len(u) > 10:
-            v = np.percentile(data, np.linspace(0, 100, 11))
+            v = np.percentile(data, np.linspace(0, 100, 6))
         else:
             v = u
-        print(fn, data.shape, data.dtype, len(u), v)
+        zooms = img.header.get_zooms()
+        print(data.shape, zooms, data.dtype, fn, len(u), v)
 
 
 def nbls():
