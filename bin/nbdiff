@@ -116,13 +116,21 @@ def compare_text_files(fn1, fn2):
     return d1 == d2
 
 
+def compare_binary_files(fn1, fn2):
+    with open(fn1, "rb") as f:
+        d1 = f.read()
+    with open(fn2, "rb") as f:
+        d2 = f.read()
+    return d1 == d2
+
+
 def compare_files(fn1, fn2):
     t1 = determine_file_type(fn1)
     t2 = determine_file_type(fn2)
 
-    if t1 is None or t2 is None:
-        print("Unsupported file type.")
-        return 1
+    # if t1 is None or t2 is None:
+    #     print("Unsupported file type.")
+    #     return 1
     if t1 != t2:
         print(f"File types differ: {fn1} is '{t1}', {fn2} is '{t2}'.")
         return 1
@@ -137,6 +145,8 @@ def compare_files(fn1, fn2):
         is_identical = compare_npz_files(fn1, fn2)
     elif t1 == "text":
         is_identical = compare_text_files(fn1, fn2)
+    else:
+        is_identical = compare_binary_files(fn1, fn2)
 
     print_result(is_identical, fn1, fn2)
 
