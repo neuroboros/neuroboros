@@ -612,7 +612,7 @@ class Dalmatians(Dataset):
 class SpaceTop(Dataset):
     def __init__(
         self,
-        space=["onavg-ico32", "mni-4mm"],
+        space=["onavg-ico32", "mni-2mm"],
         resample=["1step_pial_overlap", "1step_linear_overlap"],
         prep="default",
         fp_version="23.2.0",
@@ -652,6 +652,29 @@ class SpaceTop(Dataset):
         #     basename = basename + f"_run-{run:d}{suffix}"
         return basename
 
+    def slicer(self, dm, task, run):
+        if task != "alignvideo":
+            return dm
+        boundaries = {
+            1: [[17, 130], [207, 638], [714, 847], [923, 1007]],
+            2: [[17, 354], [431, 555], [632, 1162], [1238, 1304]],
+            3: [[17, 248], [325, 453], [530, 575], [652, 949]],
+            4: [[17, 326], [403, 1140]],
+            5: [[17, 75], [152, 307], [384, 626], [702, 769]],
+            6: [[17, 276], [352, 805], [881, 1324], [1401, 1787]],
+            7: [[17, 270], [346, 736], [813, 871], [948, 1085]],
+            8: [[17, 120], [196, 300], [377, 695], [771, 843]],
+            9: [[17, 476], [553, 599], [675, 741], [817, 1086]],
+            10: [[17, 339], [415, 604], [680, 1108], [1184, 1261]],
+            11: [[17, 247], [324, 487], [563, 991]],
+            12: [[17, 127], [204, 594], [670, 794], [871, 1192]],
+            13: [[17, 101], [178, 340], [417, 719], [795, 854]],
+        }[run]
+        new_dm = []
+        for start, end in boundaries:
+            new_dm.append(dm[start:end])
+        new_dm = np.concatenate(new_dm, axis=0)
+        return new_dm
 
 class CamCAN(Dataset):
     def __init__(
