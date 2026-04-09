@@ -20,7 +20,7 @@ from glob import glob
 import numpy as np
 from scipy.stats import zscore
 
-from ..io import DatasetManager, return_aseg_labels
+from ..io import DatasetManager
 from ..spaces import get_mask
 
 SURFACE_SPACES = ["fsavg-ico32", "onavg-ico32", "onavg-ico48", "onavg-ico64"]
