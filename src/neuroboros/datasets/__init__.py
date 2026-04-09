@@ -22,7 +22,7 @@ from scipy.stats import zscore
 
 from ..io import DatasetManager
 from ..spaces import get_mask
-
+from ..searchlights import return_aseg_labels
 SURFACE_SPACES = ["fsavg-ico32", "onavg-ico32", "onavg-ico48", "onavg-ico64"]
 SURFACE_RESAMPLES = [
     "1step_pial_overlap",
