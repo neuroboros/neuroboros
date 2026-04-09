@@ -1,6 +1,7 @@
 import os
 
 import numpy as np
+import pandas as pd
 
 from .io import core_dataset
 from .spaces import get_mask
@@ -193,4 +194,83 @@ def get_searchlights(
 
     if return_dists:
         return sls, dists
+    return sls
+
+# ==functions for subcortical rois==
+HERE = os.path.dirname(os.path.abspath(__file__))
+
+TianLUT = pd.read_csv(os.path.join(HERE, "support_files", "atlas-TianS1S2S3S4_combined_keylabel.tsv"), sep="\t")
+
+def return_Tian_labels(atlas_name):
+    if '_' in atlas_name:
+        atlas_name = atlas_name.split('_')[0]
+    labels = np.unique(TianLUT[f'{atlas_name}_label'])
+    return list(labels)
+
+def return_aseg_labels(atlas_name='aseg'):
+    labels = ['l-accumbens', 'l-amygdala', 'l-caudate','l-hippocampus','l-pallidum','l-putamen','l-thalamus','l-ventral-diencephalon',
+                    'r-accumbens', 'r-amygdala', 'r-caudate','r-hippocampus','r-pallidum','r-putamen','r-thalamus','r-ventral-diencephalon']
+    if atlas_name.endswith('subj'):
+        labels = [f'{label}_subj' for label in labels]
+    return labels
+
+def convert_dataarray_to_dictionary_byroi(data, atlas_name):
+    '''
+    data: Input is nTimepoints x nVoxels
+    TianLUT: table specifying the keys for each ROI
+
+    Returns:
+    d: the dictionary containing data for each ROI
+    labels: the labels based on the atlas given use this to check it matches with the ROIS you have
+
+    '''
+    d = {}
+    labels = return_Tian_labels(atlas_name)
+    for label in labels:
+        idx = TianLUT[f'{atlas_name}_label'] == label
+        d[label] = data[:,idx]
+    return d,labels
+
+def get_rois_and_space(atlas,surface_space,volume_space):
+    if atlas.startswith('onavg') or atlas == 'lr':
+        seedrois = ['l','r']
+        space = surface_space
+    elif atlas.startswith('Tian'):
+        if 'wholebrain' in atlas:
+            seedrois = ['Tian_Subcortex']
+        else:
+            seedrois = return_Tian_labels(atlas)
+        space = volume_space
+    elif atlas.startswith('aseg'):
+        seedrois = return_aseg_labels(atlas)
+        space = volume_space
+    return seedrois,space
+
+def get_Tian_sls(atlas_name):
+    if '_' in atlas_name:
+        atlas_name = atlas_name.split('_')[0]
+    labels = return_Tian_labels(atlas_name)
+    sls = []
+    for label in labels:
+        idx = np.where(TianLUT[f'{atlas_name}_label'] == label)[0]
+        sls.append(idx)
+    return sls
+
+def get_aseg_sls():
+    '''
+    Make a list of indices for the ROI identity of each voxel in the atlas.
+    Make sure your subcortical_rois is loaded with the same function return_{atlas}_labels otherwise it might be wrong!
+    '''
+    subcortical_atlas = 'aseg'
+    subcortical_rois = return_aseg_labels()
+    subcortical_voxelcount = pd.read_csv(os.path.join(HERE, "support_files", f'atlas-{subcortical_atlas}_VoxelCount.txt'),sep='\t')
+
+    sls = []
+    offset = 0
+    for roi in subcortical_rois:
+        nvox = np.array(subcortical_voxelcount.VoxelCount[subcortical_voxelcount.Label==roi])[0]
+        sls.append(np.arange(offset,offset+nvox))
+        offset += nvox
+    # print('Please check this is the order of your ROIs \n')
+    # print(subcortical_rois)
     return sls
