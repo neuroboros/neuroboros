@@ -262,7 +262,13 @@ class Dataset:
         if fp_version is None:
             fp_version = self.fp_version
         suffix = "design.json"
-        if self.renaming is None:
+        if self.rename_func is not None:
+            fn = [
+                fp_version,
+                "design",
+                self.rename_func(sid, task, run, "_" + suffix),
+            ]
+        elif self.renaming is None:
             fn = [
                 fp_version,
                 "design",
@@ -1456,9 +1462,9 @@ datasets = {
 }
 
 
-def get_dataset(name):
+def get_dataset(name, **kwargs):
     if name not in datasets:
         raise ValueError(
             f"Dataset {name} not recognized. Valid datasets are: {datasets.keys()}"
         )
-    return datasets[name]()
+    return datasets[name](**kwargs)

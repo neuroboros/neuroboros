@@ -1,0 +1,96 @@
+#!/usr/bin/env python
+
+"""
+Convert FreeSurfer surfaces to obj files
+"""
+
+import os
+import numpy as np
+import sys
+import argparse
+import nibabel as nib
+import trimesh
+
+
+def parse_arguments():
+    """Parse command-line arguments."""
+    parser = argparse.ArgumentParser(
+        description="Convert FreeSurfer surfaces to obj files",
+        epilog="Example: fs2obj /path/to/freesurfer /path/to/output"
+    )
+
+    parser.add_argument(
+        "fs_dir",
+        help="Directory containing FreeSurfer surface files (often named 'surf')"
+    )
+
+    parser.add_argument(
+        "out_dir",
+        help="Directory to save the converted obj files"
+    )
+
+    parser.add_argument(
+        "--surf-type",
+        default="pial",
+        help="Type of surface to convert (e.g., 'white', 'pial', 'inflated'). Default: %(default)s"
+    )
+
+    parser.add_argument(
+        "--sid",
+        default=None,
+        help="Subject ID to use in the output file names. Default: infer from fs_dir"
+    )
+
+    parser.add_argument(
+        "--no-center",
+        action="store_true",
+        help="Do not center the coordinates based on range. By default, the coordinates are centered around the origin by subtracting the mean of the min and max coordinates. This option disables that behavior."
+    )
+
+    parser.add_argument(
+        "--overwrite",
+        action="store_true",
+        help="Overwrite existing obj files. By default, existing files will not be overwritten."
+    )
+
+    return parser.parse_args()
+
+
+def fs2obj(fs_dir, out_fn, surf_type="pial", center=True):
+    """Convert FreeSurfer surfaces to obj files."""
+    surfs = []
+    for lr in "lr":
+        surf_path = os.path.join(fs_dir, f"{lr}h.{surf_type}")
+        if not os.path.isfile(surf_path):
+            print(f"File not found: {surf_path}")
+            exit(1)
+        surf = nib.freesurfer.read_geometry(surf_path)
+        surfs.append(surf)
+    coords = np.concatenate([surf[0] for surf in surfs])
+    if center:
+        coords -= (coords.max(axis=0) + coords.min(axis=0)) / 2
+    faces = np.concatenate([surfs[0][1], surfs[1][1] + len(surfs[0][0])])
+    mesh = trimesh.Trimesh(vertices=coords, faces=faces)
+    mesh.export(out_fn)
+
+
+def main():
+    args = parse_arguments()
+
+    if not os.path.exists(args.out_dir):
+        os.makedirs(args.out_dir)
+
+    while args.fs_dir.endswith("/"):
+        args.fs_dir = args.fs_dir[:-1]
+    sid = args.sid if args.sid is not None else os.path.basename(os.path.dirname(args.fs_dir))
+    obj_fn = os.path.join(args.out_dir, f"{sid}_{args.surf_type}.obj")
+    if os.path.exists(obj_fn) and not args.overwrite:
+        print(f"File already exists: {obj_fn}. Use --overwrite to overwrite it.")
+        sys.exit(1)
+
+    fs2obj(args.fs_dir, obj_fn, surf_type=args.surf_type, center=not args.no_center)
+    print(f"Converted {args.fs_dir} to {obj_fn}")
+
+
+if __name__ == "__main__":
+    main()

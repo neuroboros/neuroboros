@@ -6,6 +6,7 @@ from scipy.spatial import cKDTree
 
 from .areal import areal
 from .barycentric import barycentric, barycentric_vectors, barycentric_weights
+from .faces import convex_hull_faces, orient_faces, optimize_faces, optimize_faces_workflow
 from .nnfr import nnfr
 from .properties import (
     compute_face_areas,

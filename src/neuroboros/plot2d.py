@@ -171,6 +171,7 @@ def prepare_data(
         if alpha is not None:
             alpha = np.clip(alpha, 0.0, 1.0)
             alpha = unmask_and_upsample(alpha, space, mask, nn=nn)[:, np.newaxis]
+            alpha[nan_mask] = 0.0
             values[:, :3] = values[:, :3] * alpha + np.array(medial_wall_color[:3]) * (
                 1.0 - alpha
             )
