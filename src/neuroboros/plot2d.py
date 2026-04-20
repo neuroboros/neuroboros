@@ -292,8 +292,9 @@ class Image:
         )
         return self
 
-    def colorbar(self, scale=None, **kwargs):
+    def colorbar(self, scale=None, labelsize=None, **kwargs):
         scale = scale if scale is not None else self.scale
+        labelsize = labelsize if labelsize is not None else 12
         if scale is None:
             raise ValueError("No scale provided for plotting colorbar.")
 
@@ -307,12 +308,15 @@ class Image:
             pix_size = (1728, 190)
             fig, ax = plt.subplots(1, 1, figsize=[_ / dpi for _ in pix_size], dpi=dpi)
             top, bottom = 0.99, 0.7
-        plt.colorbar(
+        cbar = plt.colorbar(
             scale, shrink=1, aspect=1, cax=ax, orientation="horizontal", **kwargs
         )
+        cbar.ax.tick_params(labelsize=labelsize)
         fig.subplots_adjust(left=0.03, right=0.97, top=top, bottom=bottom)
         buffer = io.BytesIO()
-        fig.savefig(buffer, format="png", dpi=dpi, transparent=True)
+        fig.savefig(
+            buffer, format="png", dpi=dpi, transparent=True, bbox_inches="tight"
+        )
         buffer.seek(0)
         cbar = PIL_Image.open(buffer)
         plt.close(fig=fig)
