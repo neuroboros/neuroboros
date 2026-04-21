@@ -36,6 +36,9 @@ VOLUME_RESAMPLES = ["1step_linear_overlap", "1step_fmriprep_overlap"]
 
 
 def guess_surface_volume(space, resample, lr):
+    """
+    Returns a string whether the space/resample pair refers to surface or volume
+    """
     if space in SURFACE_SPACES or resample in SURFACE_RESAMPLES:
         return "surface"
     if space in VOLUME_SPACES or resample in VOLUME_RESAMPLES:
@@ -46,6 +49,19 @@ def guess_surface_volume(space, resample, lr):
 
 
 def default_prep(dm, confounds, cortical_mask, z=True, mask=True, gsr=False):
+    """
+    Default confound handling (nuisance regression) to remove confounds from BOLD data, and (optionally, default) apply medial wall mask and z-score data
+    Parameters
+    ----------
+        dm: preprocessed fMRI BOLD time series
+        confounds: (see "load_confounds") a list including a set of default confounds, table of all confounds and high motion mask time series
+        z: z-score data
+        mask: apply medial wall mask (specified at input 'cortical_mask')
+        gsr: whether or not global signal regression will be applied
+    Returns
+    -------
+        dm: the clean timeseries data with the same size as input data
+    """
     if mask and cortical_mask is not None:
         dm = dm[:, cortical_mask]
     conf = confounds[0]
@@ -61,6 +77,21 @@ def default_prep(dm, confounds, cortical_mask, z=True, mask=True, gsr=False):
 
 
 def scrub_prep(dm, confounds, cortical_mask, z=True, mask=True, gsr=False):
+    """
+    Nuisance regression with scrubbing similar to Power et al. 2012 Neuroimage
+    and (optionally, default) apply medial wall mask and z-score data
+    Parameters
+    ----------
+        dm: preprocessed fMRI BOLD time series
+        confounds: (see "load_confounds") a list including a set of default confounds, table of all confounds and high motion mask time series
+        z: z-score data
+        mask: apply medial wall mask (specified at input 'cortical_mask')
+        gsr: whether or not global signal regression will be applied
+    Returns
+    -------
+        dm: the clean timeseries with high motion frames dropped
+        keep: a binary mask specifying the location of the dropped frames
+    """
     if mask and cortical_mask is not None:
         dm = dm[:, cortical_mask]
     conf, _, keep = confounds
@@ -77,6 +108,9 @@ def scrub_prep(dm, confounds, cortical_mask, z=True, mask=True, gsr=False):
 
 
 def get_prep(name, **kwargs):
+    """
+    Get confound handling method
+    """
     if name.endswith("-gsr"):
         gsr = True
         name = name[:-4]
@@ -95,6 +129,27 @@ def get_prep(name, **kwargs):
 
 
 class Dataset:
+    """
+    Unified interface for loading, confound handling, and accessing Neuroboros datasets.
+    Assumes a file structure similar to this and
+    the files named with subject id, task and runs (N.B. sometimes renamed in a way that does not match the original file output name in fmriprep)
+    ├── 23.2.0
+    │   ├── confounds
+    │   ├── resampled
+    │   │   ├── onavg-ico32
+    │   │   └── onavg-ico64
+    │   └── xforms
+    │       ├── onavg-ico32
+    │       └── onavg-ico64
+
+    This class handles:
+    - dataset download (if available)
+    - loading preprocessed fMRI data resampled to a surface/volume space
+    - loading confounds
+    - confound handling
+    - loading contrasts, and anatomy (if available)
+    """
+
     def __init__(
         self,
         name,
@@ -110,6 +165,36 @@ class Dataset:
         prep="default",
         fp_version="20.2.7",
     ):
+        """
+        Initialize a Dataset object.
+
+        Parameters
+        ----------
+        name : str
+            Dataset name.
+        dl_source : str or None
+            Data source identifier used by DatasetManager.
+        root_dir : str
+            Root directory for dataset storage.
+        space : str or list[str]
+            Surface or volume space(s) to use.
+        resample : str or list[str]
+            Resampling method(s).
+        mask : ndarray or None, optional
+            Default mask applied during preprocessing.
+        surface_space : str, optional
+            Default surface space.
+        surface_resample : str, optional
+            Default surface resampling method.
+        volume_space : str, optional
+            Default volume space.
+        volume_resample : str, optional
+            Default volume resampling method.
+        prep : str or callable
+            Default nuisance regression pipeline.
+        fp_version : str
+            fmriprep version.
+        """
         self.name = name
 
         self.dl_source = dl_source
@@ -121,19 +206,6 @@ class Dataset:
 
         if not hasattr(self, "rename_func"):
             self.rename_func = None
-
-        # if self.dl_source is None:
-        #     if self.root_dir is not None:
-        #         self.dl_dset = LocalDataset(self.name, self.root_dir)
-        #     else:
-        #         try:
-        #             self.dl_dset = LocalDataset(self.name, self.root_dir)
-        #         except AssertionError as e:
-        #             raise RuntimeError(
-        #                 "Dataset not found locally and `dl_source` not " "specified."
-        #             ) from e
-        # else:
-        #     self.dl_dset = DefaultDataset(self.name, self.dl_source, self.root_dir)
 
         self.mask = mask
         self.fp_version = fp_version
@@ -178,6 +250,17 @@ class Dataset:
                 self.subject_sets[task] = f.read().splitlines()
 
     def load_data(self, sid, task, run, lr, space, resample, fp_version=None):
+        """
+        Load preprocessed fMRI time series data for a subject, task, and run without additional confound handling.
+        If multiple runs are provided, data are concatenated along the time axis.
+        Parameters
+        ----------
+        sid : subject identifier
+        task :
+        Returns
+        -------
+        dm : ndarray, fMRI time series
+        """
         if lr == "lr":
             dm = np.concatenate(
                 [
@@ -226,6 +309,12 @@ class Dataset:
         return dm
 
     def load_confounds(self, sid, task, run, fp_version=None):
+        """
+        Load confound data to a list from three files
+        Returns
+        -------
+        confounds: a list including a set of default confounds, table of all confounds and high motion mask time series
+        """
         if fp_version is None:
             fp_version = self.fp_version
         suffix_li = [
@@ -259,6 +348,9 @@ class Dataset:
         return output
 
     def load_design(self, sid, task, run, fp_version=None):
+        """
+        load design matrix (if available)
+        """
         if fp_version is None:
             fp_version = self.fp_version
         suffix = "design.json"
@@ -297,6 +389,9 @@ class Dataset:
         force_volume=False,
         fp_version=None,
     ):
+        """
+        load contrast map (if available)
+        """
         if force_volume:
             space_kind = "volume"
         else:
@@ -344,6 +439,15 @@ class Dataset:
         prep_kwargs=None,
         slicer=None,
     ):
+        """
+        This function does a few online preparation for the fMRI time series data to be used as final inputs to analyses:
+        1. Apply medial wall mask ("mask")
+        2. Confound handling and z-scoring within each run("prep")
+        3. Remove certain time segments (e.g. overlapping segments in movies)("slicer")
+        Returns
+        -------
+        dm: cleaned fMRI time series ready to be used for analyses
+        """
         if isinstance(run, (tuple, list)):
             ret = [
                 self.get_data(
