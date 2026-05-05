@@ -83,6 +83,7 @@ class DatasetManager:
             local_fn = fns[0]
 
         if not os.path.exists(local_fn):
+            print(f"File {local_fn} not found locally, attempting to download...")
             self.download(fn, local_fn, on_missing=on_missing)
         if not os.path.exists(local_fn):
             return None
