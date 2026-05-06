@@ -262,13 +262,7 @@ class Dataset:
         if fp_version is None:
             fp_version = self.fp_version
         suffix = "design.json"
-        if self.rename_func is not None:
-            fn = [
-                fp_version,
-                "design",
-                self.rename_func(sid, task, run, "_" + suffix),
-            ]
-        elif self.renaming is None:
+        if self.renaming is None:
             fn = [
                 fp_version,
                 "design",
@@ -452,6 +446,31 @@ class Dataset:
             fp_version=fp_version,
         )
 
+class Bellaria(Dataset):
+    def __init__(
+        self,
+        space=["onavg-ico32", "mni-4mm"],
+        resample=["1step_pial_overlap", "1step_linear_overlap"],
+        prep="default",
+        fp_version="20.2.7",
+        name="bellaria",
+        root_dir="/dartfs/rc/lab/H/HaxbyLab/yuqi/Bellaria/data/nb-data/bellaria/",
+        dl_source=None,
+    ):
+        super().__init__(
+            name,
+            dl_source=dl_source,
+            root_dir=root_dir,
+            space=space,
+            resample=resample,
+            prep=prep,
+            fp_version=fp_version,
+        )
+        self.subjects = ["100"]
+        self.tasks = ["rs1", "rsmirror", "selfknown", "landscapeunknown"]
+    def rename_func(self, sid, task, run, suffix=".npy"):
+        basename = f"sub-{sid}_task-{task}{suffix}"
+        return basename
 
 class Bologna(Dataset):
     def __init__(
@@ -618,7 +637,7 @@ class Dalmatians(Dataset):
 class SpaceTop(Dataset):
     def __init__(
         self,
-        space=["onavg-ico32", "mni-2mm"],
+        space=["onavg-ico32", "mni-4mm"],
         resample=["1step_pial_overlap", "1step_linear_overlap"],
         prep="default",
         fp_version="23.2.0",
@@ -658,29 +677,6 @@ class SpaceTop(Dataset):
         #     basename = basename + f"_run-{run:d}{suffix}"
         return basename
 
-    def slicer(self, dm, task, run):
-        if task != "alignvideo":
-            return dm
-        boundaries = {
-            1: [[17, 130], [207, 638], [714, 847], [923, 1007]],
-            2: [[17, 354], [431, 555], [632, 1162], [1238, 1304]],
-            3: [[17, 248], [325, 453], [530, 575], [652, 949]],
-            4: [[17, 326], [403, 1140]],
-            5: [[17, 75], [152, 307], [384, 626], [702, 769]],
-            6: [[17, 276], [352, 805], [881, 1324], [1401, 1787]],
-            7: [[17, 270], [346, 736], [813, 871], [948, 1085]],
-            8: [[17, 120], [196, 300], [377, 695], [771, 843]],
-            9: [[17, 476], [553, 599], [675, 741], [817, 1086]],
-            10: [[17, 339], [415, 604], [680, 1108], [1184, 1261]],
-            11: [[17, 247], [324, 487], [563, 991]],
-            12: [[17, 127], [204, 594], [670, 794], [871, 1192]],
-            13: [[17, 101], [178, 340], [417, 719], [795, 854]],
-        }[run]
-        new_dm = []
-        for start, end in boundaries:
-            new_dm.append(dm[start:end])
-        new_dm = np.concatenate(new_dm, axis=0)
-        return new_dm
 
 class CamCAN(Dataset):
     def __init__(
@@ -1079,6 +1075,52 @@ class MonkeyKingdomEng(Dataset):
             data = data[40:940]
         return data
 
+class MonkeyAction(Dataset):
+    def __init__(
+        self,
+        space=["onavg-ico32"],
+        resample=["1step_pial_overlap"],
+        prep="default",
+        fp_version="24.1.0",
+        name="monkey-action",
+        root_dir="/dartfs/rc/lab/H/HaxbyLab/monkey_kingdom/MonkeyActions/data/monkey-action",
+        dl_source=None,
+    ):
+        super().__init__(
+            name,
+            dl_source=dl_source,
+            root_dir=root_dir,
+            space=space,
+            resample=resample,
+            prep=prep,
+            fp_version=fp_version,
+        )
+        self.tasks = ["actions"]
+        self.subjects = [
+            'sid001784',
+            'sid001826',
+            'sid002317',
+            'sid002742',
+            'sid002843',
+            'sid002951',
+            'sid002972',
+            'sid003017',
+            'sid003146',
+            'sid003163',
+            'sid003191',
+            'sid003195',
+            'sid003210',
+            'sid003227',
+            'sid003250',
+            'sid003256',
+            'sid003258',
+            'sid003268',
+            'sid003274',
+        ]
+    def rename_func(self, sid, task, run, suffix=".npy"):
+        basename = f"sub-{sid}_ses-actions_task-{task}_run-{run:02d}{suffix}"
+        return basename
+        
 class Life(Dataset):
     """The Life dataset.
 
@@ -1459,12 +1501,14 @@ datasets = {
     "ibc": IBC,
     "goodbadugly": GoodBadUgly,
     "hca": HCA,
+    "bellaria": Bellaria,
+    "monkey-action": MonkeyAction,
 }
 
 
-def get_dataset(name, **kwargs):
+def get_dataset(name):
     if name not in datasets:
         raise ValueError(
             f"Dataset {name} not recognized. Valid datasets are: {datasets.keys()}"
         )
-    return datasets[name](**kwargs)
+    return datasets[name]()
