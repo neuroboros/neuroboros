@@ -449,8 +449,23 @@ def get_mapping(
             f"{group}_{avg_type}",
             f"{resample}.npz",
         )
-        mat1 = core_dataset.get(fn1, on_missing="ignore")
-        mat2 = core_dataset.get(fn2, on_missing="ignore")
+        local_fn1 = os.path.join(core_dataset.root, fn1)
+        local_fn2 = os.path.join(core_dataset.root, fn2)
+        mat1 = mat2 = None
+        if os.path.exists(local_fn1):
+            mat1 = core_dataset.get(fn1)
+        elif os.path.exists(local_fn2):
+            mat2 = core_dataset.get(fn2)
+        else:
+            try:
+                mat1 = core_dataset.get(fn1, on_missing="ignore")
+            except Exception:
+                pass
+            if mat1 is None:
+                try:
+                    mat2 = core_dataset.get(fn2, on_missing="ignore")
+                except Exception:
+                    pass
         assert mat1 is not None or mat2 is not None, f"Neither {fn1} nor {fn2} exists."
         mat = mat1 if mat1 is not None else mat2.T
 
