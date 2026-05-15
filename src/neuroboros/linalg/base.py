@@ -1,24 +1,9 @@
-"""
-===================================================
-Linear algebra utilities (:mod:`neuroboros.linalg`)
-===================================================
-
-.. currentmodule:: neuroboros.linalg
-
-.. autosummary::
-    :toctree:
-
-    safe_svd - Singular value decomposition without occasional LinAlgError crashes.
-    safe_polar - Polar decomposition without occasional LinAlgError crashes.
-    gram_pca - Principal component analysis based on the Gram matrix.
-
-"""
 import numpy as np
 from joblib import Parallel, cpu_count, delayed
-from scipy.linalg import LinAlgError, eigh, polar, svd
+from scipy.linalg import LinAlgError, polar, svd
 from scipy.stats import zscore
 
-from .ensemble import kfold_bagging
+from ..ensemble import kfold_bagging
 
 
 def safe_svd(X, remove_mean=True):
@@ -104,32 +89,6 @@ def safe_polar(a, side="left"):
             # a = pu
             p = (w * s).dot(w.T.conj())
     return u, p
-
-
-def gram_pca(gram, tol=1e-7):
-    """
-    Principal component analysis (PCA) based on the Gram matrix.
-
-    Parameters
-    ----------
-    gram : ndarray of shape (N, N)
-        The Gram matrix to be decomposed in NumPy array format.
-    tol : float, default=1e-7
-        Tolerance for the eigenvalues to be considered positive.
-
-    Returns
-    -------
-    PCs : ndarray of shape (N, N - 1)
-        The principal components (PCs) derived from the Gram matrix.
-    """
-
-    w, v = eigh(gram, lower=False)
-    assert np.all(w > -tol)
-    w[w < 0] = 0
-    U = v[:, ::-1][:, :-1]
-    s = np.sqrt(w[::-1][:-1])
-    PCs = U * s[np.newaxis]
-    return PCs
 
 
 def _ensemble_lstsq_chunk(X, Y, indices_li):
