@@ -48,6 +48,24 @@ def safe_svd(X, remove_mean=True):
     return U, s, Vt
 
 
+def svd_pca(X):
+    """
+    Principal component analysis (PCA) based on SVD.
+
+    Parameters
+    ----------
+    X : ndarray of shape (N, M)
+        Input matrix. Column means are always removed before computing PCA.
+
+    Returns
+    -------
+    PCs : ndarray of shape (N, K)
+        The principal components, where ``K = min(N, M)``.
+    """
+    U, s, _ = safe_svd(X, remove_mean=True)
+    return U * s[np.newaxis]
+
+
 def safe_polar(a, side="left"):
     """
     Polar decomposition without occasional LinAlgError crashes.
