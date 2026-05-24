@@ -1,0 +1,216 @@
+import numpy as np
+import pytest
+from sklearn.linear_model import Ridge as SklearnRidge
+
+from neuroboros.linalg.ridge import ridge, ridge_grid
+
+
+class TestRidge:
+    def test_yhat_shape(self):
+        rng = np.random.default_rng(0)
+        X_train = rng.standard_normal((50, 20))
+        X_test = rng.standard_normal((10, 20))
+        y_train = rng.standard_normal((50,))
+        yhat = ridge(X_train, y_train, alpha=1.0, X_test=X_test)
+        assert yhat.shape == (10,)
+
+    def test_beta_shape_with_intercept(self):
+        rng = np.random.default_rng(0)
+        X_train = rng.standard_normal((50, 20))
+        y_train = rng.standard_normal((50,))
+        beta = ridge(X_train, y_train, alpha=1.0)
+        assert beta.shape == (21,)
+
+    def test_beta_shape_no_intercept(self):
+        rng = np.random.default_rng(0)
+        X_train = rng.standard_normal((50, 20))
+        y_train = rng.standard_normal((50,))
+        beta = ridge(X_train, y_train, alpha=1.0, fit_intercept=False)
+        assert beta.shape == (20,)
+
+    def test_matches_sklearn(self):
+        rng = np.random.default_rng(0)
+        X_train = rng.standard_normal((50, 20))
+        X_test = rng.standard_normal((10, 20))
+        y_train = rng.standard_normal((50,))
+        alpha = 1.0
+        yhat = ridge(X_train, y_train, alpha, X_test=X_test)
+        clf = SklearnRidge(alpha=alpha, fit_intercept=True, solver="svd")
+        clf.fit(X_train, y_train)
+        np.testing.assert_allclose(yhat, clf.predict(X_test), atol=1e-10)
+
+    def test_matches_sklearn_no_intercept(self):
+        rng = np.random.default_rng(0)
+        X_train = rng.standard_normal((50, 20))
+        X_test = rng.standard_normal((10, 20))
+        y_train = rng.standard_normal((50,))
+        alpha = 2.5
+        yhat = ridge(X_train, y_train, alpha, X_test=X_test, fit_intercept=False)
+        clf = SklearnRidge(alpha=alpha, fit_intercept=False, solver="svd")
+        clf.fit(X_train, y_train)
+        np.testing.assert_allclose(yhat, clf.predict(X_test), atol=1e-10)
+
+    def test_beta_predicts_consistently(self):
+        rng = np.random.default_rng(0)
+        X_train = rng.standard_normal((50, 20))
+        X_test = rng.standard_normal((10, 20))
+        y_train = rng.standard_normal((50,))
+        alpha = 1.0
+        beta = ridge(X_train, y_train, alpha)
+        yhat = ridge(X_train, y_train, alpha, X_test=X_test)
+        np.testing.assert_allclose(X_test @ beta[:-1] + beta[-1], yhat, atol=1e-10)
+
+    def test_beta_no_intercept_predicts_consistently(self):
+        rng = np.random.default_rng(0)
+        X_train = rng.standard_normal((50, 20))
+        X_test = rng.standard_normal((10, 20))
+        y_train = rng.standard_normal((50,))
+        alpha = 1.0
+        beta = ridge(X_train, y_train, alpha, fit_intercept=False)
+        yhat = ridge(X_train, y_train, alpha, X_test=X_test, fit_intercept=False)
+        np.testing.assert_allclose(X_test @ beta, yhat, atol=1e-10)
+
+    def test_npc_reduces_rank(self):
+        rng = np.random.default_rng(0)
+        X_train = rng.standard_normal((50, 20))
+        X_test = rng.standard_normal((10, 20))
+        y_train = rng.standard_normal((50,))
+        yhat_all = ridge(X_train, y_train, alpha=1.0, X_test=X_test)
+        yhat_npc = ridge(X_train, y_train, alpha=1.0, npc=5, X_test=X_test)
+        assert yhat_npc.shape == (10,)
+        assert not np.allclose(yhat_all, yhat_npc)
+
+    def test_npc_beta_predicts_consistently(self):
+        rng = np.random.default_rng(0)
+        X_train = rng.standard_normal((50, 20))
+        X_test = rng.standard_normal((10, 20))
+        y_train = rng.standard_normal((50,))
+        alpha, npc = 1.0, 8
+        beta = ridge(X_train, y_train, alpha, npc=npc)
+        yhat = ridge(X_train, y_train, alpha, npc=npc, X_test=X_test)
+        np.testing.assert_allclose(X_test @ beta[:-1] + beta[-1], yhat, atol=1e-10)
+
+
+class TestRidgeGrid:
+    def test_yhat_shape(self):
+        rng = np.random.default_rng(0)
+        X_train = rng.standard_normal((50, 20))
+        X_test = rng.standard_normal((10, 20))
+        y_train = rng.standard_normal((50,))
+        yhat = ridge_grid(
+            X_train, y_train, [0.1, 1.0, 10.0], [5, 10, 15], X_test=X_test
+        )
+        assert yhat.shape == (10, 3, 3)
+
+    def test_beta_shape_with_intercept(self):
+        rng = np.random.default_rng(0)
+        X_train = rng.standard_normal((50, 20))
+        y_train = rng.standard_normal((50,))
+        beta = ridge_grid(X_train, y_train, [0.1, 1.0], [5, 10])
+        assert beta.shape == (21, 2, 2)
+
+    def test_beta_shape_no_intercept(self):
+        rng = np.random.default_rng(0)
+        X_train = rng.standard_normal((50, 20))
+        y_train = rng.standard_normal((50,))
+        beta = ridge_grid(X_train, y_train, [0.1, 1.0], [5, 10], fit_intercept=False)
+        assert beta.shape == (20, 2, 2)
+
+    def test_yhat_consistent_with_ridge(self):
+        rng = np.random.default_rng(0)
+        X_train = rng.standard_normal((50, 20))
+        X_test = rng.standard_normal((10, 20))
+        y_train = rng.standard_normal((50,))
+        alphas = [0.1, 1.0, 10.0]
+        npcs = [5, 10, 15]
+        yhat = ridge_grid(X_train, y_train, alphas, npcs, X_test=X_test)
+        for i, alpha in enumerate(alphas):
+            for j, npc in enumerate(npcs):
+                expected = ridge(X_train, y_train, alpha, npc=npc, X_test=X_test)
+                np.testing.assert_allclose(
+                    yhat[:, i, j],
+                    expected,
+                    atol=1e-10,
+                    err_msg=f"alpha={alpha}, npc={npc}",
+                )
+
+    def test_beta_consistent_with_ridge(self):
+        rng = np.random.default_rng(0)
+        X_train = rng.standard_normal((50, 20))
+        y_train = rng.standard_normal((50,))
+        alphas = [0.1, 1.0, 10.0]
+        npcs = [5, 10, 15]
+        beta = ridge_grid(X_train, y_train, alphas, npcs)
+        for i, alpha in enumerate(alphas):
+            for j, npc in enumerate(npcs):
+                expected = ridge(X_train, y_train, alpha, npc=npc)
+                np.testing.assert_allclose(
+                    beta[:, i, j],
+                    expected,
+                    atol=1e-10,
+                    err_msg=f"alpha={alpha}, npc={npc}",
+                )
+
+    def test_beta_predicts_consistently(self):
+        rng = np.random.default_rng(0)
+        X_train = rng.standard_normal((50, 20))
+        X_test = rng.standard_normal((10, 20))
+        y_train = rng.standard_normal((50,))
+        alphas = [0.1, 1.0]
+        npcs = [5, 10]
+        beta = ridge_grid(X_train, y_train, alphas, npcs)
+        yhat = ridge_grid(X_train, y_train, alphas, npcs, X_test=X_test)
+        # beta[:-1]: (n_features, n_alphas, n_npcs), beta[-1]: (n_alphas, n_npcs)
+        predicted = np.tensordot(X_test, beta[:-1], axes=(1, 0)) + beta[-1]
+        np.testing.assert_allclose(predicted, yhat, atol=1e-10)
+
+    def test_beta_no_intercept_predicts_consistently(self):
+        rng = np.random.default_rng(0)
+        X_train = rng.standard_normal((50, 20))
+        X_test = rng.standard_normal((10, 20))
+        y_train = rng.standard_normal((50,))
+        alphas = [0.1, 1.0]
+        npcs = [5, 10]
+        beta = ridge_grid(X_train, y_train, alphas, npcs, fit_intercept=False)
+        yhat = ridge_grid(
+            X_train, y_train, alphas, npcs, X_test=X_test, fit_intercept=False
+        )
+        predicted = np.tensordot(X_test, beta, axes=(1, 0))
+        np.testing.assert_allclose(predicted, yhat, atol=1e-10)
+
+    def test_none_npc_yhat_consistent_with_ridge(self):
+        rng = np.random.default_rng(0)
+        X_train = rng.standard_normal((50, 20))
+        X_test = rng.standard_normal((10, 20))
+        y_train = rng.standard_normal((50,))
+        alphas = [0.1, 1.0]
+        npcs = [5, 10, None]
+        yhat = ridge_grid(X_train, y_train, alphas, npcs, X_test=X_test)
+        assert yhat.shape == (10, 2, 3)
+        for i, alpha in enumerate(alphas):
+            for j, npc in enumerate(npcs):
+                expected = ridge(X_train, y_train, alpha, npc=npc, X_test=X_test)
+                np.testing.assert_allclose(
+                    yhat[:, i, j],
+                    expected,
+                    atol=1e-10,
+                    err_msg=f"alpha={alpha}, npc={npc}",
+                )
+
+    def test_none_npc_beta_consistent_with_ridge(self):
+        rng = np.random.default_rng(0)
+        X_train = rng.standard_normal((50, 20))
+        y_train = rng.standard_normal((50,))
+        alphas = [0.1, 1.0]
+        npcs = [5, 10, None]
+        beta = ridge_grid(X_train, y_train, alphas, npcs)
+        assert beta.shape == (21, 2, 3)
+        for i, alpha in enumerate(alphas):
+            for j, npc in enumerate(npcs):
+                expected = ridge(X_train, y_train, alpha, npc=npc)
+                np.testing.assert_allclose(
+                    beta[:, i, j],
+                    expected,
+                    atol=1e-10,
+                    err_msg=f"alpha={alpha}, npc={npc}",
+                )
