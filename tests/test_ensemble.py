@@ -3,6 +3,7 @@ import pytest
 from joblib import cpu_count
 
 import neuroboros as nb
+from neuroboros.ensemble import kfold_bagging_groups
 
 
 class TestEnsemble:
@@ -18,6 +19,37 @@ class TestEnsemble:
 
         for train_idx, test_idx in indices_li:
             assert np.all(np.intersect1d(train_idx, test_idx) == [])
+
+    def test_kfold_bagging_groups_no_group_overlap(self):
+        rng = np.random.default_rng(42)
+        sizes = rng.choice([1, 2, 3, 4], size=30)
+        groups, idx = [], 0
+        for s in sizes:
+            groups.append(np.arange(idx, idx + s))
+            idx += s
+        n_perms, n_folds = 10, 5
+        splits = kfold_bagging_groups(groups, n_folds=n_folds, n_perms=n_perms, seed=0)
+        assert len(splits) == n_perms * n_folds
+        for train_idx, test_idx in splits:
+            assert len(np.intersect1d(train_idx, test_idx)) == 0
+            for g in groups:
+                in_train = np.isin(g, train_idx).any()
+                in_test = np.isin(g, test_idx).any()
+                assert not (in_train and in_test)
+
+    def test_kfold_bagging_groups_each_sample_tested_n_perms_times(self):
+        rng = np.random.default_rng(42)
+        sizes = rng.choice([1, 2, 3, 4], size=30)
+        groups, idx = [], 0
+        for s in sizes:
+            groups.append(np.arange(idx, idx + s))
+            idx += s
+        n = idx
+        n_perms, n_folds = 10, 5
+        splits = kfold_bagging_groups(groups, n_folds=n_folds, n_perms=n_perms, seed=0)
+        all_test = np.concatenate([test_idx for _, test_idx in splits])
+        counts = np.bincount(all_test, minlength=n)
+        assert np.all(counts >= n_perms)
 
     def test_ensemble_lstsq(self):
         rng = np.random.default_rng(0)
