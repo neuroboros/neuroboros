@@ -3,7 +3,7 @@ import pytest
 from joblib import cpu_count
 
 import neuroboros as nb
-from neuroboros.ensemble import kfold_bagging_groups
+from neuroboros.ensemble import kfold_bagging_groups, permute_groups
 
 
 class TestEnsemble:
@@ -50,6 +50,120 @@ class TestEnsemble:
         all_test = np.concatenate([test_idx for _, test_idx in splits])
         counts = np.bincount(all_test, minlength=n)
         assert np.all(counts >= n_perms)
+
+    def test_permute_groups_shape(self):
+        groups = [np.array([0, 1]), np.array([2, 3]), np.array([4, 5, 6])]
+        perms = permute_groups(groups, n_perms=10, seed=0)
+        assert perms.shape == (10, 7)
+        assert perms.dtype == int
+
+    def test_permute_groups_valid_permutation(self):
+        groups = [np.array([0, 1]), np.array([2, 3]), np.array([4, 5, 6])]
+        perms = permute_groups(groups, n_perms=20, seed=0)
+        for perm in perms:
+            np.testing.assert_array_equal(np.sort(perm), np.arange(7))
+
+    def test_permute_groups_no_cross_group_mixing(self):
+        # perm[g] must always be exactly the members of one original same-size group
+        groups = [np.array([0, 1]), np.array([2, 3]), np.array([4, 5, 6])]
+        size2_members = {0, 1, 2, 3}
+        size3_members = {4, 5, 6}
+        original_size2_groups = [frozenset([0, 1]), frozenset([2, 3])]
+        perms = permute_groups(groups, n_perms=50, seed=0)
+        for perm in perms:
+            for g in groups:
+                pg = set(perm[g])
+                if len(g) == 2:
+                    assert pg in original_size2_groups
+                else:
+                    assert pg == size3_members
+
+    def test_permute_groups_same_group_members_stay_together(self):
+        # members that belong to the same original group must always
+        # appear together in the same group slot after permutation
+        groups = [np.array([0, 1, 2]), np.array([3, 4, 5]), np.array([6, 7])]
+        original_groups = [frozenset(g) for g in groups]
+        perms = permute_groups(groups, n_perms=100, seed=0)
+        for perm in perms:
+            for g in groups:
+                # all members of g map to the same original group
+                assert frozenset(perm[g]) in original_groups
+
+    def test_permute_groups_perm_g_gives_permuted_group(self):
+        # [perm[g] for g in groups] should reconstruct a valid permuted partition
+        groups = [np.array([0, 1]), np.array([2, 3]), np.array([4, 5, 6])]
+        perms = permute_groups(groups, n_perms=20, seed=0)
+        for perm in perms:
+            permuted = [perm[g] for g in groups]
+            # permuted is a valid partition of arange(7)
+            np.testing.assert_array_equal(
+                np.sort(np.concatenate(permuted)), np.arange(7)
+            )
+            # each permuted group has the same size as the original
+            for g, pg in zip(groups, permuted):
+                assert len(pg) == len(g)
+
+    def test_permute_groups_groups_swap(self):
+        # over many permutations, same-size groups should swap
+        groups = [np.array([0, 1]), np.array([2, 3])]
+        perms = permute_groups(groups, n_perms=200, seed=0)
+        swapped = sum(1 for p in perms if set(p[[0, 1]]) == {2, 3})
+        assert 30 < swapped < 170  # roughly 50% swap rate
+
+    def test_permute_groups_members_shuffled_within_group(self):
+        # within-group order should vary across permutations
+        groups = [np.array([0, 1, 2, 3])]
+        perms = permute_groups(groups, n_perms=200, seed=0)
+        unique_orderings = {tuple(p) for p in perms}
+        assert len(unique_orderings) > 1
+        for ordering in unique_orderings:
+            np.testing.assert_array_equal(np.sort(ordering), [0, 1, 2, 3])
+
+    def test_permute_groups_seed_reproducibility(self):
+        groups = [np.array([0, 1]), np.array([2, 3]), np.array([4, 5, 6])]
+        perms1 = permute_groups(groups, n_perms=10, seed=42)
+        perms2 = permute_groups(groups, n_perms=10, seed=42)
+        np.testing.assert_array_equal(perms1, perms2)
+
+    def test_permute_groups_several_singletons(self):
+        # several size-1 groups: no within-group shuffle possible,
+        # but the groups themselves are shuffled across positions
+        groups = [np.array([i]) for i in range(5)]
+        perms = permute_groups(groups, n_perms=200, seed=0)
+        for perm in perms:
+            np.testing.assert_array_equal(np.sort(perm), np.arange(5))
+        # groups should not always stay in the same position
+        unique_perms = {tuple(p) for p in perms}
+        assert len(unique_perms) > 1
+
+    def test_permute_groups_single_group_of_size(self):
+        # only one group of its size: no group swap possible,
+        # only within-group member shuffle
+        groups = [np.array([0, 1, 2])]
+        perms = permute_groups(groups, n_perms=200, seed=0)
+        for perm in perms:
+            # same members, possibly different order
+            np.testing.assert_array_equal(np.sort(perm[[0, 1, 2]]), [0, 1, 2])
+        unique_orderings = {tuple(p) for p in perms}
+        assert len(unique_orderings) > 1
+
+    def test_permute_groups_multiple_groups_same_size(self):
+        # multiple groups of the same size: both group-level swap and
+        # within-group member shuffle occur
+        groups = [np.array([0, 1]), np.array([2, 3]), np.array([4, 5])]
+        original_groups = [frozenset(g) for g in groups]
+        perms = permute_groups(groups, n_perms=200, seed=0)
+        for perm in perms:
+            np.testing.assert_array_equal(np.sort(perm), np.arange(6))
+            # each position receives members of exactly one original group
+            for g in groups:
+                assert frozenset(perm[g]) in original_groups
+        # group positions should vary: group 0's slot gets different members
+        slot0_members = {frozenset(perm[[0, 1]]) for perm in perms}
+        assert len(slot0_members) > 1
+        # within-group order should also vary
+        unique_perms = {tuple(perm) for perm in perms}
+        assert len(unique_perms) > 1
 
     def test_ensemble_lstsq(self):
         rng = np.random.default_rng(0)
