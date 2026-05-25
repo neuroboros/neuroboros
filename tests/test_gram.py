@@ -7,18 +7,31 @@ from neuroboros.linalg.gram import beta2beta, beta2w, gram, gram_pca
 
 
 class TestKram:
-    def test_basic(self):
+    def test_default_returns_triu(self):
         rng = np.random.default_rng(0)
         X = rng.standard_normal((20, 100))
         K = gram(X)
+        assert K.shape == (20 * 21 // 2,)
+
+    def test_full_returns_matrix(self):
+        rng = np.random.default_rng(0)
+        X = rng.standard_normal((20, 100))
+        K = gram(X, full=True)
         assert K.shape == (20, 20)
         X_c = X - X.mean(axis=0, keepdims=True)
         np.testing.assert_allclose(K, X_c @ X_c.T)
 
+    def test_triu_consistent_with_full(self):
+        rng = np.random.default_rng(0)
+        X = rng.standard_normal((20, 100))
+        K_full = gram(X, full=True)
+        K_triu = gram(X)
+        np.testing.assert_allclose(K_triu, K_full[np.triu_indices(20)])
+
     def test_remove_mean_false(self):
         rng = np.random.default_rng(0)
         X = rng.standard_normal((20, 100))
-        K = gram(X, remove_mean=False)
+        K = gram(X, remove_mean=False, full=True)
         np.testing.assert_allclose(K, X @ X.T)
 
     def test_already_centered(self):
@@ -42,8 +55,14 @@ class TestKram:
         X = rng.standard_normal((20, 100))
         K_sum = gram(X, split=4, reduce="sum")
         K_stack = gram(X, split=4, reduce="stack")
-        assert K_stack.shape == (4, 20, 20)
+        assert K_stack.shape == (4, 20 * 21 // 2)
         np.testing.assert_allclose(K_stack.sum(axis=0), K_sum)
+
+    def test_reduce_stack_full(self):
+        rng = np.random.default_rng(0)
+        X = rng.standard_normal((20, 100))
+        K_stack = gram(X, split=4, reduce="stack", full=True)
+        assert K_stack.shape == (4, 20, 20)
 
     def test_reduce_list(self):
         rng = np.random.default_rng(0)
@@ -82,7 +101,8 @@ class TestKramPCA:
         K = gram(X)
         PCs = gram_pca(K)
         # Diagonal of PCs.T @ PCs must match the top-(N-1) eigenvalues of K
-        w = eigh(K, lower=False, eigvals_only=True)[::-1][:-1]
+        K_full = gram(X, full=True)
+        w = eigh(K_full, lower=False, eigvals_only=True)[::-1][:-1]
         np.testing.assert_allclose(np.diag(PCs.T @ PCs), w, atol=1e-10)
 
     def test_consistency_with_svd(self):

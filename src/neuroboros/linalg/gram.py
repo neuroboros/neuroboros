@@ -2,7 +2,16 @@ import numpy as np
 from scipy.linalg import eigh
 
 
-def gram(X, split=None, reduce="sum", remove_mean=True):
+def _n_from_triu(n_triu):
+    """Recover N from the length of an upper-triangle vector (N*(N+1)//2)."""
+    N = int(np.sqrt(n_triu * 2))
+    for candidate in (N, N - 1, N + 1):
+        if candidate * (candidate + 1) // 2 == n_triu:
+            return candidate
+    raise ValueError(f"{n_triu} is not a valid upper-triangle length.")
+
+
+def gram(X, split=None, reduce="sum", remove_mean=True, full=False):
     """
     Compute the Gram matrix (``X @ X.T``).
 
@@ -23,28 +32,47 @@ def gram(X, split=None, reduce="sum", remove_mean=True):
         Ignored when ``split`` is None.
     remove_mean : bool, default=True
         Whether to subtract the column mean before computing the Gram matrix.
+    full : bool, default=False
+        If False (default), return the upper triangle as a 1-D array of
+        length ``N*(N+1)//2``. If True, return the full ``(N, N)`` matrix.
+        Applied to each chunk when ``split`` is given.
 
     Returns
     -------
-    gram : ndarray of shape (N, N) or (n_chunks, N, N), or list of ndarray
-        The Gram matrix, or per-chunk Gram matrices when ``split`` is given
-        and ``reduce`` is not ``'sum'``.
+    K : ndarray of shape (N*(N+1)//2,) or (N, N)
+        The Gram matrix in the requested format. When ``split`` is given and
+        ``reduce`` is not ``'sum'``, returns a stacked array or list of
+        per-chunk results in the same format.
     """
     if remove_mean:
         mean = X.mean(axis=0, keepdims=True)
         if not np.allclose(mean, 0, atol=1e-10):
             X = X - mean
-    if split is None:
-        return X @ X.T
 
-    grams = [chunk @ chunk.T for chunk in np.array_split(X, split, axis=1)]
+    if split is None:
+        K = X @ X.T
+        if full:
+            return K
+        triu_idx = np.triu_indices(X.shape[0])
+        return (K + K.T)[triu_idx] * 0.5
+
+    chunks = list(np.array_split(X, split, axis=1))
+
+    if full:
+        Ks = [c @ c.T for c in chunks]
+    else:
+        triu_idx = np.triu_indices(X.shape[0])
+        Ks = []
+        for c in chunks:
+            K = c @ c.T
+            Ks.append((K + K.T)[triu_idx] * 0.5)
 
     if reduce == "sum":
-        return sum(grams)
+        return sum(Ks)
     elif reduce == "stack":
-        return np.stack(grams)
+        return np.stack(Ks)
     elif reduce == "list":
-        return grams
+        return Ks
     else:
         raise ValueError(f"reduce must be 'sum', 'stack', or 'list', got {reduce!r}")
 
@@ -55,8 +83,10 @@ def gram_pca(gram, tol=1e-7, return_us=False):
 
     Parameters
     ----------
-    gram : ndarray of shape (N, N)
-        The Gram matrix to be decomposed in NumPy array format.
+    gram : ndarray of shape (N, N) or (N*(N+1)//2,)
+        The Gram matrix, either as a full ``(N, N)`` array or as the upper
+        triangle in a 1-D array of length ``N*(N+1)//2`` (as returned by
+        :func:`gram` with ``full=False``).
     tol : float, default=1e-7
         Tolerance for the eigenvalues to be considered positive.
     return_us : bool, default=False
@@ -75,9 +105,15 @@ def gram_pca(gram, tol=1e-7, return_us=False):
         Square roots of eigenvalues in descending order. Only returned when
         ``return_us=True``.
     """
+    if gram.ndim == 1:
+        N = _n_from_triu(len(gram))
+        K = np.zeros((N, N))
+        K[np.triu_indices(N)] = gram
+    else:
+        K = gram
 
-    w, v = eigh(gram, lower=False)
-    assert np.all(w > -tol)
+    w, v = eigh(K, lower=False)
+    assert np.all(w > -tol), f"Gram matrix has eigenvalues below -{tol}."
     w[w < 0] = 0
     U = v[:, ::-1][:, :-1]
     s = np.sqrt(w[::-1][:-1])
