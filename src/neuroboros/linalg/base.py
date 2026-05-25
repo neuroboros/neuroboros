@@ -141,7 +141,7 @@ def _ensemble_lstsq_chunk(X, Y, indices_li):
     return beta, Yhat, R2, r
 
 
-def ensemble_lstsq(X, Y, n_folds=5, n_perms=20, seed=0, n_jobs=1):
+def ensemble_lstsq(X, Y, n_folds=5, n_reps=20, seed=0, n_jobs=1):
     """
     Linear regression with k-fold bagging.
 
@@ -153,8 +153,8 @@ def ensemble_lstsq(X, Y, n_folds=5, n_perms=20, seed=0, n_jobs=1):
         The target matrix.
     n_folds : int, default=5
         Number of folds.
-    n_perms : int, default=20
-        Number of permutations.
+    n_reps : int, default=20
+        Number of repetitions.
     seed : int, default=0
         Random seed for the random number generator.
 
@@ -173,7 +173,7 @@ def ensemble_lstsq(X, Y, n_folds=5, n_perms=20, seed=0, n_jobs=1):
     n_samples, n_features = X.shape
     n_targets = Y.shape[1]
 
-    indices_li = kfold_bagging(n_samples, n_folds=n_folds, n_perms=n_perms, seed=seed)
+    indices_li = kfold_bagging(n_samples, n_folds=n_folds, n_reps=n_reps, seed=seed)
     if n_jobs == 1:
         beta, Yhat, R2, r = _ensemble_lstsq_chunk(X, Y, indices_li)
     else:

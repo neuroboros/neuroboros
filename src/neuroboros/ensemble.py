@@ -81,7 +81,9 @@ def kfold_bagging_groups(groups, n_folds=5, n_reps=20, seed=0):
     Returns
     -------
     indices_li : list of tuples
-        List of tuples of training and test indices.
+        List of ``(train_idx, test_groups)`` tuples, where ``train_idx`` is an
+        array of observation indices used for training and ``test_groups`` is an
+        array of group indices that have no overlap with ``train_idx``.
     """
     rng = np.random.default_rng(seed=seed)
     groups = [np.asarray(g) for g in groups]
@@ -123,10 +125,10 @@ def kfold_bagging_groups(groups, n_folds=5, n_reps=20, seed=0):
             candidates = np.concatenate([groups[i] for i in candidate_group_idxs])
             train_idx = rng.choice(candidates, size=len(all_indices), replace=True)
             train_idx = np.unique(train_idx)
-            test_idx = np.concatenate(
-                [g for g in groups if not np.isin(g, train_idx).any()]
+            test_groups = np.sort(
+                [gi for gi, g in enumerate(groups) if not np.isin(g, train_idx).any()]
             )
-            indices_li.append((train_idx, test_idx))
+            indices_li.append((train_idx, test_groups))
 
     return indices_li
 

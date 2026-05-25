@@ -9,7 +9,7 @@ from neuroboros.ensemble import kfold_bagging_groups, permute_groups
 class TestEnsemble:
     def test_kfold_bagging(self):
         n = 500
-        indices_li = nb.ensemble.kfold_bagging(n, n_folds=20, n_perms=20, seed=0)
+        indices_li = nb.ensemble.kfold_bagging(n, n_folds=20, n_reps=20, seed=0)
 
         test_idx = np.concatenate([_[1] for _ in indices_li])
         uu, cc = np.unique(test_idx, return_counts=True)
@@ -27,15 +27,18 @@ class TestEnsemble:
         for s in sizes:
             groups.append(np.arange(idx, idx + s))
             idx += s
+        n_groups = len(groups)
         n_perms, n_folds = 10, 5
-        splits = kfold_bagging_groups(groups, n_folds=n_folds, n_perms=n_perms, seed=0)
+        splits = kfold_bagging_groups(groups, n_folds=n_folds, n_reps=n_perms, seed=0)
         assert len(splits) == n_perms * n_folds
-        for train_idx, test_idx in splits:
-            assert len(np.intersect1d(train_idx, test_idx)) == 0
-            for g in groups:
-                in_train = np.isin(g, train_idx).any()
-                in_test = np.isin(g, test_idx).any()
-                assert not (in_train and in_test)
+        for train_idx, test_groups in splits:
+            # test groups have no observation overlap with train_idx
+            for gi in test_groups:
+                assert not np.isin(groups[gi], train_idx).any()
+            # train groups have at least one member in train_idx
+            train_groups = np.setdiff1d(np.arange(n_groups), test_groups)
+            for gi in train_groups:
+                assert np.isin(groups[gi], train_idx).any()
 
     def test_kfold_bagging_groups_each_sample_tested_n_perms_times(self):
         rng = np.random.default_rng(42)
@@ -46,8 +49,13 @@ class TestEnsemble:
             idx += s
         n = idx
         n_perms, n_folds = 10, 5
-        splits = kfold_bagging_groups(groups, n_folds=n_folds, n_perms=n_perms, seed=0)
-        all_test = np.concatenate([test_idx for _, test_idx in splits])
+        splits = kfold_bagging_groups(groups, n_folds=n_folds, n_reps=n_perms, seed=0)
+        all_test = np.concatenate(
+            [
+                np.concatenate([groups[gi] for gi in test_groups])
+                for _, test_groups in splits
+            ]
+        )
         counts = np.bincount(all_test, minlength=n)
         assert np.all(counts >= n_perms)
 
@@ -171,9 +179,7 @@ class TestEnsemble:
         beta0 = rng.standard_normal((50, 20))
         Y = rng.standard_normal((100, 20)) * 0.1 + X @ beta0
 
-        beta, Yhat, R2, r = nb.linalg.ensemble_lstsq(
-            X, Y, n_folds=5, n_perms=20, seed=0
-        )
+        beta, Yhat, R2, r = nb.linalg.ensemble_lstsq(X, Y, n_folds=5, n_reps=20, seed=0)
 
         assert beta.shape == (50, 20)
         assert Yhat.shape == (100, 20)
@@ -190,10 +196,10 @@ class TestEnsemble:
         Y = rng.standard_normal((100, 20)) * 0.1 + X @ beta0
 
         beta_1, Yhat_1, R2_1, r_1 = nb.linalg.ensemble_lstsq(
-            X, Y, n_folds=5, n_perms=20, seed=0, n_jobs=1
+            X, Y, n_folds=5, n_reps=20, seed=0, n_jobs=1
         )
         beta_2, Yhat_2, R2_2, r_2 = nb.linalg.ensemble_lstsq(
-            X, Y, n_folds=5, n_perms=20, seed=0, n_jobs=max(cpu_count(), 2)
+            X, Y, n_folds=5, n_reps=20, seed=0, n_jobs=max(cpu_count(), 2)
         )
         np.testing.assert_allclose(beta_1, beta_2)
         np.testing.assert_allclose(Yhat_1, Yhat_2)

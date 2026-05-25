@@ -186,7 +186,7 @@ def ridge_nested_cv(
     avg_beta = np.zeros((n_coef, len(alphas), len(npcs)))
     avg_count = 0
 
-    for train_idx, _ in kfold_bagging_groups(
+    for train_idx, tgi in kfold_bagging_groups(
         groups, n_folds=n_folds, n_reps=n_reps, seed=seed
     ):
         beta = ridge_grid(
@@ -200,10 +200,6 @@ def ridge_nested_cv(
 
         avg_beta += beta
         avg_count += 1
-
-        tgi = np.sort(
-            [gi for gi, g in enumerate(groups) if not np.isin(g, train_idx).any()]
-        )
 
         gi, gj = np.meshgrid(tgi, tgi, indexing="ij")
         mask = gi <= gj
