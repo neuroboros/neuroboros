@@ -35,9 +35,9 @@ class DatasetManager:
             elif os.path.exists(os.path.join(self.root, ".git")) and dl is not None:
                 kind = "datalad"
             else:
-                kind = "alternative"
+                kind = "https"
         else:
-            assert kind in ["local", "datalad", "alternative"]
+            assert kind in ["local", "datalad", "https"]
         self._kind = kind
 
         if self._kind == "local":
@@ -59,7 +59,7 @@ class DatasetManager:
                     )
             else:
                 self.dset = dl.clone(self.source, self.root)
-        elif self._kind == "alternative":
+        elif self._kind == "https":
             if self.source.startswith("https://gin.g-node.org/"):
                 self.url_base = self.source + "/raw/master/"
             else:
@@ -83,8 +83,11 @@ class DatasetManager:
             local_fn = fns[0]
 
         if not os.path.exists(local_fn):
-            print(f"File {local_fn} not found locally, attempting to download...")
-            self.download(fn, local_fn, on_missing=on_missing)
+            if self.source is not None:
+                print(f"File {local_fn} not found locally, attempting to download...")
+                self.download(fn, local_fn, on_missing=on_missing)
+            else:
+                self._download_local(fn, local_fn, on_missing=on_missing)
         if not os.path.exists(local_fn):
             return None
 
@@ -115,7 +118,8 @@ class DatasetManager:
             else:
                 raise ValueError(f"Invalid value for `on_missing`: {on_missing}")
 
-        result = self.dset.get("/".join(fn))[0]
+        datalad_path = "/".join(fn) if isinstance(fn, (list, tuple)) else fn
+        result = self.dset.get(datalad_path)[0]
         if result["status"] not in ["ok", "notneeded"]:
             raise RuntimeError(
                 f"datalad `get` status is {result['status']}, likely due "
@@ -123,7 +127,7 @@ class DatasetManager:
             )
         assert os.path.normpath(result["path"]) == os.path.normpath(local_fn)
 
-    def _download_alternative(self, fn, local_fn, on_missing="warn"):
+    def _download_https(self, fn, local_fn, on_missing="warn"):
         if isinstance(fn, (tuple, list)):
             url = self.url_base + "/".join(fn)
         else:
