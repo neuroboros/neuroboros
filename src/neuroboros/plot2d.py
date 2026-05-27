@@ -16,7 +16,7 @@ except ImportError as e:
     PIL_ok = False
 
 from .io import core_dataset
-from .spaces import get_mapping, get_mask
+from .spaces import get_mapping, get_mask, get_morphometry
 from .utils import save
 
 GUESS_SEPARATE = {
@@ -226,6 +226,18 @@ def to_color(values, cmap, vmax=None, vmin=None):
     return c
 
 
+_GYRI_MASK = None
+
+
+def _get_gyri_mask():
+    global _GYRI_MASK
+    if _GYRI_MASK is None:
+        curv_l = get_morphometry("curv", "l", space="onavg-ico128")
+        curv_r = get_morphometry("curv", "r", space="onavg-ico128")
+        _GYRI_MASK = np.concatenate([curv_l, curv_r]) < 0
+    return _GYRI_MASK
+
+
 def prepare_data(
     values,
     space,
@@ -236,8 +248,9 @@ def prepare_data(
     vmin=None,
     alpha=None,
     return_scale=False,
-    medial_wall_color=[0.8, 0.8, 0.8, 1.0],
     background_color=[1.0, 1.0, 1.0, 0.0],
+    gyri_color=[0.8, 0.8, 0.8, 1.0],
+    sulci_color=[0.6, 0.6, 0.6, 1.0],
     parc=None,
     parc_kwargs=None,
 ):
@@ -248,18 +261,18 @@ def prepare_data(
     if cmap is not None:
         nan_mask = np.isnan(values)
         values = to_color(values, cmap, vmax, vmin)
-        values[nan_mask] = medial_wall_color
+        is_gyri = _get_gyri_mask()
+        bg = np.where(is_gyri[:, np.newaxis], gyri_color, sulci_color)
         if alpha is not None:
             alpha = np.clip(alpha, 0.0, 1.0)
             alpha = unmask_and_upsample(alpha, space, mask, nn=nn)[:, np.newaxis]
             alpha[nan_mask] = 0.0
-            values[:, :3] = values[:, :3] * alpha + np.array(medial_wall_color[:3]) * (
-                1.0 - alpha
-            )
+            values[:, :3] = values[:, :3] * alpha + bg[:, :3] * (1.0 - alpha)
+        values[nan_mask] = bg[nan_mask]
 
     values = [
         values,
-        [_[: values.shape[1]] for _ in [medial_wall_color, background_color]],
+        [_[: values.shape[1]] for _ in [gyri_color, background_color]],
     ]
     values = np.concatenate(values, axis=0)
 
@@ -429,8 +442,9 @@ def brain_plot(
     surf_type="inflated",
     nn=True,
     return_scale=False,
-    medial_wall_color=[0.8, 0.8, 0.8, 1.0],
     background_color=[1.0, 1.0, 1.0, 0.0],
+    gyri_color=[0.8, 0.8, 0.8, 1.0],
+    sulci_color=[0.6, 0.6, 0.6, 1.0],
     colorbar=True,
     output=None,
     scale=None,
@@ -497,8 +511,9 @@ def brain_plot(
         vmin=vmin,
         alpha=alpha,
         return_scale=need_scale,
-        medial_wall_color=medial_wall_color,
         background_color=background_color,
+        gyri_color=gyri_color,
+        sulci_color=sulci_color,
         parc=parc,
         parc_kwargs=parc_kwargs,
     )
