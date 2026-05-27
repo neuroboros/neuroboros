@@ -52,7 +52,11 @@ class DatasetManager:
                     self.dset.repo.get_remote_url(remote)
                     for remote in self.dset.repo.get_remotes()
                 ]
-                if self.source not in urls:
+
+                def _norm(u):
+                    return u.removesuffix(".git")
+
+                if _norm(self.source) not in [_norm(u) for u in urls]:
                     warnings.warn(
                         f"DataLad dataset {self.name} exists at {self.root}, but "
                         f"does not have source {self.source} as a sibling."
