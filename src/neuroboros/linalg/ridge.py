@@ -158,6 +158,84 @@ def ridge_grid(X_train, y_train, alphas, npcs, X_test=None, fit_intercept=True):
     return yhat
 
 
+def ridge_cv(
+    X, y, groups, alphas, npcs, n_folds=5, n_reps=20, fit_intercept=True, seed=0
+):
+    """
+    Ridge regression cross-validation without hyperparameter selection.
+
+    Trains a grid of ridge models using group-aware k-fold bagging.  For each
+    group ``g``, predictions are made using the average beta from folds where
+    ``g`` was withheld (leave-one-group-out).  All ``(alpha, npc)`` combinations
+    are returned.
+
+    Parameters
+    ----------
+    X : ndarray of shape (n_observations, n_features)
+    y : ndarray of shape (n_observations,)
+    groups : list of arrays or None
+        Each array contains the observation indices belonging to one group.
+        If None, each observation is treated as its own group.
+    alphas : list or ndarray of shape (n_alphas,)
+    npcs : list of {int, None}
+        In increasing order; ``None`` must be last if included.
+    n_folds : int, default=5
+    n_reps : int, default=20
+    fit_intercept : bool, default=True
+    seed : int, default=0
+
+    Returns
+    -------
+    yhat : ndarray of shape (n_observations, n_alphas, n_npcs)
+        Leave-one-group-out predictions for every ``(alpha, npc)`` combination.
+    beta : ndarray of shape (n_coef, n_alphas, n_npcs)
+        Average beta across all folds, where ``n_coef = n_features + 1`` if
+        ``fit_intercept`` else ``n_features``.
+    """
+    n_obs, n_features = X.shape
+    if groups is None:
+        groups = [np.array([i]) for i in range(n_obs)]
+    n_groups = len(groups)
+    n_coef = n_features + (1 if fit_intercept else 0)
+    n_alphas, n_npcs = len(alphas), len(npcs)
+
+    diag_betas = np.zeros((n_groups, n_coef, n_alphas, n_npcs))
+    diag_counts = np.zeros(n_groups, dtype=int)
+    beta = np.zeros((n_coef, n_alphas, n_npcs))
+    avg_count = 0
+
+    for train_idx, tgi in kfold_bagging_groups(
+        groups, n_folds=n_folds, n_reps=n_reps, seed=seed
+    ):
+        fold_beta = ridge_grid(
+            X[train_idx],
+            y[train_idx],
+            alphas,
+            npcs,
+            X_test=None,
+            fit_intercept=fit_intercept,
+        )  # (n_coef, n_alphas, n_npcs)
+
+        beta += fold_beta
+        avg_count += 1
+
+        diag_betas[tgi] += fold_beta
+        diag_counts[tgi] += 1
+
+    beta /= avg_count
+    cnt = np.where(diag_counts > 0, diag_counts, 1)
+    diag_betas /= cnt[:, np.newaxis, np.newaxis, np.newaxis]
+
+    yhat = np.zeros((n_obs, n_alphas, n_npcs))
+    for g, g_obs in enumerate(groups):
+        b = diag_betas[g]  # (n_coef, n_alphas, n_npcs)
+        yhat[g_obs] = np.tensordot(X[g_obs], b[:n_features], axes=(1, 0))
+        if fit_intercept:
+            yhat[g_obs] += b[-1]
+
+    return yhat, beta
+
+
 def ridge_nested_cv(
     X, y, groups, alphas, npcs, n_folds=5, n_reps=20, fit_intercept=True, seed=0
 ):

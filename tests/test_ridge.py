@@ -2,8 +2,10 @@ import numpy as np
 import pytest
 from sklearn.linear_model import Ridge as SklearnRidge
 
+from neuroboros.ensemble import kfold_bagging_groups
 from neuroboros.linalg.ridge import (
     ridge,
+    ridge_cv,
     ridge_grid,
     ridge_nested_cv,
     ridge_nested_cv_parallel,
@@ -219,6 +221,91 @@ class TestRidgeGrid:
                     atol=1e-10,
                     err_msg=f"alpha={alpha}, npc={npc}",
                 )
+
+
+class TestRidgeCV:
+    def _make_data(self):
+        rng = np.random.default_rng(0)
+        n_obs, n_features, n_groups = 30, 10, 6
+        X = rng.standard_normal((n_obs, n_features))
+        y = X @ rng.standard_normal(n_features) + rng.standard_normal(n_obs) * 0.5
+        groups = [np.arange(i * 5, (i + 1) * 5) for i in range(n_groups)]
+        alphas = [0.1, 1.0, 10.0]
+        npcs = [3, 5]
+        return X, y, groups, alphas, npcs
+
+    def test_output_shapes(self):
+        X, y, groups, alphas, npcs = self._make_data()
+        n_obs, n_features = X.shape
+        yhat, beta = ridge_cv(X, y, groups, alphas, npcs, n_folds=3, n_reps=3, seed=0)
+        assert yhat.shape == (n_obs, len(alphas), len(npcs))
+        assert beta.shape == (n_features + 1, len(alphas), len(npcs))
+
+    def test_output_shapes_no_intercept(self):
+        X, y, groups, alphas, npcs = self._make_data()
+        n_obs, n_features = X.shape
+        yhat, beta = ridge_cv(
+            X, y, groups, alphas, npcs, n_folds=3, n_reps=3, fit_intercept=False, seed=0
+        )
+        assert yhat.shape == (n_obs, len(alphas), len(npcs))
+        assert beta.shape == (n_features, len(alphas), len(npcs))
+
+    def test_yhat_consistent_with_ridge(self):
+        # yhat[:, i, j] must match manual LOGO-CV predictions using ridge()
+        X, y, groups, alphas, npcs = self._make_data()
+        n_obs, n_features = X.shape
+        n_groups = len(groups)
+        yhat, _ = ridge_cv(X, y, groups, alphas, npcs, n_folds=3, n_reps=3, seed=0)
+
+        for i, alpha in enumerate(alphas):
+            for j, npc in enumerate(npcs):
+                diag_betas = np.zeros((n_groups, n_features + 1))
+                diag_counts = np.zeros(n_groups, dtype=int)
+                for train_idx, tgi in kfold_bagging_groups(
+                    groups, n_folds=3, n_reps=3, seed=0
+                ):
+                    b = ridge(X[train_idx], y[train_idx], alpha, npc=npc)
+                    diag_betas[tgi] += b
+                    diag_counts[tgi] += 1
+                cnt = np.where(diag_counts > 0, diag_counts, 1)
+                diag_betas /= cnt[:, np.newaxis]
+
+                yhat_manual = np.zeros(n_obs)
+                for g, g_obs in enumerate(groups):
+                    b = diag_betas[g]
+                    yhat_manual[g_obs] = X[g_obs] @ b[:n_features] + b[-1]
+
+                np.testing.assert_allclose(
+                    yhat[:, i, j],
+                    yhat_manual,
+                    atol=1e-10,
+                    err_msg=f"alpha={alpha}, npc={npc}",
+                )
+
+    def test_alpha_order_consistent(self):
+        X, y, groups, alphas, npcs = self._make_data()
+        yhat, beta = ridge_cv(X, y, groups, alphas, npcs, n_folds=3, n_reps=3, seed=0)
+        alphas_rev = alphas[::-1]
+        yhat_rev, beta_rev = ridge_cv(
+            X, y, groups, alphas_rev, npcs, n_folds=3, n_reps=3, seed=0
+        )
+        np.testing.assert_allclose(yhat, yhat_rev[:, ::-1, :], atol=1e-10)
+        np.testing.assert_allclose(beta, beta_rev[:, ::-1, :], atol=1e-10)
+
+    def test_beta_consistent_with_ridge_grid(self):
+        # beta[:, i, j] must be the average of ridge_grid over all folds
+        X, y, groups, alphas, npcs = self._make_data()
+        n_features = X.shape[1]
+        _, beta = ridge_cv(X, y, groups, alphas, npcs, n_folds=3, n_reps=3, seed=0)
+
+        avg = np.zeros((n_features + 1, len(alphas), len(npcs)))
+        count = 0
+        for train_idx, _ in kfold_bagging_groups(groups, n_folds=3, n_reps=3, seed=0):
+            avg += ridge_grid(X[train_idx], y[train_idx], alphas, npcs)
+            count += 1
+        avg /= count
+
+        np.testing.assert_allclose(beta, avg, atol=1e-10)
 
 
 class TestRidgeNestedCV:
