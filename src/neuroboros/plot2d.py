@@ -89,7 +89,7 @@ def parc_expand(
     values,
     which,
     bilateral=None,
-    group="Q1-Q6_RelatedParcellation210",
+    group="Q1-Q6_Related420",
     resample="overlap-8div",
 ):
     """Expand per-parcel values to onavg-ico128 vertex arrays.
