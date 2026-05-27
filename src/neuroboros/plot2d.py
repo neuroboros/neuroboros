@@ -45,6 +45,15 @@ GUESS_SEPARATE = {
     (2562, 2562): ("onavg-ico16", False),
 }
 
+GUESS_PARCELLATION_SEPARATE = {
+    (180, 180): "HCP_MMP",
+}
+
+GUESS_PARCELLATION_COMBINED = {
+    180: ("HCP_MMP", True),  # bilateral: same values for L and R homologs
+    360: ("HCP_MMP", False),  # separate: L (0-179) and R (180-359)
+}
+
 GUESS_COMBINED = {
     # masked
     309346: ("onavg-ico128", True, [154786]),
@@ -73,10 +82,71 @@ GUESS_COMBINED = {
 
 PLOT_MAPPING = {}
 
+NV128 = 128**2 * 10 + 2  # vertices per hemisphere on onavg-ico128
 
-def unmask_and_upsample(values, space, mask, nn=True):
+
+def parc_expand(
+    values,
+    which,
+    bilateral=None,
+    group="Q1-Q6_RelatedParcellation210",
+    resample="overlap-8div",
+):
+    """Expand per-parcel values to onavg-ico128 vertex arrays.
+
+    Parameters
+    ----------
+    values : array-like, shape (180,) or (360,)
+        Per-parcel values. Interpretation depends on ``bilateral``.
+    which : str
+        Parcellation name, e.g. 'HCP_MMP'.
+    bilateral : bool or None
+        If True, the 180 values are used identically for both hemispheres.
+        If False, the first 180 values are for L and the next 180 for R.
+        If None, inferred from length: 180 → True, 360 → False.
+
+    Returns
+    -------
+    ndarray of shape (NV128*2,), with NaN for unassigned/medial-wall vertices.
+    """
+    values = np.asarray(values)
+    n = len(values)
+    if bilateral is None:
+        assert n in (180, 360), f"Expected 180 or 360 parcel values, got {n}"
+        bilateral = n == 180
+
+    out = []
+    for i, lr in enumerate("lr"):
+        fn = os.path.join(
+            "onavg-ico128",
+            "parcellations",
+            which,
+            f"{lr}h",
+            group,
+            f"{resample}_parc.npy",
+        )
+        parc_map = core_dataset.get(
+            fn, on_missing="raise"
+        )  # shape (NV128,), 1-indexed or -1
+        vals = values if bilateral else values[i * 180 : (i + 1) * 180]
+        vv = np.full((NV128,) + values.shape[1:], np.nan)
+        valid = parc_map > 0
+        vv[valid] = vals[parc_map[valid] - 1]
+        out.append(vv)
+    return np.concatenate(out, axis=0)
+
+
+def unmask_and_upsample(values, space, mask, nn=True, parc=None, parc_kwargs=None):
+    if parc is not None:
+        return parc_expand(values, parc, **(parc_kwargs or {}))
+
     if space is None and mask is None:
         if isinstance(values, np.ndarray):
+            if values.shape[0] in GUESS_PARCELLATION_COMBINED:
+                which, bilateral = GUESS_PARCELLATION_COMBINED[values.shape[0]]
+                return parc_expand(
+                    values, which, bilateral=bilateral, **(parc_kwargs or {})
+                )
             ret = GUESS_COMBINED[values.shape[0]]
             if len(ret) == 4:
                 space, mask, boundary, flavor = ret
@@ -85,7 +155,14 @@ def unmask_and_upsample(values, space, mask, nn=True):
                 space, mask, boundary = ret
                 mask_kwargs = {}
         elif isinstance(values, (tuple, list)):
-            ret = GUESS_SEPARATE[tuple([_.shape[0] for _ in values])]
+            key = tuple(v.shape[0] for v in values)
+            if key in GUESS_PARCELLATION_SEPARATE:
+                return parc_expand(
+                    np.concatenate(values, axis=0),
+                    GUESS_PARCELLATION_SEPARATE[key],
+                    **(parc_kwargs or {}),
+                )
+            ret = GUESS_SEPARATE[key]
             if len(ret) == 3:
                 space, mask, flavor = ret
                 mask_kwargs = {"flavor": flavor, "legacy": True}
@@ -161,8 +238,12 @@ def prepare_data(
     return_scale=False,
     medial_wall_color=[0.8, 0.8, 0.8, 1.0],
     background_color=[1.0, 1.0, 1.0, 0.0],
+    parc=None,
+    parc_kwargs=None,
 ):
-    values = unmask_and_upsample(values, space, mask, nn=nn)
+    values = unmask_and_upsample(
+        values, space, mask, nn=nn, parc=parc, parc_kwargs=parc_kwargs
+    )
 
     if cmap is not None:
         nan_mask = np.isnan(values)
@@ -356,6 +437,8 @@ def brain_plot(
     title=None,
     title_size=70,
     fn=None,
+    parc=None,
+    parc_kwargs=None,
     **kwargs,
 ):
     if output is None and fn is None:
@@ -416,6 +499,8 @@ def brain_plot(
         return_scale=need_scale,
         medial_wall_color=medial_wall_color,
         background_color=background_color,
+        parc=parc,
+        parc_kwargs=parc_kwargs,
     )
     if need_scale:
         prepared_values, scale = ret
