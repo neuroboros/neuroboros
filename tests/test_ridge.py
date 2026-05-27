@@ -6,6 +6,7 @@ from neuroboros.ensemble import kfold_bagging_groups
 from neuroboros.linalg.ridge import (
     ridge,
     ridge_cv,
+    ridge_cv_parallel,
     ridge_grid,
     ridge_nested_cv,
     ridge_nested_cv_parallel,
@@ -306,6 +307,46 @@ class TestRidgeCV:
         avg /= count
 
         np.testing.assert_allclose(beta, avg, atol=1e-10)
+
+    def test_parallel_deterministic_matches_sequential(self):
+        X, y, groups, alphas, npcs = self._make_data()
+        yhat_seq, beta_seq = ridge_cv(
+            X, y, groups, alphas, npcs, n_folds=3, n_reps=3, seed=0
+        )
+        yhat_par, beta_par = ridge_cv_parallel(
+            X,
+            y,
+            groups,
+            alphas,
+            npcs,
+            n_folds=3,
+            n_reps=3,
+            seed=0,
+            n_jobs=2,
+            deterministic=True,
+        )
+        np.testing.assert_array_equal(yhat_seq, yhat_par)
+        np.testing.assert_array_equal(beta_seq, beta_par)
+
+    def test_parallel_nondeterministic_shapes(self):
+        X, y, groups, alphas, npcs = self._make_data()
+        n_obs, n_features = X.shape
+        yhat, beta = ridge_cv_parallel(
+            X,
+            y,
+            groups,
+            alphas,
+            npcs,
+            n_folds=3,
+            n_reps=3,
+            seed=0,
+            n_jobs=2,
+            deterministic=False,
+        )
+        assert yhat.shape == (n_obs, len(alphas), len(npcs))
+        assert beta.shape == (n_features + 1, len(alphas), len(npcs))
+        assert np.all(np.isfinite(yhat))
+        assert np.all(np.isfinite(beta))
 
 
 class TestRidgeNestedCV:

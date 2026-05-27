@@ -6,6 +6,7 @@ from joblib import cpu_count
 from ..ensemble import kfold_bagging_groups
 from .base import safe_svd
 
+
 # Module-level state for worker processes (set once per worker via Pool initializer).
 _worker_X = None
 _worker_y = None
@@ -365,6 +366,97 @@ def ridge_nested_cv(
     return yhat, beta, choices
 
 
+def ridge_cv_parallel(
+    X,
+    y,
+    groups,
+    alphas,
+    npcs,
+    n_folds=5,
+    n_reps=20,
+    fit_intercept=True,
+    seed=0,
+    n_jobs=-1,
+    deterministic=True,
+):
+    """
+    Parallel version of :func:`ridge_cv`.
+
+    Worker processes compute :func:`ridge_grid` on different training sets
+    concurrently while the main process aggregates results as they arrive.
+    ``X`` and ``y`` are copied once per worker at startup via the pool
+    initializer, not once per task.
+
+    Parameters
+    ----------
+    X : ndarray of shape (n_observations, n_features)
+    y : ndarray of shape (n_observations,)
+    groups : list of arrays or None
+    alphas : list or ndarray of shape (n_alphas,)
+    npcs : list of {int, None}
+        In increasing order; ``None`` must be last if included.
+    n_folds : int, default=5
+    n_reps : int, default=20
+    fit_intercept : bool, default=True
+    seed : int, default=0
+    n_jobs : int, default=-1
+        Total number of processes. ``-1`` uses all available CPUs. One
+        process is reserved for aggregation; the rest compute betas.
+    deterministic : bool, default=True
+        If True, results are aggregated in submission order (``imap``),
+        giving output bit-identical to :func:`ridge_cv`. If False,
+        uses ``imap_unordered`` for better throughput at the cost of
+        floating-point non-determinism.
+
+    Returns
+    -------
+    yhat : ndarray of shape (n_observations, n_alphas, n_npcs)
+    beta : ndarray of shape (n_coef, n_alphas, n_npcs)
+    """
+    n_obs, n_features = X.shape
+    if groups is None:
+        groups = [np.array([i]) for i in range(n_obs)]
+    n_groups = len(groups)
+    n_coef = n_features + (1 if fit_intercept else 0)
+    n_alphas, n_npcs = len(alphas), len(npcs)
+
+    diag_betas = np.zeros((n_groups, n_coef, n_alphas, n_npcs))
+    diag_counts = np.zeros(n_groups, dtype=int)
+    beta = np.zeros((n_coef, n_alphas, n_npcs))
+    avg_count = 0
+
+    if n_jobs < 0:
+        n_jobs = int(cpu_count() + n_jobs + 1)
+    n_workers = max(1, n_jobs - 1)
+
+    fold_list = kfold_bagging_groups(groups, n_folds=n_folds, n_reps=n_reps, seed=seed)
+
+    with Pool(
+        n_workers,
+        initializer=_worker_init,
+        initargs=(X, y, alphas, npcs, fit_intercept),
+    ) as pool:
+        imap = pool.imap if deterministic else pool.imap_unordered
+        for fold_beta, tgi in imap(_worker_fn, fold_list):
+            beta += fold_beta
+            avg_count += 1
+            diag_betas[tgi] += fold_beta
+            diag_counts[tgi] += 1
+
+    beta /= avg_count
+    cnt = np.where(diag_counts > 0, diag_counts, 1)
+    diag_betas /= cnt[:, np.newaxis, np.newaxis, np.newaxis]
+
+    yhat = np.zeros((n_obs, n_alphas, n_npcs))
+    for g, g_obs in enumerate(groups):
+        b = diag_betas[g]
+        yhat[g_obs] = np.tensordot(X[g_obs], b[:n_features], axes=(1, 0))
+        if fit_intercept:
+            yhat[g_obs] += b[-1]
+
+    return yhat, beta
+
+
 def ridge_nested_cv_parallel(
     X,
     y,
@@ -433,9 +525,7 @@ def ridge_nested_cv_parallel(
         n_jobs = int(cpu_count() + n_jobs + 1)
     n_workers = max(1, n_jobs - 1)
 
-    fold_list = list(
-        kfold_bagging_groups(groups, n_folds=n_folds, n_reps=n_reps, seed=seed)
-    )
+    fold_list = kfold_bagging_groups(groups, n_folds=n_folds, n_reps=n_reps, seed=seed)
 
     with Pool(
         n_workers,
