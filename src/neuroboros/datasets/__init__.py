@@ -476,6 +476,31 @@ class Bologna(Dataset):
         self.subjects = [f"{_+1:02d}" for _ in range(69)]
         self.tasks = ["rest"]
 
+class Bellaria(Dataset):
+    def __init__(
+        self,
+        space=["onavg-ico32", "mni-4mm"],
+        resample=["1step_pial_overlap", "1step_linear_overlap"],
+        prep="default",
+        fp_version="20.2.7",
+        name="bellaria",
+        root_dir="/dartfs/rc/lab/H/HaxbyLab/yuqi/Bellaria/data/nb-data/bellaria/",
+        dl_source=None,
+    ):
+        super().__init__(
+            name,
+            dl_source=dl_source,
+            root_dir=root_dir,
+            space=space,
+            resample=resample,
+            prep=prep,
+            fp_version=fp_version,
+        )
+        self.subjects = ["100"]
+        self.tasks = ["rs1", "rsmirror", "selfknown", "landscapeunknown"]
+    def rename_func(self, sid, task, run, suffix=".npy"):
+        basename = f"sub-{sid}_task-{task}{suffix}"
+        return basename
 
 class Forrest(Dataset):
     """The Forrest dataset.
@@ -1079,6 +1104,52 @@ class MonkeyKingdomEng(Dataset):
             data = data[40:940]
         return data
 
+class MonkeyAction(Dataset):
+    def __init__(
+        self,
+        space=["onavg-ico32"],
+        resample=["1step_pial_overlap"],
+        prep="default",
+        fp_version="24.1.0",
+        name="monkey-action",
+        root_dir="/dartfs/rc/lab/H/HaxbyLab/monkey_kingdom/MonkeyActions/data/monkey-action",
+        dl_source=None,
+    ):
+        super().__init__(
+            name,
+            dl_source=dl_source,
+            root_dir=root_dir,
+            space=space,
+            resample=resample,
+            prep=prep,
+            fp_version=fp_version,
+        )
+        self.tasks = ["actions"]
+        self.subjects = [
+            'sid001784',
+            'sid001826',
+            'sid002317',
+            'sid002742',
+            'sid002843',
+            'sid002951',
+            'sid002972',
+            'sid003017',
+            'sid003146',
+            'sid003163',
+            'sid003191',
+            'sid003195',
+            'sid003210',
+            'sid003227',
+            'sid003250',
+            'sid003256',
+            'sid003258',
+            'sid003268',
+            'sid003274',
+        ]
+    def rename_func(self, sid, task, run, suffix=".npy"):
+        basename = f"sub-{sid}_ses-actions_task-{task}_run-{run:02d}{suffix}"
+        return basename
+
 class Life(Dataset):
     """The Life dataset.
 
@@ -1459,6 +1530,8 @@ datasets = {
     "ibc": IBC,
     "goodbadugly": GoodBadUgly,
     "hca": HCA,
+    "monkey-action": MonkeyAction,
+    "bellaria": Bellaria,
 }
 
 

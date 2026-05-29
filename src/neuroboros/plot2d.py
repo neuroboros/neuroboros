@@ -216,6 +216,18 @@ def unmask_and_upsample(values, space, mask, nn=True, parc=None, parc_kwargs=Non
     return new_values
 
 
+_GYRI_MASK = None
+
+
+def _get_gyri_mask():
+    global _GYRI_MASK
+    if _GYRI_MASK is None:
+        curv_l = get_morphometry("curv", "l", space="onavg-ico128")
+        curv_r = get_morphometry("curv", "r", space="onavg-ico128")
+        _GYRI_MASK = np.concatenate([curv_l, curv_r]) < 0
+    return _GYRI_MASK
+
+
 def to_color(values, cmap, vmax=None, vmin=None):
     if vmin is None:
         vmin = -vmax
