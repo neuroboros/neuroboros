@@ -174,18 +174,26 @@ def prepare_data(
     background_color=[1.0, 1.0, 1.0, 0.0],
     gyri_color=[0.8, 0.8, 0.8, 1.0],
     sulci_color=[0.6, 0.6, 0.6, 1.0],
+    use_sulci=True,
 ):
     values = unmask_and_upsample(values, space, mask, nn=nn)
 
     if cmap is not None:
         nan_mask = np.isnan(values)
         values = to_color(values, cmap, vmax, vmin)
-        is_gyri = _get_gyri_mask()
-        bg = np.where(is_gyri[:, np.newaxis], gyri_color, sulci_color)
+        if use_sulci:
+            is_gyri = _get_gyri_mask()
+            bg = np.where(is_gyri[:, np.newaxis], gyri_color, sulci_color)
+        else:
+            bg = np.tile(gyri_color, (len(values), 1))
         if alpha is not None:
             alpha = np.clip(alpha, 0.0, 1.0)
-            alpha = unmask_and_upsample(alpha, space, mask, nn=nn)[:, np.newaxis]
-            alpha[nan_mask] = 0.0
+            if np.ndim(alpha) == 0:
+                # scalar alpha: broadcast uniformly; NaN vertices handled below
+                pass
+            else:
+                alpha = unmask_and_upsample(alpha, space, mask, nn=nn)[:, np.newaxis]
+                alpha[nan_mask] = 0.0
             values[:, :3] = values[:, :3] * alpha + bg[:, :3] * (1.0 - alpha)
         values[nan_mask] = bg[nan_mask]
 
@@ -364,6 +372,7 @@ def brain_plot(
     background_color=[1.0, 1.0, 1.0, 0.0],
     gyri_color=[0.8, 0.8, 0.8, 1.0],
     sulci_color=[0.6, 0.6, 0.6, 1.0],
+    use_sulci=True,
     colorbar=True,
     output=None,
     scale=None,
@@ -431,6 +440,7 @@ def brain_plot(
         background_color=background_color,
         gyri_color=gyri_color,
         sulci_color=sulci_color,
+        use_sulci=use_sulci,
     )
     if need_scale:
         prepared_values, scale = ret
