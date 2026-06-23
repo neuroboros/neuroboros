@@ -1,0 +1,17 @@
+Label	VoxelCount
+HIP-rh	699
+AMY-rh	380
+pTHA-rh	387
+aTHA-rh	868
+NAc-rh	255
+GP-rh	198
+PUT-rh	940
+CAU-rh	435
+HIP-lh	690
+AMY-lh	395
+pTHA-lh	446
+aTHA-lh	965
+NAc-lh	281
+GP-lh	198
+PUT-lh	919
+CAU-lh	506
