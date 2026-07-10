@@ -16,7 +16,7 @@ MEASURES = [
     "thickness",
     "volume",
 ]
-PARCELLATIONS = ["aparc", "aparc.DKTatlas", "aparc.a2009s"]
+PARCELLATIONS = ["aparc", "aparc.DKTatlas", "aparc.a2009s", "HCP_MMP"]
 
 
 def get_morphometry(which, lr, space="onavg-ico32", **kwargs):
@@ -57,13 +57,18 @@ def get_parcellation(which, lr, space="onavg-ico32", prob=False, **kwargs):
     ----------
     which : str
         Which parcellation to get. One of the following:
-        'aparc', 'aparc.DKTatlas', 'aparc.a2009s'.
+        'aparc', 'aparc.DKTatlas', 'aparc.a2009s', 'HCP_MMP'.
     lr : str
         Hemisphere, either 'l' or 'r'.
     space : str, default='onavg-ico32'
         Surface space.
     prob : bool, default=False
         Whether to load the probabilistic version of the parcellation.
+    group : str, optional
+        Participant group. For 'HCP_MMP', one of 'Q1-Q6_Related420'
+        (default), 'Q1-Q6_RelatedParcellation210', or
+        'Q1-Q6_RelatedValidation210'. For other parcellations, defaults to
+        'on1031' with ``avg_type`` defaulting to 'trimmed'.
 
     Returns
     -------
@@ -72,16 +77,20 @@ def get_parcellation(which, lr, space="onavg-ico32", prob=False, **kwargs):
         is False, and a probabilistic parcellation if ``prob`` is True.
     """
     assert which in PARCELLATIONS
-    group = kwargs.get("group", "on1031")
+    if which == "HCP_MMP":
+        group = kwargs.get("group", "Q1-Q6_Related420")
+    else:
+        group = kwargs.get("group", "on1031")
+        avg_type = kwargs.get("avg_type", "trimmed")
+        group = f"{group}_{avg_type}"
     resample = kwargs.get("resample", "overlap-8div")
-    avg_type = kwargs.get("avg_type", "trimmed")
     assert lr in "lr"
     if prob:
         basename = f"{resample}_prob.npy"
     else:
         basename = f"{resample}_parc.npy"
     fn = os.path.join(
-        space, "parcellations", which, f"{lr}h", f"{group}_{avg_type}", basename
+        space, "parcellations", which, f"{lr}h", group, basename
     )
     parc = core_dataset.get(fn, on_missing="raise")
     return parc
