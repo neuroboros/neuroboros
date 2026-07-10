@@ -1509,6 +1509,92 @@ class GoodBadUgly(Dataset):
         )
         self.tasks = ["goodbadugly"]
 
+class Hybr(Dataset):
+    def __init__(
+        self,
+        space=["onavg-ico32"],
+        resample=["1step_pial_overlap", "1step_linear_overlap"],
+        prep="default",
+        fp_version="24.1.0",
+        name="hybr",
+        root_dir="/dartfs/rc/lab/H/HaxbyLab/hybr/data/nb-data/all_data",
+        dl_source=None,
+    ):
+        super().__init__(
+            name,
+            dl_source=dl_source,
+            root_dir=root_dir,
+            space=space,
+            resample=resample,
+            prep=prep,
+            fp_version=fp_version,
+        )
+        self.tasks = ['alanguage', 'bang', 'budapest', 'calculation', 'falseXbelief', 
+                      'frithXhappe', 'motion', 'objectXcategory', 'rest', 'retinotopy', 
+                      'sherlock', 'vlanguage', 'voice', 'vwfa', 'workingXmemory']
+        self.subjects = [
+            "sid000004",                                                          
+            "sid002046",                                                          
+            "sid002317",                                                          
+            "sid002742",                                                          
+            "sid002843",
+            "sid002951",
+            "sid002972",
+            "sid002989",
+            "sid003017",
+            "sid003036",
+            "sid003051",
+            "sid003052",
+            "sid003130",
+            "sid003146",
+            "sid003163",
+            "sid003165",
+            "sid003172",
+            "sid003177",
+            "sid003184",
+            "sid003186",
+            "sid003190",
+            "sid003191",
+            "sid003194",
+            "sid003195",
+            "sid003201",
+            "sid003210",
+            "sid003212",
+            "sid003214",
+            "sid003215",
+            "sid003227",
+            "sid003244",
+            "sid003246",
+            "sid003249",
+            "sid003250",
+            "sid003251",
+            "sid003256",
+            "sid003258",
+            "sid003259",
+            "sid003260",
+            "sid003261",
+            "sid003264",
+            "sid003267",
+            "sid003268",
+            "sid003269",
+            "sid003271",
+            "sid003272",
+            "sid003273",
+            "sid003274",
+            "sid003275",
+            "sid003276",
+            "sid003278",
+            "sid003286",
+            "sid003291",
+            "sid003293",
+            "sid003298",
+            "sid003300",
+            "sid003301",
+        ]
+    def rename_func(self, sid, task, run, suffix=".npy"):
+        basename = f"sub-{sid}_task-{task}_run-{run:02d}{suffix}"
+        return basename
+
 
 datasets = {
     "forrest": Forrest,
@@ -1532,6 +1618,7 @@ datasets = {
     "hca": HCA,
     "monkey-action": MonkeyAction,
     "bellaria": Bellaria,
+    "hybr": Hybr,
 }
 
 

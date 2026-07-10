@@ -34,6 +34,7 @@ from .datasets import (
     HCA,
     MonkeyAction,
     Bellaria,
+    Hybr,
 )
 from .datasets import get_dataset as dataset
 from .glm import glm
