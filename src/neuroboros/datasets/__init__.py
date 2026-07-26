@@ -22,7 +22,7 @@ from scipy.stats import zscore
 
 from ..io import DatasetManager
 from ..spaces import get_mask
-
+from ..searchlights import return_aseg_labels
 SURFACE_SPACES = ["fsavg-ico32", "onavg-ico32", "onavg-ico48", "onavg-ico64"]
 SURFACE_RESAMPLES = [
     "1step_pial_overlap",
@@ -43,6 +43,14 @@ def guess_surface_volume(space, resample, lr):
     if lr in ["l", "r", "l-cerebrum", "r-cerebrum", "lr"]:
         return "surface"
     return "volume"
+
+
+def basic_prep(dm, confounds, cortical_mask, z=True, mask=True):
+    if mask and cortical_mask is not None:
+        dm = dm[:, cortical_mask]
+    if z:
+        dm = np.nan_to_num(zscore(dm, axis=0))
+    return dm
 
 
 def default_prep(dm, confounds, cortical_mask, z=True, mask=True, gsr=False):
@@ -86,6 +94,8 @@ def get_prep(name, **kwargs):
     prep = {
         "default": default_prep,
         "scrub": scrub_prep,
+        "basic": basic_prep,
+        "none": None,
     }[name]
     if gsr:
         prep = partial(prep, gsr=True)
@@ -178,16 +188,29 @@ class Dataset:
                 self.subject_sets[task] = f.read().splitlines()
 
     def load_data(self, sid, task, run, lr, space, resample, fp_version=None):
-        if lr == "lr":
+        if isinstance(lr, str):
+            if lr == "lr":
+                dm = np.concatenate(
+                    [
+                        self.load_data(sid, task, run, lr_, space, resample, fp_version)
+                        for lr_ in "lr"
+                    ],
+                    axis=1,
+                )
+                return dm
+            elif lr.lower() == "aseg_subcortex":
+                lr = return_aseg_labels()  # Get all aseg rois in a list
+            elif lr.lower() == "tian_subcortex":
+                lr = "Tian_Subcortex"
+        if isinstance(lr, (tuple, list)):
             dm = np.concatenate(
                 [
-                    self.load_data(sid, task, run, lr_, space, resample, fp_version)
-                    for lr_ in "lr"
+                    self.load_data(sid, task, run, roi, space, resample, fp_version)
+                    for roi in lr
                 ],
                 axis=1,
             )
             return dm
-
         if fp_version is None:
             fp_version = self.fp_version
         if lr in ["l", "r"]:
@@ -376,7 +399,7 @@ class Dataset:
         if force_volume:
             space_kind = "volume"
         else:
-            space_kind = guess_surface_volume(space, resample, lr)
+            space_kind = guess_surface_volume(space, resample, lr[0])
         if space is None:
             space = {
                 "surface": self.surface_space,
@@ -416,7 +439,8 @@ class Dataset:
         if slicer is not None:
             dm = slicer(dm, task, run)
             confounds = [slicer(c, task, run) for c in confounds]
-        dm = prep(dm, confounds, cortical_mask)
+        if prep is not None:
+            dm = prep(dm, confounds, cortical_mask)
         return dm
 
     def _get_anatomical_data(self, sid, which, lr, mask, space, fp_version):
