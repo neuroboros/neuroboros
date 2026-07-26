@@ -231,8 +231,11 @@ def _get_gyri_mask():
 def to_color(values, cmap, vmax=None, vmin=None):
     if vmin is None:
         vmin = -vmax
-    r = (values - vmin) / (vmax - vmin)
-    r = np.clip(r, 0.0, 1.0)
+    if vmax == vmin:
+        r = np.ones_like(values)
+    else:
+        r = (values - vmin) / (vmax - vmin)
+        r = np.clip(r, 0.0, 1.0)
     cmap = cm.get_cmap(cmap)
     c = cmap(r)
     return c
