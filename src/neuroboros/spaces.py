@@ -16,7 +16,7 @@ MEASURES = [
     "thickness",
     "volume",
 ]
-PARCELLATIONS = ["aparc", "aparc.DKTatlas", "aparc.a2009s"]
+PARCELLATIONS = ["aparc", "aparc.DKTatlas", "aparc.a2009s", "HCP_MMP"]
 
 
 def get_morphometry(which, lr, space="onavg-ico32", **kwargs):
@@ -29,7 +29,7 @@ def get_morphometry(which, lr, space="onavg-ico32", **kwargs):
         'area', 'area.mid', 'area.pial', 'curv', 'curv.pial',
         'jacobian_white', 'sulc', 'thickness', 'volume'.
     lr : str
-        Hemisphere, either 'l' or 'r'.
+        Hemisphere, either 'l', 'r', or 'lr'.
     space : str, default='onavg-ico32'
         Surface space.
 
@@ -39,6 +39,10 @@ def get_morphometry(which, lr, space="onavg-ico32", **kwargs):
         Morphometric measure. Shape (n_vertices,).
     """
     assert which in MEASURES
+    if lr == "lr":
+        lh = get_morphometry(which, "l", space=space, **kwargs)
+        rh = get_morphometry(which, "r", space=space, **kwargs)
+        return np.concatenate([lh, rh])
     group = kwargs.get("group", "on1031")
     resample = kwargs.get("resample", "overlap-8div")
     avg_type = kwargs.get("avg_type", "trimmed")
@@ -57,13 +61,18 @@ def get_parcellation(which, lr, space="onavg-ico32", prob=False, **kwargs):
     ----------
     which : str
         Which parcellation to get. One of the following:
-        'aparc', 'aparc.DKTatlas', 'aparc.a2009s'.
+        'aparc', 'aparc.DKTatlas', 'aparc.a2009s', 'HCP_MMP'.
     lr : str
-        Hemisphere, either 'l' or 'r'.
+        Hemisphere, either 'l', 'r', or 'lr'.
     space : str, default='onavg-ico32'
         Surface space.
     prob : bool, default=False
         Whether to load the probabilistic version of the parcellation.
+    group : str, optional
+        Participant group. For 'HCP_MMP', one of 'Q1-Q6_Related420'
+        (default), 'Q1-Q6_RelatedParcellation210', or
+        'Q1-Q6_RelatedValidation210'. For other parcellations, defaults to
+        'on1031' with ``avg_type`` defaulting to 'trimmed'.
 
     Returns
     -------
@@ -72,16 +81,26 @@ def get_parcellation(which, lr, space="onavg-ico32", prob=False, **kwargs):
         is False, and a probabilistic parcellation if ``prob`` is True.
     """
     assert which in PARCELLATIONS
-    group = kwargs.get("group", "on1031")
+    if lr == "lr":
+        lh = get_parcellation(which, "l", space=space, prob=prob, **kwargs)
+        rh = get_parcellation(which, "r", space=space, prob=prob, **kwargs)
+        # A probabilistic parcellation has shape (n_parcels, n_vertices), and
+        # the vertex axis is the last one rather than the first one.
+        return np.concatenate([lh, rh], axis=-1 if prob else 0)
+    if which == "HCP_MMP":
+        group = kwargs.get("group", "Q1-Q6_Related420")
+    else:
+        group = kwargs.get("group", "on1031")
+        avg_type = kwargs.get("avg_type", "trimmed")
+        group = f"{group}_{avg_type}"
     resample = kwargs.get("resample", "overlap-8div")
-    avg_type = kwargs.get("avg_type", "trimmed")
     assert lr in "lr"
     if prob:
         basename = f"{resample}_prob.npy"
     else:
         basename = f"{resample}_parc.npy"
     fn = os.path.join(
-        space, "parcellations", which, f"{lr}h", f"{group}_{avg_type}", basename
+        space, "parcellations", which, f"{lr}h", group, basename
     )
     parc = core_dataset.get(fn, on_missing="raise")
     return parc
@@ -148,7 +167,7 @@ def get_geometry(which, lr, space="onavg-ico32", vertices_only=False, **kwargs):
         'sphere', 'sphere.reg', 'white', 'pial', 'inflated', 'midthickness',
         'faces'.
     lr : str
-        Hemisphere, either 'l' or 'r'.
+        Hemisphere, either 'l', 'r', or 'lr'.
     space : str, default='onavg-ico32'
         Surface space.
     vertices_only : bool, default=False
@@ -165,6 +184,21 @@ def get_geometry(which, lr, space="onavg-ico32", vertices_only=False, **kwargs):
     """
     group = kwargs.get("group", "on1031")
     avg_type = kwargs.get("avg_type", "trimmed")
+    if lr == "lr":
+        if which == "faces":
+            l_faces = get_geometry(which, "l", space=space, **kwargs)
+            r_faces = get_geometry(which, "r", space=space, **kwargs)
+            n_l = len(get_geometry("sphere", "l", space=space, vertices_only=True))
+            return np.concatenate([l_faces, r_faces + n_l])
+        l_coords = get_geometry(which, "l", space=space, vertices_only=True, **kwargs)
+        r_coords = get_geometry(which, "r", space=space, vertices_only=True, **kwargs)
+        coords = np.concatenate([l_coords, r_coords])
+        if vertices_only:
+            return coords
+        l_faces = get_geometry("faces", "l", space=space, **kwargs)
+        r_faces = get_geometry("faces", "r", space=space, **kwargs)
+        faces = np.concatenate([l_faces, r_faces + len(l_coords)])
+        return coords, faces
     assert lr in "lr"
     if not vertices_only:
         ffn = os.path.join(space, "geometry", "faces", f"{lr}h.npy")
