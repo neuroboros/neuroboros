@@ -459,9 +459,9 @@ class Bologna(Dataset):
         space=["onavg-ico32", "mni-4mm"],
         resample=["1step_pial_overlap", "1step_linear_overlap"],
         prep="default",
-        fp_version="20.2.7",
+        fp_version="25.2.5",
         name="bologna",
-        root_dir=None,
+        root_dir="/dartfs/rc/lab/H/HaxbyLab/feilong/nb-data/bologna117",
         dl_source=None,
     ):
         super().__init__(
@@ -473,8 +473,12 @@ class Bologna(Dataset):
             prep=prep,
             fp_version=fp_version,
         )
-        self.subjects = [f"{_+1:02d}" for _ in range(69)]
+        self.subjects = self.subject_sets["all"]
         self.tasks = ["rest"]
+
+    def rename_func(self, sid, task, run, suffix=".npy"):
+        basename = f"sub-{sid}_task-{task}{suffix}"
+        return basename
 
 class Bellaria(Dataset):
     def __init__(
@@ -1597,6 +1601,35 @@ class HCD(Dataset):
         else:
             basename = f"sub-{sid}_ses-V1_task-{task}_run-{run:02d}{suffix}"
         return basename
+class Hybr(Dataset):
+    def __init__(
+        self,
+        space=["onavg-ico32"],
+        resample=["1step_pial_overlap", "1step_linear_overlap"],
+        prep="default",
+        fp_version="24.1.0",
+        name="hybr",
+        root_dir="/dartfs/rc/lab/H/HaxbyLab/hybr/data/nb-data/all_data",
+        dl_source=None,
+    ):
+        super().__init__(
+            name,
+            dl_source=dl_source,
+            root_dir=root_dir,
+            space=space,
+            resample=resample,
+            prep=prep,
+            fp_version=fp_version,
+        )
+        self.tasks = ['alanguage', 'bang', 'budapest', 'calculation', 'falseXbelief',
+                      'frithXhappe', 'motion', 'objectXcategory', 'rest', 'retinotopy',
+                      'sherlock', 'vlanguage', 'voice', 'vwfa', 'workingXmemory']
+
+        self.subjects = self.subject_sets["all"]
+    def rename_func(self, sid, task, run, suffix=".npy"):
+        basename = f"sub-{sid}_task-{task}_run-{run:02d}{suffix}"
+        return basename
+
 
 datasets = {
     "forrest": Forrest,
@@ -1622,6 +1655,7 @@ datasets = {
     "bellaria": Bellaria,
     "hcd": HCD,
     "hbn":HBN,
+    "hybr": Hybr,
 }
 
 def get_dataset(name, **kwargs):
