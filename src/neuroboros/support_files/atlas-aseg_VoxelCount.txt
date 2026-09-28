@@ -1,0 +1,17 @@
+Label	Index	VoxelCount
+l-thalamus	10	1469
+r-thalamus	49	1384
+l-caudate	11	629
+r-caudate	50	659
+l-putamen	12	846
+r-putamen	51	840
+l-pallidum	13	310
+r-pallidum	52	310
+l-hippocampus	17	722
+r-hippocampus	53	739
+l-amygdala	18	273
+r-amygdala	54	307
+l-accumbens	26	89
+r-accumbens	58	97
+l-ventral-diencephalon	28	751
+r-ventral-diencephalon	60	727
