@@ -298,6 +298,40 @@ def monitor(func, record_fn=None):
     return wrapped_func
 
 
+def _file_identity(stat):
+    return stat.st_dev, stat.st_ino
+
+
+def _claim_running(running_fn, fmt):
+    """Publish a complete timestamp using the NFS hard-link lock protocol."""
+    dirname = os.path.dirname(running_fn) or "."
+    with tempfile.NamedTemporaryFile(
+        mode="w", dir=dirname, prefix=os.path.basename(running_fn) + "."
+    ) as f:
+        f.write(datetime.now().strftime(fmt))
+        f.flush()
+        os.fsync(f.fileno())
+        try:
+            os.link(f.name, running_fn)
+        except OSError as exc:
+            # An NFS server can complete LINK even if its reply is lost.
+            # The second link then establishes that this client owns the lock.
+            if os.stat(f.name).st_nlink != 2:
+                if isinstance(exc, FileExistsError):
+                    return None
+                raise
+        return _file_identity(os.fstat(f.fileno()))
+
+
+def _remove_running(running_fn, identity):
+    """Best-effort cleanup that checks for a replacement lock first."""
+    try:
+        if _file_identity(os.stat(running_fn)) == identity:
+            os.remove(running_fn)
+    except FileNotFoundError:
+        pass
+
+
 def _save_record_output(fn, data):
     """Keep partial writes away from the final output path."""
     dirname = os.path.dirname(fn) or "."
@@ -355,7 +389,8 @@ def save_results(
     verbose : bool, default=True
         Whether to output additional logging information.
     rerun : bool, default=False
-        Whether to rerun the function even if the output files exist.
+        Whether to rerun the function even if the output files exist,
+        overriding an existing running file as well.
 
     Returns
     -------
@@ -384,75 +419,111 @@ def save_results(
 
     monitored_func = monitor(func)
 
+    def cached_results():
+        if verbose:
+            print(datetime.now(), f"Using completed results: {out_fns}")
+        if return_results:
+            results = [load(_) for _ in out_fns]
+            return results[0] if len(results) == 1 else results
+        return None
+
+    def finished():
+        if not os.path.exists(finish_fn):
+            return False
+        # A successful job takes precedence over another job's leftover lock.
+        try:
+            identity = _file_identity(os.stat(running_fn))
+            _remove_running(running_fn, identity)
+        except FileNotFoundError:
+            pass
+        return True
+
+    def complete():
+        return finished() or all(os.path.exists(fn) for fn in out_fns)
+
     def func_w_cache(*args, **kwargs):
-        if not rerun:
-            all_exist = False
-
-            if os.path.exists(running_fn):
-                while True:
-                    with open(running_fn) as f:
-                        diff = datetime.now() - datetime.strptime(f.read(), fmt)
-                    if diff < timedelta(hours=rerun_hours):
-                        if not return_results:
-                            return
-                        time.sleep(600)
-                    else:
-                        break
-
-            if os.path.exists(finish_fn):
-                all_exist = True
-                if verbose:
-                    print(datetime.now(), f"`finish_fn` exists: {finish_fn}")
-            elif all([os.path.exists(_) for _ in out_fns]):
-                all_exist = True
-                if verbose:
-                    print(datetime.now(), f"All output files exist: {out_fns}")
-
-            if all_exist:
-                if not return_results:
-                    return
-                else:
-                    results = [load(_) for _ in out_fns]
-                    if len(results) == 1:
-                        return results[0]
-                    else:
-                        return results
-
         dirname = os.path.dirname(log_fn)
         if dirname:
             os.makedirs(dirname, exist_ok=True)
-        with open(running_fn, "w") as f:
-            f.write(datetime.now().strftime(fmt))
 
-        if verbose:
-            print(datetime.now(), f"Starting to compute for: {out_fns}")
-
-        if rerun:
+        while True:
+            if not rerun and finished():
+                return cached_results()
             try:
-                os.remove(finish_fn)
+                with open(running_fn) as f:
+                    stat = os.fstat(f.fileno())
+                    try:
+                        started = datetime.strptime(f.read(), fmt)
+                    except ValueError:
+                        # Empty or incomplete files from older clients still
+                        # count as running; do not start a duplicate job.
+                        started = datetime.fromtimestamp(stat.st_mtime)
+                expired = datetime.now() - started >= timedelta(hours=rerun_hours)
+                if rerun or expired:
+                    _remove_running(running_fn, _file_identity(stat))
+                elif not return_results:
+                    return None
+                else:
+                    time.sleep(600)
+                    continue
             except FileNotFoundError:
                 pass
-        info, results = monitored_func(*args, **kwargs)
 
-        if len(out_fns) > 1:
-            output_results = list(results)
-            if len(output_results) != len(out_fns):
-                raise ValueError(
-                    f"Expected {len(out_fns)} results, got {len(output_results)}."
-                )
-            for res, fn in zip(output_results, out_fns):
-                _save_record_output(fn, res)
-        else:
-            _save_record_output(out_fns[0], results)
+            if not rerun and complete():
+                return cached_results()
 
-        _write_finish(finish_fn, info)
+            # Always let the server arbitrate acquisition, even if this
+            # client's directory cache says the running file does not exist.
+            identity = _claim_running(running_fn, fmt)
+            if identity is not None:
+                break
+            if not rerun and finished():
+                return cached_results()
+            if not return_results:
+                return None
+            time.sleep(600)
 
-        if os.path.exists(running_fn):
-            os.remove(running_fn)
+        release = False
+        try:
+            # A competing job may have finished between our initial check
+            # and acquisition. Check its outputs while holding the claim.
+            if not rerun and complete():
+                release = True
+                return cached_results()
 
-        if return_results:
-            return results
-        return
+            if verbose:
+                print(datetime.now(), f"Starting to compute for: {out_fns}")
+
+            # Only an explicit rerun invalidates a completed result.
+            # A normal competitor must not delete a newly published marker.
+            if rerun:
+                try:
+                    os.remove(finish_fn)
+                except FileNotFoundError:
+                    pass
+
+            info, results = monitored_func(*args, **kwargs)
+
+            if len(out_fns) > 1:
+                output_results = list(results)
+                if len(output_results) != len(out_fns):
+                    raise ValueError(
+                        f"Expected {len(out_fns)} results, got {len(output_results)}."
+                    )
+                for res, fn in zip(output_results, out_fns):
+                    _save_record_output(fn, res)
+            else:
+                _save_record_output(out_fns[0], results)
+
+            _write_finish(finish_fn, info)
+            release = True
+
+            if return_results:
+                return results
+            return None
+        finally:
+            if release and not finished():
+                _remove_running(running_fn, identity)
 
     wrapped_func = functools.wraps(func)(func_w_cache)
     return wrapped_func
