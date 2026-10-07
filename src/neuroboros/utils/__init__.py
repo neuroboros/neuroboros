@@ -393,7 +393,9 @@ def save_results(
                     else:
                         return results
 
-        os.makedirs(os.path.dirname(log_fn), exist_ok=True)
+        dirname = os.path.dirname(log_fn)
+        if dirname:
+            os.makedirs(dirname, exist_ok=True)
         with open(running_fn, "w") as f:
             f.write(datetime.now().strftime(fmt))
 
@@ -403,7 +405,12 @@ def save_results(
         results = monitored_func(*args, **kwargs)
 
         if len(out_fns) > 1:
-            for res, fn in zip(results, out_fns):
+            output_results = list(results)
+            if len(output_results) != len(out_fns):
+                raise ValueError(
+                    f"Expected {len(out_fns)} results, got {len(output_results)}."
+                )
+            for res, fn in zip(output_results, out_fns):
                 save(fn, res)
         else:
             save(out_fns[0], results)
