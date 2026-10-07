@@ -86,7 +86,7 @@ nb.record(out_fn, compute_isc)(dset, sid, task)
 The call `nb.record(out_fn, func)` returns a wrapped version of `func`.
 Calling the wrapped function:
 
-1. Checks `.finish` first. If present, skips computation and cleans up any leftover `.running` marker.
+1. Checks `.completed` first. If present, skips computation and cleans up any leftover `.started` marker.
 2. Otherwise checks for another running job, as described below, and skips computation if all output files already exist once no active job blocks it.
 3. Otherwise runs `func` with the given arguments, saves the returned value using `nb.save`, and records timing information.
 
@@ -120,42 +120,42 @@ Put every parameter that changes the result into the file name, as in the `{task
 
 `nb.record` writes one pair of small text files per computation, named after the first output file by default:
 
-- `<out_fn>.running` is created when the computation starts and removed after the outputs and completion marker are written. It holds the start time.
-- `<out_fn>.finish` is published after all outputs have been saved successfully. It holds the CPU time, wall time, host name, and the number of CPUs.
+- `<out_fn>.started` is created when the computation starts and removed after the outputs and completion marker are written. It holds the start time.
+- `<out_fn>.completed` is published after all outputs have been saved successfully. It holds the CPU time, wall time, host name, and the number of CPUs.
 
 Each output is saved to a temporary location on the same filesystem, then moved into place with an atomic replacement.
 A failed save therefore cannot leave a partially written file at the final output path or damage another job's saved file.
-The complete `.finish` record is also published by atomic replacement, after every output has been saved.
+The complete `.completed` record is also published by atomic replacement, after every output has been saved.
 Replacement is atomic for each file, not for the entire set of multiple outputs.
 
-If both `.finish` and `.running` exist, `.finish` takes precedence: the result is treated as complete and cleanup of `.running` is attempted.
+If both `.completed` and `.started` exist, `.completed` takes precedence: the result is treated as complete and cleanup of `.started` is attempted.
 This applies both when a job finishes successfully and when a later call finds completed work, including while waiting for another job.
 Only `rerun=True` deliberately invalidates an existing completion marker.
 
-The `.running` file signals that a job has started on a shared file system, whether competing jobs run on the same node or different nodes.
-To claim a job, `nb.record` writes the timestamp to a unique temporary file in the same directory, then creates `.running` as a hard link to it.
+The `.started` file signals that a job has started on a shared file system, whether competing jobs run on the same node or different nodes.
+To claim a job, `nb.record` writes the timestamp to a unique temporary file in the same directory, then creates `.started` as a hard link to it.
 The file server allows only one job to create that name, so simultaneous starts are handled even when a node's directory listing is out of date.
-The temporary name is removed after the claim attempt; the timestamp remains available through `.running` for the winning job.
+The temporary name is removed after the claim attempt; the timestamp remains available through `.started` for the winning job.
 This requires a shared filesystem that supports hard links, such as NFS, and all participating jobs must use this locking protocol.
 
-If there is no `.finish` marker and another job started the same computation less than `rerun_hours` ago (48 hours by default), the wrapped function returns `None` instead of starting a duplicate run.
+If there is no `.completed` marker and another job started the same computation less than `rerun_hours` ago (48 hours by default), the wrapped function returns `None` instead of starting a duplicate run.
 With `return_results=True` it instead waits, checking every ten minutes, until the other job finishes.
 
-A `.running` file older than `rerun_hours` allows the computation to start again, even if the original job is still running.
+A `.started` file older than `rerun_hours` allows the computation to start again, even if the original job is still running.
 `rerun=True` overrides an existing running file and bypasses the completion checks.
 Both overrides can cause overlapping computations if the original job is still running; the timeout assumes sufficiently synchronized node clocks.
 Automatic removal of expired locks is best-effort, so simultaneous timeout recovery does not have the same guarantee as claiming an absent lock.
 Cleanup checks the file's identity to avoid removing a replacement lock that it can already see.
 
-If a job fails or is killed and no competing job completes successfully, its `.running` file stays behind and blocks reruns for `rerun_hours`.
+If a job fails or is killed and no competing job completes successfully, its `.started` file stays behind and blocks reruns for `rerun_hours`.
 Delete the file, or pass a shorter `rerun_hours`, to restart sooner.
 
-The `.finish` file doubles as a completion marker: if it exists, the output is treated as complete even if the output files were moved.
+The `.completed` file doubles as a completion marker: if it exists, the output is treated as complete even if the output files were moved.
 With `return_results=True`, missing output files still cause loading to fail.
 Use `log_fn` to put both files somewhere other than next to the first output.
 
 ### Related utilities
 
 - `nb.utils.monitor` wraps a function and records the same timing and host information without saving its output.
-- `nb.utils.parse_record` reads a `.finish` file and returns the CPU and wall time in nanoseconds, which is useful for summarizing compute cost across jobs.
+- `nb.utils.parse_record` reads a `.completed` file and returns the CPU and wall time in nanoseconds, which is useful for summarizing compute cost across jobs.
 - `nb.utils.assert_sufficient_time` stops a SLURM job cleanly if its remaining walltime is shorter than a given minimum, so it can be called between `nb.record` steps in a long script.

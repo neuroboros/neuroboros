@@ -16,14 +16,14 @@ def test_record_local_filename(tmp_path, monkeypatch):
     )
     np.testing.assert_array_equal(wrapped(), expected)
     np.testing.assert_array_equal(wrapped(), expected)
-    assert (tmp_path / "result.npy.finish").exists()
-    assert not (tmp_path / "result.npy.running").exists()
-    assert utils.parse_record("result.npy.finish").shape == (2,)
+    assert (tmp_path / "result.npy.completed").exists()
+    assert not (tmp_path / "result.npy.started").exists()
+    assert utils.parse_record("result.npy.completed").shape == (2,)
 
 
 def test_record_waits_for_removed_running_file(tmp_path, monkeypatch):
     output = tmp_path / "result.npy"
-    running = tmp_path / "result.npy.running"
+    running = tmp_path / "result.npy.started"
     running.write_text(datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f"))
     expected = np.arange(3)
 
@@ -47,13 +47,13 @@ def test_record_running_file_disappears_before_remove(tmp_path, monkeypatch):
     original_remove = utils.os.remove
 
     def remove_after_other_job(path):
-        if path == output + ".running":
+        if path == output + ".started":
             original_remove(path)
         original_remove(path)
 
     monkeypatch.setattr(utils.os, "remove", remove_after_other_job)
     utils.save_results(output, lambda: np.arange(3), verbose=False)()
-    assert (tmp_path / "result.npy.finish").exists()
+    assert (tmp_path / "result.npy.completed").exists()
 
 
 @pytest.mark.parametrize("result_count", [1, 3])
@@ -65,7 +65,7 @@ def test_record_validates_output_count_before_saving(tmp_path, result_count):
     with pytest.raises(ValueError, match=f"Expected 2 results, got {result_count}"):
         wrapped()
     assert not list(tmp_path.glob("*.npy"))
-    assert not list(tmp_path.glob("*.finish"))
+    assert not list(tmp_path.glob("*.completed"))
 
 
 @pytest.mark.parametrize("previous_finish", [False, True])
@@ -73,7 +73,7 @@ def test_record_save_failure_has_no_finish_marker(
     tmp_path, monkeypatch, previous_finish
 ):
     outputs = [str(tmp_path / f"{i}.npy") for i in range(2)]
-    finish = tmp_path / "0.npy.finish"
+    finish = tmp_path / "0.npy.completed"
     if previous_finish:
         finish.write_text("Previous successful run")
     original_save = utils.save
@@ -151,11 +151,11 @@ def test_record_simultaneous_processes(tmp_path):
                 process.join()
     assert all(process.exitcode == 0 for process in processes)
     np.testing.assert_array_equal(utils.load(output), np.arange(3))
-    assert not list(tmp_path.glob("*.running*"))
+    assert not list(tmp_path.glob("*.started*"))
 
 
 def test_claim_publishes_complete_timestamp(tmp_path, monkeypatch):
-    running = str(tmp_path / "result.running")
+    running = str(tmp_path / "result.started")
     original_link = utils.os.link
     fmt = "%Y-%m-%d %H:%M:%S.%f"
 
@@ -165,8 +165,8 @@ def test_claim_publishes_complete_timestamp(tmp_path, monkeypatch):
         original_link(source, target)
 
     monkeypatch.setattr(utils.os, "link", inspect_link)
-    assert utils._claim_running(running, fmt) is not None
-    assert utils._claim_running(running, fmt) is None
+    assert utils._claim_started(running, fmt) is not None
+    assert utils._claim_started(running, fmt) is None
     assert len(list(tmp_path.iterdir())) == 1
 
 
@@ -178,8 +178,8 @@ def test_claim_handles_lost_nfs_reply(tmp_path, monkeypatch):
         raise OSError("Simulated lost NFS reply")
 
     monkeypatch.setattr(utils.os, "link", lost_reply)
-    running = str(tmp_path / "result.running")
-    assert utils._claim_running(running, "%Y-%m-%d %H:%M:%S.%f") is not None
+    running = str(tmp_path / "result.started")
+    assert utils._claim_started(running, "%Y-%m-%d %H:%M:%S.%f") is not None
     assert len(list(tmp_path.iterdir())) == 1
 
 
@@ -189,14 +189,14 @@ def test_claim_propagates_filesystem_errors(tmp_path, monkeypatch):
 
     monkeypatch.setattr(utils.os, "link", denied)
     with pytest.raises(PermissionError):
-        utils._claim_running(str(tmp_path / "result.running"), "%Y-%m-%d %H:%M:%S.%f")
+        utils._claim_started(str(tmp_path / "result.started"), "%Y-%m-%d %H:%M:%S.%f")
     assert not list(tmp_path.iterdir())
 
 
 @pytest.mark.parametrize("timestamp", ["", "incomplete"])
 def test_record_skips_incomplete_running_file(tmp_path, timestamp):
     output = str(tmp_path / "result.npy")
-    (tmp_path / "result.npy.running").write_text(timestamp)
+    (tmp_path / "result.npy.started").write_text(timestamp)
 
     def unexpected_compute():
         pytest.fail("An incomplete timestamp must not permit a duplicate job")
@@ -206,7 +206,7 @@ def test_record_skips_incomplete_running_file(tmp_path, timestamp):
 
 def test_record_loses_claim_after_missing_file_read(tmp_path, monkeypatch):
     output = str(tmp_path / "result.npy")
-    original_claim = utils._claim_running
+    original_claim = utils._claim_started
 
     def another_node_claims_first(running, fmt):
         assert original_claim(running, fmt) is not None
@@ -215,14 +215,14 @@ def test_record_loses_claim_after_missing_file_read(tmp_path, monkeypatch):
     def unexpected_compute():
         pytest.fail("Losing the claim must skip computation")
 
-    monkeypatch.setattr(utils, "_claim_running", another_node_claims_first)
+    monkeypatch.setattr(utils, "_claim_started", another_node_claims_first)
     assert utils.save_results(output, unexpected_compute, verbose=False)() is None
-    assert (tmp_path / "result.npy.running").exists()
+    assert (tmp_path / "result.npy.started").exists()
 
 
 def test_record_rechecks_completion_after_claim(tmp_path, monkeypatch):
     output = str(tmp_path / "result.npy")
-    original_claim = utils._claim_running
+    original_claim = utils._claim_started
 
     def another_node_finishes_first(running, fmt):
         utils.save(output, np.arange(3))
@@ -231,29 +231,29 @@ def test_record_rechecks_completion_after_claim(tmp_path, monkeypatch):
     def unexpected_compute():
         pytest.fail("Results completed before acquisition must be reused")
 
-    monkeypatch.setattr(utils, "_claim_running", another_node_finishes_first)
+    monkeypatch.setattr(utils, "_claim_started", another_node_finishes_first)
     actual = utils.save_results(
         output, unexpected_compute, return_results=True, verbose=False
     )()
     np.testing.assert_array_equal(actual, np.arange(3))
-    assert not (tmp_path / "result.npy.running").exists()
+    assert not (tmp_path / "result.npy.started").exists()
 
 
 def test_cleanup_preserves_replacement_lock(tmp_path):
-    running = str(tmp_path / "result.running")
+    running = str(tmp_path / "result.started")
     fmt = "%Y-%m-%d %H:%M:%S.%f"
-    identity = utils._claim_running(running, fmt)
+    identity = utils._claim_started(running, fmt)
     # Keep the old inode alive so its number cannot be reused.
     utils.os.rename(running, running + ".old")
-    replacement = utils._claim_running(running, fmt)
-    utils._remove_running(running, identity)
+    replacement = utils._claim_started(running, fmt)
+    utils._remove_started(running, identity)
     assert utils._file_identity(utils.os.stat(running)) == replacement
 
 
 @pytest.mark.parametrize("rerun", [False, True])
 def test_record_replaces_expired_or_overridden_lock(tmp_path, rerun):
     output = str(tmp_path / "result.npy")
-    running = tmp_path / "result.npy.running"
+    running = tmp_path / "result.npy.started"
     timestamp = datetime.now() if rerun else datetime(2000, 1, 1)
     running.write_text(timestamp.strftime("%Y-%m-%d %H:%M:%S.%f"))
     result = utils.save_results(
@@ -286,7 +286,7 @@ def test_finish_takes_precedence_over_running(tmp_path, monkeypatch, return_resu
     output = str(tmp_path / "result.npy")
     expected = np.arange(3)
     utils.save_results(output, lambda: expected, verbose=False)()
-    running = tmp_path / "result.npy.running"
+    running = tmp_path / "result.npy.started"
     running.write_text(datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f"))
 
     def unexpected(*args):
@@ -301,12 +301,12 @@ def test_finish_takes_precedence_over_running(tmp_path, monkeypatch, return_resu
     else:
         assert actual is None
     assert not running.exists()
-    assert (tmp_path / "result.npy.finish").exists()
+    assert (tmp_path / "result.npy.completed").exists()
 
 
 def test_waiter_uses_finish_without_running_removal(tmp_path, monkeypatch):
     output = str(tmp_path / "result.npy")
-    running = tmp_path / "result.npy.running"
+    running = tmp_path / "result.npy.started"
     running.write_text(datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f"))
     sleeps = []
 
@@ -314,7 +314,7 @@ def test_waiter_uses_finish_without_running_removal(tmp_path, monkeypatch):
         sleeps.append(seconds)
         assert len(sleeps) == 1
         utils.save(output, np.arange(3))
-        utils._write_finish(output + ".finish", "Completed by another job")
+        utils._write_completed(output + ".completed", "Completed by another job")
         # A crashed competitor's running marker remains.
 
     def unexpected():
@@ -336,7 +336,7 @@ def test_failed_competitor_preserves_successful_output(tmp_path, monkeypatch):
     def partial_save_then_fail(path, data):
         # The other job completes while this job is saving its staged output.
         original_save(output, winner)
-        utils._write_finish(output + ".finish", "Successful competitor")
+        utils._write_completed(output + ".completed", "Successful competitor")
         Path(path).write_bytes(b"partial failed output")
         raise OSError("Failed competitor")
 
@@ -344,8 +344,8 @@ def test_failed_competitor_preserves_successful_output(tmp_path, monkeypatch):
     with pytest.raises(OSError, match="Failed competitor"):
         utils.save_results(output, lambda: np.arange(5), verbose=False)()
     np.testing.assert_array_equal(utils.load(output), winner)
-    assert (tmp_path / "result.npy.finish").read_text() == "Successful competitor"
-    assert (tmp_path / "result.npy.running").exists()
+    assert (tmp_path / "result.npy.completed").read_text() == "Successful competitor"
+    assert (tmp_path / "result.npy.started").exists()
     actual = utils.save_results(
         output,
         lambda: pytest.fail("Must reuse winner"),
@@ -353,13 +353,13 @@ def test_failed_competitor_preserves_successful_output(tmp_path, monkeypatch):
         verbose=False,
     )()
     np.testing.assert_array_equal(actual, winner)
-    assert not (tmp_path / "result.npy.running").exists()
+    assert not (tmp_path / "result.npy.started").exists()
     assert not list(tmp_path.glob(".nb-*"))
 
 
 def test_finish_is_published_after_all_outputs(tmp_path, monkeypatch):
     outputs = [str(tmp_path / f"{i}.npy") for i in range(2)]
-    finish = outputs[0] + ".finish"
+    finish = outputs[0] + ".completed"
     original_replace = utils.os.replace
     replaced = []
 
@@ -382,7 +382,7 @@ def test_finish_is_published_after_all_outputs(tmp_path, monkeypatch):
 def test_rerun_overrides_both_markers(tmp_path):
     output = str(tmp_path / "result.npy")
     utils.save_results(output, lambda: np.arange(3), verbose=False)()
-    running = tmp_path / "result.npy.running"
+    running = tmp_path / "result.npy.started"
     running.write_text(datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f"))
     actual = utils.save_results(
         output, lambda: np.arange(5), rerun=True, return_results=True, verbose=False
@@ -394,16 +394,16 @@ def test_rerun_overrides_both_markers(tmp_path):
 
 def test_success_cleans_crashed_competitors_running_file(tmp_path):
     output = str(tmp_path / "result.npy")
-    running = tmp_path / "result.npy.running"
+    running = tmp_path / "result.npy.started"
 
     def compute():
         # A timeout/override replaced this job's lock; that competitor crashed.
         running.rename(tmp_path / "old-running")
-        utils._claim_running(str(running), "%Y-%m-%d %H:%M:%S.%f")
+        utils._claim_started(str(running), "%Y-%m-%d %H:%M:%S.%f")
         return np.arange(3)
 
     utils.save_results(output, compute, verbose=False)()
-    assert (tmp_path / "result.npy.finish").exists()
+    assert (tmp_path / "result.npy.completed").exists()
     assert not running.exists()
     np.testing.assert_array_equal(utils.load(output), np.arange(3))
 
@@ -413,13 +413,13 @@ def test_failed_finish_publication_leaves_no_marker(tmp_path, monkeypatch):
     original_replace = utils.os.replace
 
     def fail_finish(source, target):
-        if target == output + ".finish":
+        if target == output + ".completed":
             raise OSError("Could not publish finish")
         original_replace(source, target)
 
     monkeypatch.setattr(utils.os, "replace", fail_finish)
     with pytest.raises(OSError, match="Could not publish finish"):
         utils.save_results(output, lambda: np.arange(3), verbose=False)()
-    assert not (tmp_path / "result.npy.finish").exists()
+    assert not (tmp_path / "result.npy.completed").exists()
     np.testing.assert_array_equal(utils.load(output), np.arange(3))
     assert not list(tmp_path.glob(".nb-*"))

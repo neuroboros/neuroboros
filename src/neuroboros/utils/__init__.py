@@ -302,17 +302,17 @@ def _file_identity(stat):
     return stat.st_dev, stat.st_ino
 
 
-def _claim_running(running_fn, fmt):
+def _claim_started(started_fn, fmt):
     """Publish a complete timestamp using the NFS hard-link lock protocol."""
-    dirname = os.path.dirname(running_fn) or "."
+    dirname = os.path.dirname(started_fn) or "."
     with tempfile.NamedTemporaryFile(
-        mode="w", dir=dirname, prefix=os.path.basename(running_fn) + "."
+        mode="w", dir=dirname, prefix=os.path.basename(started_fn) + "."
     ) as f:
         f.write(datetime.now().strftime(fmt))
         f.flush()
         os.fsync(f.fileno())
         try:
-            os.link(f.name, running_fn)
+            os.link(f.name, started_fn)
         except OSError as exc:
             # An NFS server can complete LINK even if its reply is lost.
             # The second link then establishes that this client owns the lock.
@@ -323,11 +323,11 @@ def _claim_running(running_fn, fmt):
         return _file_identity(os.fstat(f.fileno()))
 
 
-def _remove_running(running_fn, identity):
+def _remove_started(started_fn, identity):
     """Best-effort cleanup that checks for a replacement lock first."""
     try:
-        if _file_identity(os.stat(running_fn)) == identity:
-            os.remove(running_fn)
+        if _file_identity(os.stat(started_fn)) == identity:
+            os.remove(started_fn)
     except FileNotFoundError:
         pass
 
@@ -344,16 +344,16 @@ def _save_record_output(fn, data):
         os.replace(staged, fn)
 
 
-def _write_finish(finish_fn, info):
+def _write_completed(completed_fn, info):
     """Publish the complete timing record after every output has been saved."""
-    dirname = os.path.dirname(finish_fn) or "."
-    with tempfile.TemporaryDirectory(dir=dirname, prefix=".nb-finish-") as tmp:
-        staged = os.path.join(tmp, "finish")
+    dirname = os.path.dirname(completed_fn) or "."
+    with tempfile.TemporaryDirectory(dir=dirname, prefix=".nb-completed-") as tmp:
+        staged = os.path.join(tmp, "completed")
         with open(staged, "w") as f:
             f.write(info)
             f.flush()
             os.fsync(f.fileno())
-        os.replace(staged, finish_fn)
+        os.replace(staged, completed_fn)
 
 
 def save_results(
@@ -371,6 +371,8 @@ def save_results(
     function ``wrapped_func``. ``wrapped_func`` is similar to ``func``, except
     that it will also save the returned output of ``func`` to files (file
     names indicated by ``out_fn``), so that it can be accessed later.
+
+    Runs use ``.started`` and ``.completed`` markers.
 
     Parameters
     ----------
@@ -390,7 +392,7 @@ def save_results(
         Whether to output additional logging information.
     rerun : bool, default=False
         Whether to rerun the function even if the output files exist,
-        overriding an existing running file as well.
+        overriding existing start markers as well.
 
     Returns
     -------
@@ -413,8 +415,8 @@ def save_results(
     if log_fn is None:
         log_fn = out_fns[0]
 
-    running_fn = log_fn + ".running"
-    finish_fn = log_fn + ".finish"
+    started_fn = log_fn + ".started"
+    completed_fn = log_fn + ".completed"
     fmt = "%Y-%m-%d %H:%M:%S.%f"
 
     monitored_func = monitor(func)
@@ -428,12 +430,12 @@ def save_results(
         return None
 
     def finished():
-        if not os.path.exists(finish_fn):
+        if not os.path.exists(completed_fn):
             return False
         # A successful job takes precedence over another job's leftover lock.
         try:
-            identity = _file_identity(os.stat(running_fn))
-            _remove_running(running_fn, identity)
+            identity = _file_identity(os.stat(started_fn))
+            _remove_started(started_fn, identity)
         except FileNotFoundError:
             pass
         return True
@@ -450,17 +452,16 @@ def save_results(
             if not rerun and finished():
                 return cached_results()
             try:
-                with open(running_fn) as f:
+                with open(started_fn) as f:
                     stat = os.fstat(f.fileno())
                     try:
                         started = datetime.strptime(f.read(), fmt)
                     except ValueError:
-                        # Empty or incomplete files from older clients still
-                        # count as running; do not start a duplicate job.
+                        # Incomplete markers still count as started.
                         started = datetime.fromtimestamp(stat.st_mtime)
                 expired = datetime.now() - started >= timedelta(hours=rerun_hours)
                 if rerun or expired:
-                    _remove_running(running_fn, _file_identity(stat))
+                    _remove_started(started_fn, _file_identity(stat))
                 elif not return_results:
                     return None
                 else:
@@ -474,7 +475,7 @@ def save_results(
 
             # Always let the server arbitrate acquisition, even if this
             # client's directory cache says the running file does not exist.
-            identity = _claim_running(running_fn, fmt)
+            identity = _claim_started(started_fn, fmt)
             if identity is not None:
                 break
             if not rerun and finished():
@@ -498,7 +499,7 @@ def save_results(
             # A normal competitor must not delete a newly published marker.
             if rerun:
                 try:
-                    os.remove(finish_fn)
+                    os.remove(completed_fn)
                 except FileNotFoundError:
                     pass
 
@@ -515,7 +516,7 @@ def save_results(
             else:
                 _save_record_output(out_fns[0], results)
 
-            _write_finish(finish_fn, info)
+            _write_completed(completed_fn, info)
             release = True
 
             if return_results:
@@ -523,7 +524,7 @@ def save_results(
             return None
         finally:
             if release and not finished():
-                _remove_running(running_fn, identity)
+                _remove_started(started_fn, identity)
 
     wrapped_func = functools.wraps(func)(func_w_cache)
     return wrapped_func
