@@ -1,0 +1,30 @@
+---
+title: "neuroboros"
+subtitle: "Neuroimaging analysis in Python"
+toc: false
+---
+
+`neuroboros` is a Python package for analyzing fMRI data on cortical surfaces and in standard volume spaces.
+It provides preprocessed datasets that download on demand, brain templates and searchlights, and tools for common analyses such as GLM, inter-subject correlation, and surface plotting.
+
+```bash
+pip install -U neuroboros
+```
+
+```python
+import neuroboros as nb
+
+dset = nb.Forrest()
+sid = dset.subjects[0]
+dm_l = dset.get_data(sid, 'forrest', 1, 'l')   # time points x vertices
+dm_r = dset.get_data(sid, 'forrest', 1, 'r')
+
+sls = nb.sls('l', radius=20)                   # searchlight indices
+nb.plot([dm_l[0], dm_r[0]], cmap='bwr', vmax=4, vmin=-4)
+```
+
+- [User guide](guide/index.qmd): installation and the concepts behind the package.
+- [API reference](reference/index.qmd): every public function and class.
+
+`neuroboros` is under active development and the API may change between versions.
+Source code and issue tracker: [github.com/neuroboros/neuroboros](https://github.com/neuroboros/neuroboros).

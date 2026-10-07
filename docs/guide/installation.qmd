@@ -1,0 +1,43 @@
+---
+title: "Installation"
+---
+
+## Install with pip
+
+`neuroboros` is a pure Python package on [PyPI](https://pypi.org/project/neuroboros/).
+Install or upgrade it with pip:
+
+```bash
+pip install -U neuroboros
+```
+
+It depends on NumPy, SciPy, nibabel, pandas, matplotlib, joblib, Pillow, and requests, which pip installs automatically.
+Python 3.8 or newer is recommended.
+
+## Optional packages
+
+Hyperalignment analyses use the separate [`hyperalignment`](https://pypi.org/project/hyperalignment/) package:
+
+```bash
+pip install -U hyperalignment
+```
+
+## Check the installation
+
+```python
+import neuroboros as nb
+
+print(nb.__version__)
+```
+
+## Where data is stored
+
+Brain templates and datasets are downloaded on first use and cached under `~/.neuroboros-data`.
+To use a different location, for example a shared directory on a cluster, set the `NEUROBOROS_DATA_DIR` environment variable before starting Python:
+
+```bash
+export NEUROBOROS_DATA_DIR=/path/to/neuroboros-data
+```
+
+Downloads work over plain HTTPS and need no extra software.
+Using DataLad for faster or partial downloads, and pointing `neuroboros` at local copies of datasets, are covered in a later guide page.

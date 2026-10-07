@@ -1,0 +1,141 @@
+project:
+  type: website
+  output-dir: _site
+  # Explicit list of what to render. Tutorials will be added once rewritten.
+  render:
+    - index.qmd
+    - guide/**/*.qmd
+    - reference/**/*.qmd
+  # quartodoc regenerates reference/ from the installed package's docstrings.
+  # Install it with `pip install -e .[docs]` and render from this directory.
+  pre-render: quartodoc build
+
+metadata-files:
+  - reference/_sidebar.yml
+
+website:
+  title: "neuroboros"
+  site-url: https://neuroboros.github.io
+  repo-url: https://github.com/neuroboros/neuroboros
+  repo-subdir: docs
+  navbar:
+    left:
+      - href: index.qmd
+        text: Home
+      - href: guide/index.qmd
+        text: User guide
+      - href: reference/index.qmd
+        text: API reference
+    right:
+      - icon: github
+        href: https://github.com/neuroboros/neuroboros
+        aria-label: neuroboros on GitHub
+  sidebar:
+    - id: guide
+      title: "User guide"
+      style: floating
+      contents:
+        - guide/index.qmd
+        - guide/installation.qmd
+    # The "reference" sidebar is written by quartodoc to reference/_sidebar.yml
+    # and merged in through metadata-files below.
+  page-footer:
+    center: "&copy; the neuroboros developers. MIT license."
+
+format:
+  html:
+    theme: materia
+    toc: true
+    anchor-sections: true
+    code-copy: true
+
+quartodoc:
+  package: neuroboros
+  dir: reference
+  title: "API reference"
+  parser: numpy
+  sidebar: reference/_sidebar.yml
+  # Resolve the top-level aliases (nb.plot -> plot2d.brain_plot, etc.) by
+  # importing the package rather than by static analysis alone.
+  dynamic: true
+  sections:
+    - title: Datasets
+      desc: >
+        Preprocessed fMRI datasets. Each class downloads what it needs on
+        first use and returns data matrices in a chosen brain space.
+      contents:
+        - dataset
+        - Forrest
+        - Life
+        - Budapest
+        - Raiders
+        - Bologna
+        - Bellaria
+        - Dalmatians
+        - SpaceTop
+        - CamCAN
+        - ID1000
+        - HCA
+        - MonkeyKingdom
+        - MonkeyKingdomEng
+        - MonkeyAction
+        - HBNSSI
+        - WhiplashC1
+        - WhiplashC2
+        - WhiplashC3
+        - IBC
+        - Hybr
+    - title: Spaces and templates
+      desc: >
+        Geometry, masks, parcellations, morphometry, and mappings for the
+        standard surface spaces (onavg, fsaverage) and MNI volume grids.
+      contents:
+        - geometry
+        - mask
+        - mapping
+        - parcellation
+        - morphometry
+        - distances
+        - smooth
+        - sls
+    - title: Surfaces
+      desc: Surface meshes, spheres, and surface alignment.
+      contents:
+        - Surface
+        - Sphere
+        - Aligner
+    - title: Analysis
+      desc: Modeling, statistics, and benchmarking.
+      contents:
+        - glm
+        - isc
+        - pearsonr
+        - classification
+        - stats.cronbach_alpha
+        - stats.cronbach_alpha_ci
+        - stats.spearman_brown
+        - stats.spearman_brown_inv
+        - stats.noise_ceilings
+        - stats.normalize
+        - linalg.safe_svd
+        - linalg.safe_polar
+        - linalg.gram_pca
+        - linalg.ensemble_lstsq
+        - ensemble.kfold_bagging
+        - ensemble.kfold_bagging_groups
+        - ensemble.permute_groups
+    - title: Plotting
+      desc: Render surface maps as 2D images.
+      contents:
+        - plot
+        - plot_mebrains
+        - Image
+    - title: Utilities
+      desc: File I/O, result caching, and archiving.
+      contents:
+        - load
+        - save
+        - record
+        - percentile
+        - archive
+        - archive_check

@@ -1,0 +1,8 @@
+/.quarto/
+/_site/
+/_build/
+/reference/
+**/*.quarto_ipynb
+objects.json
+.DS_Store
+.ipynb_checkpoints/
