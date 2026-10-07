@@ -74,14 +74,14 @@ def save(fn, data):
     """Save the data using the automatically determined format.
 
     If ``fn`` ends with ".npy", save as npy file.
-    If ``data`` is spmatrix, save as npz file.
+    If ``fn`` ends with ".npz" and ``data`` is sparse, save as npz file.
     If dict and ``fn`` ends with ".npz", save as npz file.
     If ``fn`` ends with ".pkl", save using ``pickle.dump``.
     If ``fn`` ends with ".png", save as PNG file (requires the Pillow
     package).
     If ``fn`` ends with ".json", save as JSON file.
 
-    The function also automatically create the directory ``fn`` is in if it
+    The function also automatically creates the directory ``fn`` is in if it
     does not exist.
 
     Parameters
@@ -113,7 +113,7 @@ def save(fn, data):
             warnings.warn("`data` is not an ndarray, trying to convert.")
         return np.save(fn, data)
 
-    if sparse.issparse(data):
+    if fn.endswith(".npz") and sparse.issparse(data):
         return sparse.save_npz(fn, data)
     if fn.endswith(".npz") and isinstance(data, dict):
         return np.savez(fn, **data)
