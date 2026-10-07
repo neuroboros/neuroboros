@@ -37,6 +37,7 @@ website:
       contents:
         - guide/index.qmd
         - guide/installation.qmd
+        - guide/io.qmd
     # The "reference" sidebar is written by quartodoc to reference/_sidebar.yml
     # and merged in through metadata-files below.
   page-footer:
@@ -139,3 +140,6 @@ quartodoc:
         - percentile
         - archive
         - archive_check
+        - utils.monitor
+        - utils.parse_record
+        - utils.assert_sufficient_time

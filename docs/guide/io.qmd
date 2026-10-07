@@ -1,0 +1,161 @@
+---
+title: "Saving, loading, and caching results"
+---
+
+Three functions in `neuroboros` handle files: `nb.save` and `nb.load` pick the file format from the file name, and `nb.record` wraps a function so that its output is saved to disk and reused on later calls.
+All three are also used internally, for example when datasets are downloaded and cached.
+
+## `nb.save`
+
+`nb.save(fn, data)` chooses the file format automatically from the filename and data type, and creates any missing parent directories.
+
+```python
+import numpy as np
+import neuroboros as nb
+
+corr = np.array([0.2, 0.5, 0.8])
+nb.save('results/isc/corr.npy', corr)
+```
+
+The example creates `results/isc/` if needed, then saves the array as a NumPy file.
+
+| File name ends with | `data` | Written with |
+| --- | --- | --- |
+| `.npy` | array | `numpy.save` |
+| `.npz` | SciPy sparse matrix | `scipy.sparse.save_npz` |
+| `.npz` | `dict` of arrays | `numpy.savez` |
+| `.pkl` | any Python object | `pickle.dump` |
+| `.png` | array or PIL image | Pillow |
+| `.shape.gii` | 1-D array | GIFTI shape file, float32 |
+| `.func.gii` | 1-D or 2-D array | GIFTI time-series file, one data array per column, float32 |
+| `.json` | JSON-compatible object | `json.dump` |
+
+Anything else raises `TypeError`.
+Two details to keep in mind:
+
+- Use `.npz` to save a SciPy sparse matrix with `scipy.sparse.save_npz`. Other extensions select their usual writers; for example, `.pkl` pickles the sparse matrix.
+- Saving to `.npy` converts non-array input with a warning.
+
+## `nb.load`
+
+```python
+corr = nb.load('results/isc/corr.npy')
+events = nb.load('sub-01_task-movie_events.tsv')
+```
+
+`nb.load(fn, **kwargs)` picks the reader from the extension and passes extra keyword arguments on to it.
+
+| File name ends with | Read with | Returns |
+| --- | --- | --- |
+| `.npy` | `numpy.load` | array |
+| `.npz` | `scipy.sparse.load_npz`, falling back to `numpy.load` | sparse matrix, or an `NpzFile` for `dict` saves |
+| `.tsv` | `pandas.read_csv` with tab delimiter | DataFrame |
+| `.csv` | `pandas.read_csv` | DataFrame |
+| `.pkl` | `pickle.load` | the pickled object |
+| `.json`, `.json.gz` | `json.load` | the decoded object |
+
+For `.tsv` and `.csv`, the string `n/a` is read as missing, following the BIDS convention for events and confounds files.
+
+Loading a dictionary saved as `.npz` returns an `NpzFile`, rather than a dictionary.
+Access arrays by name, and close the archive when finished:
+
+```python
+nb.save('results/summary.npz', {'corr': corr})
+with nb.load('results/summary.npz') as results:
+    corr = results['corr']
+```
+
+The two functions are not perfectly symmetric.
+`nb.save` writes PNG and GIFTI files that `nb.load` does not read, and `nb.load` reads TSV, CSV, and gzipped JSON files that `nb.save` does not write.
+Use nibabel directly to read GIFTI files.
+
+## `nb.record`
+
+Long analyses are usually run as many independent jobs, for example one per subject or per searchlight, and completed results can be reused to avoid repeating work.
+`nb.record` wraps a function to save its results and skip completed computations:
+
+```python
+def compute_isc(dset, sid, task):
+    ...
+    return isc  # an array
+
+out_fn = f'results/isc/{task}/{sid}.npy'
+nb.record(out_fn, compute_isc)(dset, sid, task)
+```
+
+The call `nb.record(out_fn, func)` returns a wrapped version of `func`.
+Calling the wrapped function:
+
+1. Checks `.finish` first. If present, skips computation and cleans up any leftover `.running` marker.
+2. Otherwise checks for another running job, as described below, and skips computation if all output files already exist once no active job blocks it.
+3. Otherwise runs `func` with the given arguments, saves the returned value using `nb.save`, and records timing information.
+
+By default the wrapped function returns `None` in both cases.
+Pass `return_results=True` to get the result back, loaded from disk with `nb.load` when it already exists:
+
+```python
+isc = nb.record(out_fn, compute_isc, return_results=True)(dset, sid, task)
+```
+
+`return_results=True` requires a format that `nb.load` can read on later calls; PNG and GIFTI are not supported for this use.
+
+`nb.record` is an alias of `nb.save_results`, and the two names can be used interchangeably.
+
+### Multiple outputs
+
+For multiple outputs, `out_fn` can be a list or tuple of file names; `func` must return a sequence of the same length, and each element is saved to the matching file:
+
+```python
+out_fns = [f'results/glm/{sid}_betas.npy', f'results/glm/{sid}_tvalues.npy']
+nb.record(out_fns, run_glm)(dset, sid)
+```
+
+### Caching is by file name only
+
+The wrapped function does not look at its arguments when deciding whether to skip the computation.
+If `out_fn` exists, the arguments are ignored.
+Put every parameter that changes the result into the file name, as in the `{task}/{sid}` example above, and pass `rerun=True` to recompute regardless of existing files.
+
+### Lock and log files
+
+`nb.record` writes one pair of small text files per computation, named after the first output file by default:
+
+- `<out_fn>.running` is created when the computation starts and removed after the outputs and completion marker are written. It holds the start time.
+- `<out_fn>.finish` is published after all outputs have been saved successfully. It holds the CPU time, wall time, host name, and the number of CPUs.
+
+Each output is saved to a temporary location on the same filesystem, then moved into place with an atomic replacement.
+A failed save therefore cannot leave a partially written file at the final output path or damage another job's saved file.
+The complete `.finish` record is also published by atomic replacement, after every output has been saved.
+Replacement is atomic for each file, not for the entire set of multiple outputs.
+
+If both `.finish` and `.running` exist, `.finish` takes precedence: the result is treated as complete and cleanup of `.running` is attempted.
+This applies both when a job finishes successfully and when a later call finds completed work, including while waiting for another job.
+Only `rerun=True` deliberately invalidates an existing completion marker.
+
+The `.running` file signals that a job has started on a shared file system, whether competing jobs run on the same node or different nodes.
+To claim a job, `nb.record` writes the timestamp to a unique temporary file in the same directory, then creates `.running` as a hard link to it.
+The file server allows only one job to create that name, so simultaneous starts are handled even when a node's directory listing is out of date.
+The temporary name is removed after the claim attempt; the timestamp remains available through `.running` for the winning job.
+This requires a shared filesystem that supports hard links, such as NFS, and all participating jobs must use this locking protocol.
+
+If there is no `.finish` marker and another job started the same computation less than `rerun_hours` ago (48 hours by default), the wrapped function returns `None` instead of starting a duplicate run.
+With `return_results=True` it instead waits, checking every ten minutes, until the other job finishes.
+
+A `.running` file older than `rerun_hours` allows the computation to start again, even if the original job is still running.
+`rerun=True` overrides an existing running file and bypasses the completion checks.
+Both overrides can cause overlapping computations if the original job is still running; the timeout assumes sufficiently synchronized node clocks.
+Automatic removal of expired locks is best-effort, so simultaneous timeout recovery does not have the same guarantee as claiming an absent lock.
+Cleanup checks the file's identity to avoid removing a replacement lock that it can already see.
+
+If a job fails or is killed and no competing job completes successfully, its `.running` file stays behind and blocks reruns for `rerun_hours`.
+Delete the file, or pass a shorter `rerun_hours`, to restart sooner.
+
+The `.finish` file doubles as a completion marker: if it exists, the output is treated as complete even if the output files were moved.
+With `return_results=True`, missing output files still cause loading to fail.
+Use `log_fn` to put both files somewhere other than next to the first output.
+
+### Related utilities
+
+- `nb.utils.monitor` wraps a function and records the same timing and host information without saving its output.
+- `nb.utils.parse_record` reads a `.finish` file and returns the CPU and wall time in nanoseconds, which is useful for summarizing compute cost across jobs.
+- `nb.utils.assert_sufficient_time` stops a SLURM job cleanly if its remaining walltime is shorter than a given minimum, so it can be called between `nb.record` steps in a long script.
