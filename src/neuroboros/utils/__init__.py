@@ -40,6 +40,7 @@ import json
 import os
 import pickle
 import subprocess
+import tempfile
 import time
 import warnings
 from datetime import datetime, timedelta
@@ -297,6 +298,30 @@ def monitor(func, record_fn=None):
     return wrapped_func
 
 
+def _save_record_output(fn, data):
+    """Keep partial writes away from the final output path."""
+    dirname = os.path.dirname(fn) or "."
+    os.makedirs(dirname, exist_ok=True)
+    with tempfile.TemporaryDirectory(dir=dirname, prefix=".nb-save-") as tmp:
+        staged = os.path.join(tmp, os.path.basename(fn))
+        save(staged, data)
+        with open(staged, "rb") as f:
+            os.fsync(f.fileno())
+        os.replace(staged, fn)
+
+
+def _write_finish(finish_fn, info):
+    """Publish the complete timing record after every output has been saved."""
+    dirname = os.path.dirname(finish_fn) or "."
+    with tempfile.TemporaryDirectory(dir=dirname, prefix=".nb-finish-") as tmp:
+        staged = os.path.join(tmp, "finish")
+        with open(staged, "w") as f:
+            f.write(info)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(staged, finish_fn)
+
+
 def save_results(
     out_fn,
     func,
@@ -357,7 +382,7 @@ def save_results(
     finish_fn = log_fn + ".finish"
     fmt = "%Y-%m-%d %H:%M:%S.%f"
 
-    monitored_func = monitor(func, finish_fn)
+    monitored_func = monitor(func)
 
     def func_w_cache(*args, **kwargs):
         if not rerun:
@@ -402,7 +427,12 @@ def save_results(
         if verbose:
             print(datetime.now(), f"Starting to compute for: {out_fns}")
 
-        results = monitored_func(*args, **kwargs)
+        if rerun:
+            try:
+                os.remove(finish_fn)
+            except FileNotFoundError:
+                pass
+        info, results = monitored_func(*args, **kwargs)
 
         if len(out_fns) > 1:
             output_results = list(results)
@@ -411,9 +441,11 @@ def save_results(
                     f"Expected {len(out_fns)} results, got {len(output_results)}."
                 )
             for res, fn in zip(output_results, out_fns):
-                save(fn, res)
+                _save_record_output(fn, res)
         else:
-            save(out_fns[0], results)
+            _save_record_output(out_fns[0], results)
+
+        _write_finish(finish_fn, info)
 
         if os.path.exists(running_fn):
             os.remove(running_fn)
