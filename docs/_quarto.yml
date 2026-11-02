@@ -38,6 +38,7 @@ website:
         - guide/index.qmd
         - guide/installation.qmd
         - guide/io.qmd
+        - guide/templates.qmd
     # The "reference" sidebar is written by quartodoc to reference/_sidebar.yml
     # and merged in through metadata-files below.
   page-footer:
@@ -49,6 +50,7 @@ format:
     toc: true
     anchor-sections: true
     code-copy: true
+    css: styles.css
 
 quartodoc:
   package: neuroboros

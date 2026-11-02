@@ -1,0 +1,184 @@
+---
+title: "HyperBrain functional templates"
+---
+
+When we perform hyperalignment, we often hyperalign each individual to a functional template, which is the common space created by a group of participants.
+`nb.tpl` loads functional templates from the [`HyperBrain`](https://gin.g-node.org/neuroboros/hyperbrain) dataset.
+
+::: {.column-margin}
+Alternatively, we can also hyperalign the template to an individual to model the individual's functional architecture (Feilong et al., 2023, Imaging Neuroscience), or hyperalign individuals to each other (Jiahui et al., 2020, NeuroImage).
+:::
+
+HyperBrain-Sparta is a functional connectivity template built from high-quality fMRI data from 300 individuals.
+It can be used to align brains using connectivity hyperalignment (Guntupalli et al., 2018, PLOS Computational Biology).
+It is the default functional template.
+The files are downloaded on first use and cached locally.
+To use the template, you can simply run:
+
+```python
+import neuroboros as nb
+
+tpl = nb.tpl('l')  # left hemisphere, Sparta 0.9
+tpl.shape  # (1210, 38698)
+```
+
+Each template is a 2-D array.
+Rows are the connectivity targets (`onavg-ico8` vertices), and columns are the vertices of the requested hemisphere.
+Each column is the connectivity profile of one vertex, and each row is the connectivity pattern of one target across the hemisphere.
+
+
+## Loading a template
+
+The first argument selects a hemisphere, `'l'` or `'r'`, or `'lr'` for both:
+
+```python
+lh = nb.tpl('l')
+rh = nb.tpl('r')
+bh = nb.tpl('lr')
+```
+
+`'lr'` concatenates the two hemispheres along the vertex axis, so the rows stay the same.
+
+| `which` | Shape |
+| --- | --- |
+| `'l'` | (1210, 38698) |
+| `'r'` | (1210, 38628) |
+| `'lr'` | (1210, 77326) |
+
+The targets are the `onavg-ico8` vertices of the left hemisphere followed by those of the right hemisphere, in the same order as `nb.mask('lr', 'onavg-ico8')`.
+This order is the same for both hemispheres' templates.
+
+`nb.tpl('meta')` returns the metadata of the template version as a dictionary, including its description, space, shape, and license:
+
+```python
+nb.tpl('meta')
+```
+
+<details>
+<summary>Output</summary>
+
+```
+{'name': 'Sparta',
+ 'version': '0.9',
+ 'description': 'Connectivity hyperalignment templates built using high-quality fMRI data from 300 individuals.',
+ 'space': 'onavg-ico64',
+ 'shape': [1284, 40962],
+ 'dtype': 'float32',
+ 'layout': 'Rows are connectivity targets; columns are vertices of the specified hemisphere.',
+ 'targets': '1,284 targets: the 642 onavg-ico8 vertices of the left hemisphere followed by the 642 of the right hemisphere, in both arrays.',
+ 'files': {'lh': {'file': 'lh_onavg-ico64.npy',
+                  'sha256': 'b49c66d76c2a75013f59cb08fc7a68b4effb315a60141eb8df46fb229b711407'},
+           'rh': {'file': 'rh_onavg-ico64.npy',
+                  'sha256': 'a2cf50c0a4ba9d2c6c91446bae83a0990e31578b82d5d5096cae547b9a2ac535'}},
+ 'license': 'CC0-1.0'}
+```
+
+</details>
+
+## Masking and data type
+
+By default, the standard cortical masks are applied.
+The `onavg-ico8` mask of both hemispheres is applied to the targets (rows), and the `onavg-ico64` mask of the requested hemisphere to the vertices (columns).
+This removes the medial wall and leaves 1210 targets, with 38698 vertices in the left hemisphere and 38628 in the right.
+Pass `mask=False` to get the full array with 1284 targets and 40962 vertices per hemisphere:
+
+```python
+tpl = nb.tpl('l', mask=False)
+tpl.shape  # (1284, 40962)
+```
+
+The files store float32 values.
+`nb.tpl` converts them to float64 for numerical computations.
+Pass `dtype=None` to keep the stored data type when float32 precision is sufficient for your analysis, or pass another NumPy data type to convert to it:
+
+```python
+tpl = nb.tpl('l', dtype=None)  # float32, half the memory
+tpl.dtype  # dtype('float32')
+```
+
+## Versions
+
+The `version` argument names a template and its version, in the form `'<name>-<number>'`.
+The default is `'sparta-0.9'`.
+A version never changes once it is published; new data or methods are released as a new version.
+
+```python
+tpl = nb.tpl('l', version='sparta-0.9')
+```
+
+Requesting a version that does not exist raises a `ValueError` listing the available versions:
+
+```python
+tpl = nb.tpl('l', version='sparta-0.8')
+```
+
+```
+ValueError: 'sparta/v0.8/lh_onavg-ico64.npy' is not in the hyperbrain manifest. Available template versions: ['sparta-0.9']. If a new version was published recently, run `nb.tpl.update()` to refresh the manifest.
+```
+
+Once the manifest is cached locally, this check does not require a network connection (see [The manifest](#the-manifest)).
+
+## Other spaces
+
+The templates are stored in the `onavg-ico64` space.
+If you request a different space, `nb.tpl` resamples the template with `nb.mapping` and emits a warning, because resampling may reduce data quality:
+
+```python
+tpl = nb.tpl('l', space='onavg-ico32')
+tpl.shape  # (1210, 9675)
+```
+
+```
+UserWarning: Templates are stored in 'onavg-ico64'; requesting 'onavg-ico32' forces resampling, which may reduce data quality.
+```
+
+When possible, keep your analysis in `onavg-ico64` and resample your own data to it instead of resampling the template.
+
+## The manifest
+
+The `hyperbrain` dataset includes a manifest, `manifest.json`, listing every file it contains together with its SHA-256 checksum.
+`nb.tpl` downloads the manifest once and keeps a local copy.
+Once the manifest is cached locally, a request for a version or hemisphere that is not listed fails immediately without contacting the server.
+
+When a new template version has been published, refresh the local manifest:
+
+```python
+nb.tpl.update()
+```
+
+## Verifying downloaded files
+
+After a file is downloaded, its SHA-256 checksum is compared with the manifest.
+A mismatch emits a warning that names the file and suggests how to replace it.
+Files already in the cache are not re-checked when they are loaded.
+To check all downloaded files at any time, run:
+
+```python
+nb.tpl.verify()
+```
+
+```
+{'sparta/v0.9/lh_onavg-ico64.npy': True,
+ 'sparta/v0.9/meta.json': True,
+ 'sparta/v0.9/rh_onavg-ico64.npy': True}
+```
+
+It returns a dictionary with `True` or `False` for each downloaded file and warns for each mismatch.
+
+## Where the files are stored
+
+The files are cached under `hyperbrain/` in the neuroboros data directory, `~/.neuroboros-data` by default or the directory named by `NEUROBOROS_DATA_DIR` (see [Installation](installation.qmd#where-data-is-stored)).
+Each hemisphere of Sparta 0.9 is a 210 MB file.
+
+## Using a DataLad clone
+
+If you have [DataLad](https://www.datalad.org/) installed, you can clone the dataset into the data directory instead of downloading files over HTTPS.
+Clone it before the first template download, while the destination is still absent; otherwise, it may already contain the HTTPS cache:
+
+```bash
+mkdir -p ~/.neuroboros-data
+datalad clone https://gin.g-node.org/neuroboros/hyperbrain ~/.neuroboros-data/hyperbrain
+```
+
+`neuroboros` detects the clone and fetches files with `datalad get`.
+`nb.tpl.update()` then updates the clone, including its manifest, with `datalad update`.

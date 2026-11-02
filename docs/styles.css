@@ -1,0 +1,5 @@
+/* Wrap long lines in plain output blocks (fenced blocks without a language). */
+pre:not(.sourceCode) > code {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
