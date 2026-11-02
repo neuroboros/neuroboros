@@ -1,0 +1,222 @@
+import json
+import os
+
+import numpy as np
+import pytest
+import requests
+
+import neuroboros as nb
+from neuroboros import templates
+
+MANIFEST = {
+    "updated": "2026-11-01",
+    "files": [
+        "sparta/v0.9/lh_onavg-ico64.npy",
+        "sparta/v0.9/meta.json",
+        "sparta/v0.9/rh_onavg-ico64.npy",
+        "sparta/v1.0/lh_onavg-ico64.npy",
+    ],
+}
+SHA256 = {
+    "lh": "b49c66d76c2a75013f59cb08fc7a68b4effb315a60141eb8df46fb229b711407",
+    "rh": "a2cf50c0a4ba9d2c6c91446bae83a0990e31578b82d5d5096cae547b9a2ac535",
+}
+
+
+class FakeDataset:
+    """Stands in for ``hyperbrain_dataset``; records requested paths."""
+
+    kind = "https"
+
+    def __init__(self, root, shape=(3, 4)):
+        self.root = str(root)
+        self.shape = shape
+        self.calls = []
+
+    def _manifest_fn(self):
+        return os.path.join(self.root, templates.MANIFEST_FN)
+
+    def download(self, fn, local_fn, on_missing="warn"):
+        assert fn == templates.MANIFEST_FN
+        with open(local_fn, "w") as f:
+            json.dump(MANIFEST, f)
+
+    def get(self, fn, load_func=None, on_missing="warn"):
+        self.calls.append(fn)
+        if fn == templates.MANIFEST_FN:
+            if not os.path.exists(self._manifest_fn()):
+                self.download(fn, self._manifest_fn())
+            with open(self._manifest_fn()) as f:
+                return json.load(f)
+        if fn[-1] == "meta.json":
+            return {"name": "Sparta", "version": fn[1][1:]}
+        offset = 0.0 if fn[-1].startswith("lh") else 100.0
+        arr = np.arange(np.prod(self.shape), dtype=np.float32).reshape(self.shape)
+        return arr + offset
+
+
+@pytest.fixture
+def fake(tmp_path, monkeypatch):
+    ds = FakeDataset(tmp_path)
+    monkeypatch.setattr(templates, "hyperbrain_dataset", ds)
+    monkeypatch.setattr(templates, "_manifest", None)
+    return ds
+
+
+def array_calls(ds):
+    return [c for c in ds.calls if c != templates.MANIFEST_FN]
+
+
+class TestPaths:
+    @pytest.mark.parametrize("which", ["l", "lh"])
+    def test_left(self, fake, which):
+        templates.get_template(which, mask=False)
+        assert array_calls(fake) == [("sparta", "v0.9", "lh_onavg-ico64.npy")]
+
+    @pytest.mark.parametrize("which", ["r", "rh"])
+    def test_right(self, fake, which):
+        templates.get_template(which, mask=False)
+        assert array_calls(fake) == [("sparta", "v0.9", "rh_onavg-ico64.npy")]
+
+    def test_meta(self, fake):
+        meta = templates.get_template("meta")
+        assert meta == {"name": "Sparta", "version": "0.9"}
+        assert array_calls(fake) == [("sparta", "v0.9", "meta.json")]
+
+    def test_version(self, fake):
+        templates.get_template("l", mask=False, version="sparta-1.0")
+        assert array_calls(fake) == [("sparta", "v1.0", "lh_onavg-ico64.npy")]
+
+    def test_manifest_fetched_once(self, fake):
+        templates.get_template("l", mask=False)
+        templates.get_template("r", mask=False)
+        assert fake.calls.count(templates.MANIFEST_FN) == 1
+
+
+class TestValues:
+    def test_unmasked_native_dtype(self, fake):
+        tpl = templates.get_template("l", mask=False, dtype=None)
+        expected = np.arange(12, dtype=np.float32).reshape(3, 4)
+        assert tpl.dtype == np.float32
+        np.testing.assert_array_equal(tpl, expected)
+
+    def test_default_dtype(self, fake):
+        tpl = templates.get_template("l", mask=False)
+        assert tpl.dtype == np.float64
+        np.testing.assert_array_equal(tpl, np.arange(12).reshape(3, 4))
+
+    def test_lr(self, fake):
+        tpl = templates.get_template("lr", mask=False)
+        lh = np.arange(12).reshape(3, 4)
+        np.testing.assert_array_equal(tpl, np.concatenate([lh, lh + 100], axis=1))
+        assert array_calls(fake) == [
+            ("sparta", "v0.9", "lh_onavg-ico64.npy"),
+            ("sparta", "v0.9", "rh_onavg-ico64.npy"),
+        ]
+
+    def test_masked(self, tmp_path, monkeypatch):
+        ds = FakeDataset(tmp_path, shape=(1284, 40962))
+        monkeypatch.setattr(templates, "hyperbrain_dataset", ds)
+        monkeypatch.setattr(templates, "_manifest", None)
+        tpl = templates.get_template("l")
+        n_targets = nb.mask("lr", "onavg-ico8").sum()
+        n_vertices = nb.mask("l", "onavg-ico64").sum()
+        assert tpl.shape == (n_targets, n_vertices)
+        assert tpl.dtype == np.float64
+
+
+class TestErrors:
+    @pytest.mark.parametrize("which", ["x", "both", "L"])
+    def test_bad_which(self, fake, which):
+        with pytest.raises(ValueError, match="Invalid value for `which`"):
+            templates.get_template(which)
+
+    def test_bad_version_string(self, fake):
+        with pytest.raises(ValueError, match="Invalid template version"):
+            templates.get_template("l", version="sparta")
+
+    def test_missing_version_does_not_download(self, fake):
+        with pytest.raises(ValueError, match="sparta-0.9"):
+            templates.get_template("l", version="sparta-9.9")
+        assert array_calls(fake) == []
+
+    def test_missing_hemisphere_does_not_download(self, fake):
+        # v1.0 in the fake manifest only has the left hemisphere.
+        with pytest.raises(ValueError, match="not in the hyperbrain manifest"):
+            templates.get_template("r", version="sparta-1.0")
+        assert array_calls(fake) == []
+
+
+class TestUpdate:
+    def test_update_refetches(self, fake):
+        stale = {"files": ["sparta/v0.9/lh_onavg-ico64.npy"]}
+        with open(fake._manifest_fn(), "w") as f:
+            json.dump(stale, f)
+        assert templates.load_manifest() == set(stale["files"])
+        with pytest.raises(ValueError):
+            templates.get_template("r", mask=False)
+
+        manifest = templates.get_template.update()
+        assert manifest == MANIFEST
+        assert templates.load_manifest() == set(MANIFEST["files"])
+        templates.get_template("r", mask=False)
+        with open(fake._manifest_fn()) as f:
+            assert json.load(f) == MANIFEST
+        assert not os.path.exists(fake._manifest_fn() + ".new")
+
+    def test_failed_update_keeps_old_manifest(self, fake, monkeypatch):
+        stale = {"files": ["sparta/v0.9/lh_onavg-ico64.npy"]}
+        with open(fake._manifest_fn(), "w") as f:
+            json.dump(stale, f)
+        assert templates.load_manifest() == set(stale["files"])
+
+        def failing_download(fn, local_fn, on_missing="warn"):
+            raise RuntimeError("network down")
+
+        monkeypatch.setattr(fake, "download", failing_download)
+        with pytest.raises(RuntimeError, match="network down"):
+            templates.get_template.update()
+        with open(fake._manifest_fn()) as f:
+            assert json.load(f) == stale
+        assert templates.load_manifest() == set(stale["files"])
+        templates.get_template("l", mask=False)
+
+    @pytest.mark.parametrize(
+        "content, error",
+        [("not json", ValueError), ('{"version": 1}', ValueError), ("[]", ValueError)],
+    )
+    def test_invalid_update_keeps_old_manifest(self, fake, monkeypatch, content, error):
+        stale = {"files": ["sparta/v0.9/lh_onavg-ico64.npy"]}
+        with open(fake._manifest_fn(), "w") as f:
+            json.dump(stale, f)
+        assert templates.load_manifest() == set(stale["files"])
+
+        def bad_download(fn, local_fn, on_missing="warn"):
+            with open(local_fn, "w") as f:
+                f.write(content)
+
+        monkeypatch.setattr(fake, "download", bad_download)
+        with pytest.raises(error):
+            templates.get_template.update()
+        assert not os.path.exists(fake._manifest_fn() + ".new")
+        with open(fake._manifest_fn()) as f:
+            assert json.load(f) == stale
+        assert templates.load_manifest() == set(stale["files"])
+
+
+@pytest.mark.skipif(
+    not os.environ.get("NEUROBOROS_NETWORK_TESTS"),
+    reason="set NEUROBOROS_NETWORK_TESTS=1 to query GIN",
+)
+def test_remote_manifest_and_checksums():
+    base = "https://gin.g-node.org/neuroboros/hyperbrain/raw/master/"
+    manifest = requests.get(base + "manifest.json", timeout=30).json()
+    for fn in [
+        "sparta/v0.9/lh_onavg-ico64.npy",
+        "sparta/v0.9/rh_onavg-ico64.npy",
+        "sparta/v0.9/meta.json",
+    ]:
+        assert fn in manifest["files"]
+    meta = requests.get(base + "sparta/v0.9/meta.json", timeout=30).json()
+    for lr in ["lh", "rh"]:
+        assert meta["files"][lr]["sha256"] == SHA256[lr]
