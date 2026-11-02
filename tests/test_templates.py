@@ -69,6 +69,11 @@ def array_calls(ds):
     return [c for c in ds.calls if c != templates.MANIFEST_FN]
 
 
+def test_public_alias():
+    assert nb.tpl is templates.get_template
+    assert nb.tpl.update is templates.update_manifest
+
+
 class TestPaths:
     @pytest.mark.parametrize("which", ["l", "lh"])
     def test_left(self, fake, which):

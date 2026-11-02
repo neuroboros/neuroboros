@@ -99,6 +99,7 @@ quartodoc:
         - distances
         - smooth
         - sls
+        - tpl
     - title: Surfaces
       desc: Surface meshes, spheres, and surface alignment.
       contents:
