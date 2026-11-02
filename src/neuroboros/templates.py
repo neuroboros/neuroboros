@@ -2,11 +2,12 @@
 
 import json
 import os
+import warnings
 
 import numpy as np
 
 from .io import hyperbrain_dataset
-from .spaces import get_mask
+from .spaces import get_mapping, get_mask
 
 DEFAULT_TEMPLATE_VERSION = "sparta-0.9"
 MANIFEST_FN = "manifest.json"
@@ -106,6 +107,7 @@ def _check_manifest(path):
 def get_template(
     which,
     mask=True,
+    space=TEMPLATE_SPACE,
     version=DEFAULT_TEMPLATE_VERSION,
     dtype=np.float64,
 ):
@@ -115,8 +117,7 @@ def get_template(
     (https://gin.g-node.org/neuroboros/hyperbrain) and downloaded on first
     use. Each hemisphere's template has shape ``(n_targets, n_vertices)``:
     rows are connectivity targets (connectivity patterns) and columns are
-    the ``onavg-ico64`` vertices of that hemisphere (connectivity profiles).
-    The targets are
+    the vertices of that hemisphere (connectivity profiles). The targets are
     the ``onavg-ico8`` vertices of the left hemisphere followed by those of
     the right hemisphere, the same order as ``nb.mask("lr", "onavg-ico8")``.
 
@@ -128,9 +129,14 @@ def get_template(
         returns the metadata of the template version as a dict.
     mask : bool, default=True
         Whether to apply the standard cortical masks: the ``onavg-ico8`` mask
-        of both hemispheres to the targets (rows) and the ``onavg-ico64``
-        mask of the requested hemisphere to the vertices (columns). Ignored
+        of both hemispheres to the targets (rows) and the mask of ``space``
+        for the requested hemisphere to the vertices (columns). Ignored
         when ``which`` is 'meta'.
+    space : str, default='onavg-ico64'
+        Surface space of the vertices of the returned array. The templates
+        are stored in ``onavg-ico64``; requesting another space resamples
+        them with :func:`neuroboros.mapping` and emits a warning, because
+        resampling may reduce data quality. Ignored when ``which`` is 'meta'.
     version : str, default='sparta-0.9'
         Template name and version, ``'<name>-<number>'``. Versions never
         change once published.
@@ -149,7 +155,7 @@ def get_template(
     update_manifest : Refresh the list of available template files.
     """
     if which == "lr":
-        kwargs = dict(mask=mask, version=version, dtype=dtype)
+        kwargs = dict(mask=mask, space=space, version=version, dtype=dtype)
         lh = get_template("l", **kwargs)
         rh = get_template("r", **kwargs)
         return np.concatenate([lh, rh], axis=1)
@@ -176,13 +182,23 @@ def get_template(
         raise ValueError(
             f"Expected a 2-D template array, got shape {data.shape} for {path}."
         )
+    file_dtype = data.dtype
     if mask:
         target_mask = get_mask("lr", TARGET_SPACE)
         vertex_mask = get_mask(lr, TEMPLATE_SPACE)
         data = data[np.ix_(target_mask, vertex_mask)]
-    if dtype is not None:
-        data = data.astype(dtype, copy=False)
-    return data
+    if space != TEMPLATE_SPACE:
+        warnings.warn(
+            f"Templates are stored in {TEMPLATE_SPACE!r}; requesting {space!r} "
+            "forces resampling, which may reduce data quality.",
+            stacklevel=2,
+        )
+        # `get_mapping` does not accept `mask=False`; None means no mask.
+        M = get_mapping(lr, TEMPLATE_SPACE, space, mask=True if mask else None)
+        data = np.asarray(data @ M)
+    if dtype is None:
+        dtype = file_dtype
+    return data.astype(dtype, copy=False)
 
 
 get_template.update = update_manifest

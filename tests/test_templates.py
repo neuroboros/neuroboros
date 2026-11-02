@@ -1,12 +1,14 @@
 import json
 import os
+import warnings
 
 import numpy as np
 import pytest
 import requests
+from scipy import sparse
 
 import neuroboros as nb
-from neuroboros import templates
+from neuroboros import spaces, templates
 
 MANIFEST = {
     "updated": "2026-11-01",
@@ -123,6 +125,83 @@ class TestValues:
         n_vertices = nb.mask("l", "onavg-ico64").sum()
         assert tpl.shape == (n_targets, n_vertices)
         assert tpl.dtype == np.float64
+
+
+class FakeMapping:
+    """Stands in for ``get_mapping``: sums adjacent column pairs (4 -> 2)."""
+
+    def __init__(self):
+        self.calls = []
+
+    def __call__(self, lr, source, target, mask=None):
+        self.calls.append((lr, source, target, mask))
+        return sparse.csr_matrix(
+            np.array([[1, 0], [1, 0], [0, 1], [0, 1]], dtype=np.float64)
+        )
+
+
+@pytest.fixture
+def fake_mapping(monkeypatch):
+    fm = FakeMapping()
+    monkeypatch.setattr(templates, "get_mapping", fm)
+    return fm
+
+
+class TestSpace:
+    def test_default_space_does_not_resample(self, fake, fake_mapping):
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")
+            templates.get_template("l", mask=False)
+        assert fake_mapping.calls == []
+
+    def test_resample(self, fake, fake_mapping):
+        with pytest.warns(UserWarning, match="forces resampling"):
+            tpl = templates.get_template("l", mask=False, space="onavg-ico32")
+        lh = np.arange(12).reshape(3, 4)
+        expected = np.stack([lh[:, :2].sum(axis=1), lh[:, 2:].sum(axis=1)], axis=1)
+        np.testing.assert_array_equal(tpl, expected)
+        assert tpl.dtype == np.float64
+        assert fake_mapping.calls == [("l", "onavg-ico64", "onavg-ico32", None)]
+
+    def test_resample_native_dtype(self, fake, fake_mapping):
+        with pytest.warns(UserWarning):
+            tpl = templates.get_template(
+                "r", mask=False, space="onavg-ico32", dtype=None
+            )
+        assert tpl.dtype == np.float32
+        assert tpl.shape == (3, 2)
+
+    def test_resample_lr(self, fake, fake_mapping):
+        with pytest.warns(UserWarning):
+            tpl = templates.get_template("lr", mask=False, space="onavg-ico32")
+        assert tpl.shape == (3, 4)
+        assert [c[0] for c in fake_mapping.calls] == ["l", "r"]
+
+    def test_resample_meta_ignores_space(self, fake, fake_mapping):
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")
+            meta = templates.get_template("meta", space="onavg-ico32")
+        assert meta["name"] == "Sparta"
+        assert fake_mapping.calls == []
+
+    def test_resample_masked(self, tmp_path, monkeypatch):
+        ds = FakeDataset(tmp_path, shape=(1284, 40962))
+        monkeypatch.setattr(templates, "hyperbrain_dataset", ds)
+        monkeypatch.setattr(templates, "_manifest", None)
+        calls = []
+
+        def recording_mapping(*args, **kwargs):
+            calls.append((args, kwargs))
+            return spaces.get_mapping(*args, **kwargs)
+
+        monkeypatch.setattr(templates, "get_mapping", recording_mapping)
+        with pytest.warns(UserWarning):
+            tpl = templates.get_template("l", space="onavg-ico32")
+        n_targets = nb.mask("lr", "onavg-ico8").sum()
+        n_vertices = nb.mask("l", "onavg-ico32").sum()
+        assert tpl.shape == (n_targets, n_vertices)
+        assert tpl.dtype == np.float64
+        assert calls == [(("l", "onavg-ico64", "onavg-ico32"), {"mask": True})]
 
 
 class TestErrors:
