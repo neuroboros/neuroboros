@@ -1,3 +1,4 @@
+import os
 from datetime import datetime
 from pathlib import Path
 
@@ -5,7 +6,7 @@ import numpy as np
 import pytest
 from scipy import sparse
 
-from neuroboros import utils
+from neuroboros import io, utils
 
 
 def test_record_local_filename(tmp_path, monkeypatch):
@@ -423,3 +424,99 @@ def test_failed_finish_publication_leaves_no_marker(tmp_path, monkeypatch):
     assert not (tmp_path / "result.npy.completed").exists()
     np.testing.assert_array_equal(utils.load(output), np.arange(3))
     assert not list(tmp_path.glob(".nb-*"))
+
+
+class FakeResponse:
+    def __init__(self, chunks, status_code=200, fail_after=None):
+        self.chunks = chunks
+        self.status_code = status_code
+        self.fail_after = fail_after
+        self.closed = False
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *args):
+        self.closed = True
+
+    def iter_content(self, chunk_size):
+        for i, chunk in enumerate(self.chunks):
+            if self.fail_after is not None and i == self.fail_after:
+                raise io.requests.exceptions.ChunkedEncodingError("cut")
+            yield chunk
+
+
+@pytest.fixture
+def https_manager(tmp_path):
+    return io.DatasetManager(
+        "fake", root=str(tmp_path / "fake"), source="https://gin.g-node.org/x/fake"
+    )
+
+
+def test_download_https_streams_to_file(https_manager, tmp_path, monkeypatch):
+    calls = []
+
+    def fake_get(url, **kwargs):
+        calls.append((url, kwargs))
+        return FakeResponse([b"abc", b"def", b"g"])
+
+    monkeypatch.setattr(io.requests, "get", fake_get)
+    local_fn = os.path.join(https_manager.root, "sub", "data.bin")
+    https_manager.download(("sub", "data.bin"), local_fn)
+    assert calls == [
+        ("https://gin.g-node.org/x/fake/raw/master/sub/data.bin", {"stream": True})
+    ]
+    with open(local_fn, "rb") as f:
+        assert f.read() == b"abcdefg"
+    assert os.listdir(os.path.dirname(local_fn)) == ["data.bin"]
+
+
+def test_download_https_interrupted_leaves_nothing(https_manager, monkeypatch):
+    monkeypatch.setattr(
+        io.requests,
+        "get",
+        lambda url, **kw: FakeResponse([b"abc", b"def"], fail_after=1),
+    )
+    local_fn = os.path.join(https_manager.root, "data.bin")
+    with pytest.raises(RuntimeError, match="Error downloading"):
+        https_manager.download("data.bin", local_fn)
+    assert not os.path.exists(local_fn)
+    assert os.listdir(https_manager.root) == []
+
+
+def test_download_https_rename_failure_leaves_nothing(https_manager, monkeypatch):
+    monkeypatch.setattr(io.requests, "get", lambda url, **kw: FakeResponse([b"abc"]))
+
+    def failing_replace(src, dst):
+        raise OSError("rename failed")
+
+    monkeypatch.setattr(io.os, "replace", failing_replace)
+    local_fn = os.path.join(https_manager.root, "data.bin")
+    with pytest.raises(OSError, match="rename failed"):
+        https_manager.download("data.bin", local_fn)
+    assert os.listdir(https_manager.root) == []
+
+
+@pytest.mark.skipif(os.geteuid() == 0, reason="root ignores directory permissions")
+def test_download_https_open_failure_propagates(https_manager, monkeypatch):
+    monkeypatch.setattr(io.requests, "get", lambda url, **kw: FakeResponse([b"abc"]))
+    os.makedirs(https_manager.root)
+    os.chmod(https_manager.root, 0o500)
+    try:
+        local_fn = os.path.join(https_manager.root, "data.bin")
+        with pytest.raises(PermissionError):
+            https_manager.download("data.bin", local_fn)
+    finally:
+        os.chmod(https_manager.root, 0o700)
+    assert os.listdir(https_manager.root) == []
+
+
+def test_download_https_404(https_manager, monkeypatch):
+    monkeypatch.setattr(io.requests, "get", lambda url, **kw: FakeResponse([], 404))
+    local_fn = os.path.join(https_manager.root, "data.bin")
+    assert https_manager.download("data.bin", local_fn, on_missing="ignore") is None
+    with pytest.warns(UserWarning, match="not found"):
+        https_manager.download("data.bin", local_fn, on_missing="warn")
+    with pytest.raises(RuntimeError, match="not found"):
+        https_manager.download("data.bin", local_fn, on_missing="raise")
+    assert not os.path.exists(local_fn)
