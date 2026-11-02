@@ -233,7 +233,7 @@ def to_color(values, cmap, vmax=None, vmin=None):
         vmin = -vmax
     r = (values - vmin) / (vmax - vmin)
     r = np.clip(r, 0.0, 1.0)
-    cmap = cm.get_cmap(cmap)
+    cmap = plt.get_cmap(cmap)
     c = cmap(r)
     return c
 
