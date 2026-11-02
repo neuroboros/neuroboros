@@ -107,8 +107,8 @@ def _check_manifest(path):
 def get_template(
     which,
     mask=True,
-    space=TEMPLATE_SPACE,
     version=DEFAULT_TEMPLATE_VERSION,
+    space=TEMPLATE_SPACE,
     dtype=np.float64,
 ):
     """Connectivity hyperalignment template.
@@ -132,14 +132,14 @@ def get_template(
         of both hemispheres to the targets (rows) and the mask of ``space``
         for the requested hemisphere to the vertices (columns). Ignored
         when ``which`` is 'meta'.
+    version : str, default='sparta-0.9'
+        Template name and version, ``'<name>-<number>'``. Versions never
+        change once published.
     space : str, default='onavg-ico64'
         Surface space of the vertices of the returned array. The templates
         are stored in ``onavg-ico64``; requesting another space resamples
         them with :func:`neuroboros.mapping` and emits a warning, because
         resampling may reduce data quality. Ignored when ``which`` is 'meta'.
-    version : str, default='sparta-0.9'
-        Template name and version, ``'<name>-<number>'``. Versions never
-        change once published.
     dtype : dtype or None, default=numpy.float64
         Data type of the returned array. If None, the data type stored in
         the file (float32) is kept. Ignored when ``which`` is 'meta'.
@@ -155,7 +155,7 @@ def get_template(
     update_manifest : Refresh the list of available template files.
     """
     if which == "lr":
-        kwargs = dict(mask=mask, space=space, version=version, dtype=dtype)
+        kwargs = dict(mask=mask, version=version, space=space, dtype=dtype)
         lh = get_template("l", **kwargs)
         rh = get_template("r", **kwargs)
         return np.concatenate([lh, rh], axis=1)
