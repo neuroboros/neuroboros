@@ -1,7 +1,9 @@
 """Hyperalignment templates."""
 
+import hashlib
 import json
 import os
+import re
 import warnings
 
 import numpy as np
@@ -15,6 +17,7 @@ TEMPLATE_SPACE = "onavg-ico64"
 TARGET_SPACE = "onavg-ico8"
 
 _manifest = None
+_checksums = None
 
 
 def _parse_version(version):
@@ -38,12 +41,29 @@ def _available_versions(manifest):
 
 
 def _parse_manifest(manifest):
+    """Return the set of files and the ``{path: sha256}`` map of a manifest."""
     if not isinstance(manifest, dict) or not isinstance(manifest.get("files"), list):
         raise ValueError(
             "Invalid hyperbrain manifest: expected a JSON object with a "
             "'files' list."
         )
-    return set(manifest["files"])
+    checksums = manifest.get("sha256", {})
+    if not isinstance(checksums, dict) or not all(
+        isinstance(k, str)
+        and isinstance(v, str)
+        and re.fullmatch(r"[0-9a-fA-F]{64}", v)
+        for k, v in checksums.items()
+    ):
+        raise ValueError(
+            "Invalid hyperbrain manifest: 'sha256' must be an object mapping "
+            "file paths to SHA-256 hex digests."
+        )
+    return set(manifest["files"]), {k: v.lower() for k, v in checksums.items()}
+
+
+def _set_manifest(manifest):
+    global _manifest, _checksums
+    _manifest, _checksums = _parse_manifest(manifest)
 
 
 def load_manifest():
@@ -52,10 +72,8 @@ def load_manifest():
     The manifest is downloaded once and cached locally. Use
     :func:`update_manifest` to refresh it.
     """
-    global _manifest
     if _manifest is None:
-        manifest = hyperbrain_dataset.get(MANIFEST_FN, on_missing="raise")
-        _manifest = _parse_manifest(manifest)
+        _set_manifest(hyperbrain_dataset.get(MANIFEST_FN, on_missing="raise"))
     return _manifest
 
 
@@ -70,7 +88,6 @@ def update_manifest():
     manifest : dict
         The parsed ``manifest.json``.
     """
-    global _manifest
     if hyperbrain_dataset.kind == "datalad":
         hyperbrain_dataset.dset.update(how="merge")
     elif hyperbrain_dataset.kind == "https":
@@ -89,7 +106,7 @@ def update_manifest():
                 raise
             os.replace(new_fn, fn)
     manifest = hyperbrain_dataset.get(MANIFEST_FN, on_missing="raise")
-    _manifest = _parse_manifest(manifest)
+    _set_manifest(manifest)
     return manifest
 
 
@@ -102,6 +119,78 @@ def _check_manifest(path):
             f"versions: {_available_versions(manifest)}. If a new version was "
             "published recently, run `nb.tpl.update()` to refresh the manifest."
         )
+
+
+def _local_fn(path):
+    return os.path.join(hyperbrain_dataset.root, *path)
+
+
+def _sha256(fn):
+    h = hashlib.sha256()
+    with open(fn, "rb") as f:
+        for chunk in iter(lambda: f.read(1 << 20), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def _recovery_advice(rel):
+    if hyperbrain_dataset.kind == "https":
+        return (
+            "Delete the file to download it again, or run `nb.tpl.update()` "
+            "if the manifest is out of date."
+        )
+    if hyperbrain_dataset.kind == "datalad":
+        return (
+            "Run `nb.tpl.update()` to update the DataLad dataset and its "
+            f"manifest. If the mismatch persists, run `git annex fsck {rel}` "
+            f"followed by `datalad get {rel}` in {hyperbrain_dataset.root} to "
+            "replace the file."
+        )
+    return "Run `nb.tpl.update()` if the manifest is out of date."
+
+
+def _verify_file(path):
+    """Compare a local file with its manifest checksum.
+
+    Returns True or False, or None if the manifest has no checksum for it.
+    A mismatch also emits a warning.
+    """
+    load_manifest()
+    rel = "/".join(path)
+    expected = _checksums.get(rel)
+    if expected is None:
+        return None
+    fn = _local_fn(path)
+    actual = _sha256(fn)
+    if actual != expected:
+        warnings.warn(
+            f"Checksum mismatch for {fn}: the manifest lists sha256 {expected}, "
+            f"but the file has {actual}. {_recovery_advice(rel)}",
+            stacklevel=3,
+        )
+        return False
+    return True
+
+
+def verify_manifest():
+    """Verify the checksums of the downloaded ``hyperbrain`` files.
+
+    Every file listed in the manifest with a checksum and present in the local
+    cache is hashed with SHA-256 and compared with the manifest. A mismatch
+    emits a warning. Files that have not been downloaded are skipped.
+
+    Returns
+    -------
+    results : dict
+        Maps each checked file path to True (match) or False (mismatch).
+    """
+    load_manifest()
+    results = {}
+    for rel in sorted(_checksums):
+        path = tuple(rel.split("/"))
+        if os.path.exists(_local_fn(path)):
+            results[rel] = _verify_file(path)
+    return results
 
 
 def get_template(
@@ -150,9 +239,16 @@ def get_template(
         Array of shape ``(n_targets, n_vertices)`` or, for 'meta', the
         parsed ``meta.json``.
 
+    Notes
+    -----
+    A newly downloaded file is checked against the SHA-256 checksum in the
+    manifest, and a mismatch emits a warning. Files already in the cache are
+    not re-checked; use :func:`verify_manifest` for that.
+
     See Also
     --------
     update_manifest : Refresh the list of available template files.
+    verify_manifest : Check the checksums of the downloaded files.
     """
     if which == "lr":
         kwargs = dict(mask=mask, version=version, space=space, dtype=dtype)
@@ -174,6 +270,11 @@ def get_template(
     path = (name, f"v{number}", basename)
     _check_manifest(path)
 
+    local_fn = _local_fn(path)
+    if not os.path.exists(local_fn):
+        # Download and verify the bytes before trying to parse them.
+        hyperbrain_dataset.download(path, local_fn, on_missing="raise")
+        _verify_file(path)
     data = hyperbrain_dataset.get(path, on_missing="raise")
     if which == "meta":
         return data
@@ -202,3 +303,4 @@ def get_template(
 
 
 get_template.update = update_manifest
+get_template.verify = verify_manifest

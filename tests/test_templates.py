@@ -1,3 +1,5 @@
+import hashlib
+import io
 import json
 import os
 import warnings
@@ -9,6 +11,7 @@ from scipy import sparse
 
 import neuroboros as nb
 from neuroboros import spaces, templates
+from neuroboros.io import load
 
 MANIFEST = {
     "updated": "2026-11-01",
@@ -26,7 +29,12 @@ SHA256 = {
 
 
 class FakeDataset:
-    """Stands in for ``hyperbrain_dataset``; records requested paths."""
+    """Stands in for ``hyperbrain_dataset``; records requested paths.
+
+    Like the real manager, it writes a requested file under ``root`` when
+    it is absent and loads it from there. Its manifest carries the correct
+    sha256 of each file unless ``manifest`` is modified before download.
+    """
 
     kind = "https"
 
@@ -34,27 +42,49 @@ class FakeDataset:
         self.root = str(root)
         self.shape = shape
         self.calls = []
+        self.downloads = []
+        self.manifest = dict(MANIFEST)
+        self.manifest["sha256"] = {
+            rel: hashlib.sha256(self.content(rel)).hexdigest()
+            for rel in MANIFEST["files"]
+        }
 
     def _manifest_fn(self):
         return os.path.join(self.root, templates.MANIFEST_FN)
 
+    def local_fn(self, rel):
+        return os.path.join(self.root, *rel.split("/"))
+
+    def content(self, rel):
+        """Bytes of a file as the fake remote serves it."""
+        parts = rel.split("/")
+        if parts[-1] == "meta.json":
+            return json.dumps({"name": "Sparta", "version": parts[1][1:]}).encode()
+        offset = 0.0 if parts[-1].startswith("lh") else 100.0
+        arr = np.arange(np.prod(self.shape), dtype=np.float32).reshape(self.shape)
+        buf = io.BytesIO()
+        np.save(buf, arr + offset)
+        return buf.getvalue()
+
     def download(self, fn, local_fn, on_missing="warn"):
-        assert fn == templates.MANIFEST_FN
-        with open(local_fn, "w") as f:
-            json.dump(MANIFEST, f)
+        self.downloads.append(fn)
+        os.makedirs(os.path.dirname(local_fn), exist_ok=True)
+        if fn == templates.MANIFEST_FN:
+            with open(local_fn, "w") as f:
+                json.dump(self.manifest, f)
+        else:
+            with open(local_fn, "wb") as f:
+                f.write(self.content("/".join(fn)))
 
     def get(self, fn, load_func=None, on_missing="warn"):
         self.calls.append(fn)
         if fn == templates.MANIFEST_FN:
-            if not os.path.exists(self._manifest_fn()):
-                self.download(fn, self._manifest_fn())
-            with open(self._manifest_fn()) as f:
-                return json.load(f)
-        if fn[-1] == "meta.json":
-            return {"name": "Sparta", "version": fn[1][1:]}
-        offset = 0.0 if fn[-1].startswith("lh") else 100.0
-        arr = np.arange(np.prod(self.shape), dtype=np.float32).reshape(self.shape)
-        return arr + offset
+            local_fn = self._manifest_fn()
+        else:
+            local_fn = self.local_fn("/".join(fn))
+        if not os.path.exists(local_fn):
+            self.download(fn, local_fn, on_missing=on_missing)
+        return load(local_fn)
 
 
 @pytest.fixture
@@ -72,6 +102,7 @@ def array_calls(ds):
 def test_public_alias():
     assert nb.tpl is templates.get_template
     assert nb.tpl.update is templates.update_manifest
+    assert nb.tpl.verify is templates.verify_manifest
 
 
 class TestPaths:
@@ -241,11 +272,11 @@ class TestUpdate:
             templates.get_template("r", mask=False)
 
         manifest = templates.get_template.update()
-        assert manifest == MANIFEST
+        assert manifest == fake.manifest
         assert templates.load_manifest() == set(MANIFEST["files"])
         templates.get_template("r", mask=False)
         with open(fake._manifest_fn()) as f:
-            assert json.load(f) == MANIFEST
+            assert json.load(f) == fake.manifest
         assert not os.path.exists(fake._manifest_fn() + ".new")
 
     def test_failed_update_keeps_old_manifest(self, fake, monkeypatch):
@@ -253,6 +284,7 @@ class TestUpdate:
         with open(fake._manifest_fn(), "w") as f:
             json.dump(stale, f)
         assert templates.load_manifest() == set(stale["files"])
+        templates.get_template("l", mask=False)
 
         def failing_download(fn, local_fn, on_missing="warn"):
             raise RuntimeError("network down")
@@ -267,7 +299,15 @@ class TestUpdate:
 
     @pytest.mark.parametrize(
         "content, error",
-        [("not json", ValueError), ('{"version": 1}', ValueError), ("[]", ValueError)],
+        [
+            ("not json", ValueError),
+            ('{"version": 1}', ValueError),
+            ("[]", ValueError),
+            ('{"files": [], "sha256": []}', ValueError),
+            ('{"files": [], "sha256": {"a": null}}', ValueError),
+            ('{"files": [], "sha256": {"a": "abc"}}', ValueError),
+            ('{"files": [], "sha256": {"a": "' + "g" * 64 + '"}}', ValueError),
+        ],
     )
     def test_invalid_update_keeps_old_manifest(self, fake, monkeypatch, content, error):
         stale = {"files": ["sparta/v0.9/lh_onavg-ico64.npy"]}
@@ -288,6 +328,120 @@ class TestUpdate:
         assert templates.load_manifest() == set(stale["files"])
 
 
+LH = "sparta/v0.9/lh_onavg-ico64.npy"
+META = "sparta/v0.9/meta.json"
+
+
+def corrupt(fn):
+    """Overwrite a cached file with different but loadable content."""
+    data = load(fn)
+    if fn.endswith(".npy"):
+        np.save(fn, data + 1)
+    else:
+        with open(fn, "w") as f:
+            json.dump(dict(data, corrupted=True), f)
+
+
+class TestChecksums:
+    def test_download_is_verified(self, fake, monkeypatch):
+        hashed = []
+        sha256 = templates._sha256
+        monkeypatch.setattr(
+            templates, "_sha256", lambda fn: hashed.append(fn) or sha256(fn)
+        )
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")
+            templates.get_template("l", mask=False)
+        assert hashed == [fake.local_fn(LH)]
+
+    def test_corrupted_download_warns(self, fake):
+        fake.manifest["sha256"][LH] = "0" * 64
+        with pytest.warns(UserWarning, match="Checksum mismatch") as record:
+            tpl = templates.get_template("l", mask=False)
+        assert tpl.shape == (3, 4)
+        message = str(record[0].message)
+        assert fake.local_fn(LH) in message
+        assert "0" * 64 in message
+        assert fake.manifest["sha256"][META] not in message
+        assert "Delete the file" in message
+
+    def test_unreadable_download_still_warns(self, fake, monkeypatch):
+        monkeypatch.setattr(fake, "content", lambda rel: b"not a numpy file")
+        with pytest.warns(UserWarning, match="Checksum mismatch"):
+            with pytest.raises((ValueError, OSError)):
+                templates.get_template("l", mask=False)
+        assert fake.downloads == [templates.MANIFEST_FN, tuple(LH.split("/"))]
+
+    def test_uppercase_digest_matches(self, fake):
+        fake.manifest["sha256"][LH] = fake.manifest["sha256"][LH].upper()
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")
+            templates.get_template("l", mask=False)
+            assert templates.get_template.verify() == {LH: True}
+
+    @pytest.mark.parametrize(
+        "kind, expected, unexpected",
+        [
+            ("https", "Delete the file", "datalad"),
+            ("datalad", f"git annex fsck {LH}", "Delete the file"),
+            ("local", "nb.tpl.update()", "Delete the file"),
+        ],
+    )
+    def test_recovery_advice(self, fake, kind, expected, unexpected):
+        fake.kind = kind
+        fake.manifest["sha256"][LH] = "0" * 64
+        with pytest.warns(UserWarning) as record:
+            templates.get_template("l", mask=False)
+        message = str(record[0].message)
+        assert expected in message
+        assert unexpected not in message
+
+    def test_cached_file_is_not_hashed(self, fake, monkeypatch):
+        templates.get_template("l", mask=False)
+        corrupt(fake.local_fn(LH))
+
+        def no_hashing(fn):
+            raise AssertionError(f"unexpected hashing of {fn}")
+
+        monkeypatch.setattr(templates, "_sha256", no_hashing)
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")
+            templates.get_template("l", mask=False)
+
+    def test_verify_checks_downloaded_files(self, fake):
+        assert templates.get_template.verify() == {}
+        templates.get_template("l", mask=False)
+        templates.get_template("meta")
+        assert templates.get_template.verify() == {LH: True, META: True}
+
+        corrupt(fake.local_fn(LH))
+        with pytest.warns(UserWarning, match="Checksum mismatch") as record:
+            results = templates.get_template.verify()
+        assert results == {LH: False, META: True}
+        assert len(record) == 1
+        assert fake.local_fn(LH) in str(record[0].message)
+
+    def test_manifest_without_checksums(self, fake, monkeypatch):
+        del fake.manifest["sha256"]
+
+        def no_hashing(fn):
+            raise AssertionError(f"unexpected hashing of {fn}")
+
+        monkeypatch.setattr(templates, "_sha256", no_hashing)
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")
+            templates.get_template("l", mask=False)
+            assert templates.get_template.verify() == {}
+
+    def test_missing_entry_is_skipped(self, fake):
+        del fake.manifest["sha256"][LH]
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")
+            templates.get_template("l", mask=False)
+            templates.get_template("meta")
+            assert templates.get_template.verify() == {META: True}
+
+
 @pytest.mark.skipif(
     not os.environ.get("NEUROBOROS_NETWORK_TESTS"),
     reason="set NEUROBOROS_NETWORK_TESTS=1 to query GIN",
@@ -304,3 +458,4 @@ def test_remote_manifest_and_checksums():
     meta = requests.get(base + "sparta/v0.9/meta.json", timeout=30).json()
     for lr in ["lh", "rh"]:
         assert meta["files"][lr]["sha256"] == SHA256[lr]
+        assert manifest["sha256"][f"sparta/v0.9/{lr}_onavg-ico64.npy"] == SHA256[lr]
