@@ -161,3 +161,6 @@ class DatasetManager:
 
 # DefaultDataset = DatasetManager
 core_dataset = DatasetManager("core", source="https://gin.g-node.org/neuroboros/core")
+hyperbrain_dataset = DatasetManager(
+    "hyperbrain", source="https://gin.g-node.org/neuroboros/hyperbrain"
+)
