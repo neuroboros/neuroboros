@@ -16,7 +16,13 @@ except ImportError as e:
     PIL_ok = False
 
 from .io import core_dataset
-from .spaces import get_mapping, get_mask, get_morphometry
+from .spaces import (
+    HCP_MMP_DEFAULT_GROUP,
+    check_hcp_mmp_group,
+    get_mapping,
+    get_mask,
+    get_morphometry,
+)
 from .utils import save
 
 GUESS_SEPARATE = {
@@ -89,7 +95,7 @@ def parc_expand(
     values,
     which,
     bilateral=None,
-    group="Q1-Q6_Related420",
+    group=HCP_MMP_DEFAULT_GROUP,
     resample="overlap-8div",
 ):
     """Expand per-parcel values to onavg-ico128 vertex arrays.
@@ -104,11 +110,16 @@ def parc_expand(
         If True, the 180 values are used identically for both hemispheres.
         If False, the first 180 values are for L and the next 180 for R.
         If None, inferred from length: 180 → True, 360 → False.
+    group : str, default 'Q1-Q6_RelatedValidation210'
+        For 'HCP_MMP', one of spaces.HCP_MMP_GROUPS; from nb.plot pass
+        ``parc_kwargs={"group": ...}``.
 
     Returns
     -------
     ndarray of shape (NV128*2,), with NaN for unassigned/medial-wall vertices.
     """
+    if which == "HCP_MMP":
+        check_hcp_mmp_group(group)
     values = np.asarray(values)
     n = len(values)
     if bilateral is None:
