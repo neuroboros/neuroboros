@@ -68,11 +68,13 @@ def get_parcellation(which, lr, space="onavg-ico32", prob=False, **kwargs):
         Surface space.
     prob : bool, default=False
         Whether to load the probabilistic version of the parcellation.
-    group : str, optional
-        Participant group. For 'HCP_MMP', one of 'Q1-Q6_Related420'
-        (default), 'Q1-Q6_RelatedParcellation210', or
-        'Q1-Q6_RelatedValidation210'. For other parcellations, defaults to
-        'on1031' with ``avg_type`` defaulting to 'trimmed'.
+    **kwargs : dict
+        Optional keyword arguments. ``group`` is the participant group: for
+        'HCP_MMP', one of 'Q1-Q6_Related420' (default),
+        'Q1-Q6_RelatedParcellation210', or 'Q1-Q6_RelatedValidation210'; for
+        other parcellations, it defaults to 'on1031' with ``avg_type``
+        defaulting to 'trimmed'. ``resample`` is the resampling method,
+        default 'overlap-8div'.
 
     Returns
     -------
