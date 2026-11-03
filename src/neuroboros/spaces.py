@@ -17,6 +17,22 @@ MEASURES = [
     "volume",
 ]
 PARCELLATIONS = ["aparc", "aparc.DKTatlas", "aparc.a2009s", "HCP_MMP"]
+# HCP-MMP1.0 (Glasser et al., 2016) groups, made by scripts/resample_HCP_MMP.py. The two 210s are
+# the averaged per-subject areal-classifier parcellations of the parcellation (210P) and validation
+# (210V) subjects; Related420 is the mean of the two. The default is 210V, which was not used to
+# draw the parcellation or train the classifier.
+HCP_MMP_DEFAULT_GROUP = "Q1-Q6_RelatedValidation210"
+HCP_MMP_GROUPS = (
+    "Q1-Q6_RelatedParcellation210",
+    "Q1-Q6_RelatedValidation210",
+    "Q1-Q6_Related420",
+)
+
+
+def check_hcp_mmp_group(group):
+    """Raise unless ``group`` is one of HCP_MMP_GROUPS."""
+    if group not in HCP_MMP_GROUPS:
+        raise ValueError(f"HCP_MMP group must be one of {HCP_MMP_GROUPS}; got {group!r}")
 
 
 def get_morphometry(which, lr, space="onavg-ico32", **kwargs):
@@ -70,8 +86,8 @@ def get_parcellation(which, lr, space="onavg-ico32", prob=False, **kwargs):
         Whether to load the probabilistic version of the parcellation.
     **kwargs : dict
         Optional keyword arguments. ``group`` is the participant group: for
-        'HCP_MMP', one of 'Q1-Q6_Related420' (default),
-        'Q1-Q6_RelatedParcellation210', or 'Q1-Q6_RelatedValidation210'; for
+        'HCP_MMP', one of HCP_MMP_GROUPS: 'Q1-Q6_RelatedValidation210' (default),
+        'Q1-Q6_RelatedParcellation210', or 'Q1-Q6_Related420'; for
         other parcellations, it defaults to 'on1031' with ``avg_type``
         defaulting to 'trimmed'. ``resample`` is the resampling method,
         default 'overlap-8div'.
@@ -89,21 +105,21 @@ def get_parcellation(which, lr, space="onavg-ico32", prob=False, **kwargs):
         # A probabilistic parcellation has shape (n_parcels, n_vertices), and
         # the vertex axis is the last one rather than the first one.
         return np.concatenate([lh, rh], axis=-1 if prob else 0)
-    if which == "HCP_MMP":
-        group = kwargs.get("group", "Q1-Q6_Related420")
-    else:
-        group = kwargs.get("group", "on1031")
-        avg_type = kwargs.get("avg_type", "trimmed")
-        group = f"{group}_{avg_type}"
     resample = kwargs.get("resample", "overlap-8div")
     assert lr in "lr"
     if prob:
         basename = f"{resample}_prob.npy"
     else:
         basename = f"{resample}_parc.npy"
-    fn = os.path.join(
-        space, "parcellations", which, f"{lr}h", group, basename
-    )
+    if which == "HCP_MMP":
+        group = kwargs.get("group", HCP_MMP_DEFAULT_GROUP)
+        check_hcp_mmp_group(group)
+        group_dir = group  # HCP group labels: no onavg avg_type suffix
+    else:
+        group = kwargs.get("group", "on1031")
+        avg_type = kwargs.get("avg_type", "trimmed")
+        group_dir = f"{group}_{avg_type}"
+    fn = os.path.join(space, "parcellations", which, f"{lr}h", group_dir, basename)
     parc = core_dataset.get(fn, on_missing="raise")
     return parc
 
