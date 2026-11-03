@@ -6,9 +6,11 @@ project:
     - index.qmd
     - guide/**/*.qmd
     - reference/**/*.qmd
-  # quartodoc regenerates reference/ from the installed package's docstrings.
-  # Install it with `pip install -e .[docs]` and render from this directory.
-  pre-render: quartodoc build
+  # build_reference.py runs quartodoc, which regenerates reference/ from the
+  # installed package's docstrings, and skips it when nothing has changed so
+  # that `quarto preview` does not re-render on every request.
+  # Install the package with `pip install -e .[docs]` and render from this directory.
+  pre-render: build_reference.py
 
 metadata-files:
   - reference/_sidebar.yml
@@ -39,6 +41,7 @@ website:
         - guide/installation.qmd
         - guide/io.qmd
         - guide/templates.qmd
+        - guide/hyperalignment.qmd
     # The "reference" sidebar is written by quartodoc to reference/_sidebar.yml
     # and merged in through metadata-files below.
   page-footer:
