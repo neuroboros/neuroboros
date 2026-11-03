@@ -40,6 +40,7 @@ import json
 import os
 import pickle
 import subprocess
+import tempfile
 import time
 import warnings
 from datetime import datetime, timedelta
@@ -74,14 +75,14 @@ def save(fn, data):
     """Save the data using the automatically determined format.
 
     If ``fn`` ends with ".npy", save as npy file.
-    If ``data`` is spmatrix, save as npz file.
+    If ``fn`` ends with ".npz" and ``data`` is sparse, save as npz file.
     If dict and ``fn`` ends with ".npz", save as npz file.
     If ``fn`` ends with ".pkl", save using ``pickle.dump``.
     If ``fn`` ends with ".png", save as PNG file (requires the Pillow
     package).
     If ``fn`` ends with ".json", save as JSON file.
 
-    The function also automatically create the directory ``fn`` is in if it
+    The function also automatically creates the directory ``fn`` is in if it
     does not exist.
 
     Parameters
@@ -113,7 +114,7 @@ def save(fn, data):
             warnings.warn("`data` is not an ndarray, trying to convert.")
         return np.save(fn, data)
 
-    if sparse.issparse(data):
+    if fn.endswith(".npz") and sparse.issparse(data):
         return sparse.save_npz(fn, data)
     if fn.endswith(".npz") and isinstance(data, dict):
         return np.savez(fn, **data)
@@ -297,6 +298,64 @@ def monitor(func, record_fn=None):
     return wrapped_func
 
 
+def _file_identity(stat):
+    return stat.st_dev, stat.st_ino
+
+
+def _claim_started(started_fn, fmt):
+    """Publish a complete timestamp using the NFS hard-link lock protocol."""
+    dirname = os.path.dirname(started_fn) or "."
+    with tempfile.NamedTemporaryFile(
+        mode="w", dir=dirname, prefix=os.path.basename(started_fn) + "."
+    ) as f:
+        f.write(datetime.now().strftime(fmt))
+        f.flush()
+        os.fsync(f.fileno())
+        try:
+            os.link(f.name, started_fn)
+        except OSError as exc:
+            # An NFS server can complete LINK even if its reply is lost.
+            # The second link then establishes that this client owns the lock.
+            if os.stat(f.name).st_nlink != 2:
+                if isinstance(exc, FileExistsError):
+                    return None
+                raise
+        return _file_identity(os.fstat(f.fileno()))
+
+
+def _remove_started(started_fn, identity):
+    """Best-effort cleanup that checks for a replacement lock first."""
+    try:
+        if _file_identity(os.stat(started_fn)) == identity:
+            os.remove(started_fn)
+    except FileNotFoundError:
+        pass
+
+
+def _save_record_output(fn, data):
+    """Keep partial writes away from the final output path."""
+    dirname = os.path.dirname(fn) or "."
+    os.makedirs(dirname, exist_ok=True)
+    with tempfile.TemporaryDirectory(dir=dirname, prefix=".nb-save-") as tmp:
+        staged = os.path.join(tmp, os.path.basename(fn))
+        save(staged, data)
+        with open(staged, "rb") as f:
+            os.fsync(f.fileno())
+        os.replace(staged, fn)
+
+
+def _write_completed(completed_fn, info):
+    """Publish the complete timing record after every output has been saved."""
+    dirname = os.path.dirname(completed_fn) or "."
+    with tempfile.TemporaryDirectory(dir=dirname, prefix=".nb-completed-") as tmp:
+        staged = os.path.join(tmp, "completed")
+        with open(staged, "w") as f:
+            f.write(info)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(staged, completed_fn)
+
+
 def save_results(
     out_fn,
     func,
@@ -312,6 +371,8 @@ def save_results(
     function ``wrapped_func``. ``wrapped_func`` is similar to ``func``, except
     that it will also save the returned output of ``func`` to files (file
     names indicated by ``out_fn``), so that it can be accessed later.
+
+    Runs use ``.started`` and ``.completed`` markers.
 
     Parameters
     ----------
@@ -330,7 +391,8 @@ def save_results(
     verbose : bool, default=True
         Whether to output additional logging information.
     rerun : bool, default=False
-        Whether to rerun the function even if the output files exist.
+        Whether to rerun the function even if the output files exist,
+        overriding existing start markers as well.
 
     Returns
     -------
@@ -353,67 +415,116 @@ def save_results(
     if log_fn is None:
         log_fn = out_fns[0]
 
-    running_fn = log_fn + ".running"
-    finish_fn = log_fn + ".finish"
+    started_fn = log_fn + ".started"
+    completed_fn = log_fn + ".completed"
     fmt = "%Y-%m-%d %H:%M:%S.%f"
 
-    monitored_func = monitor(func, finish_fn)
+    monitored_func = monitor(func)
+
+    def cached_results():
+        if verbose:
+            print(datetime.now(), f"Using completed results: {out_fns}")
+        if return_results:
+            results = [load(_) for _ in out_fns]
+            return results[0] if len(results) == 1 else results
+        return None
+
+    def finished():
+        if not os.path.exists(completed_fn):
+            return False
+        # A successful job takes precedence over another job's leftover lock.
+        try:
+            identity = _file_identity(os.stat(started_fn))
+            _remove_started(started_fn, identity)
+        except FileNotFoundError:
+            pass
+        return True
+
+    def complete():
+        return finished() or all(os.path.exists(fn) for fn in out_fns)
 
     def func_w_cache(*args, **kwargs):
-        if not rerun:
-            all_exist = False
+        dirname = os.path.dirname(log_fn)
+        if dirname:
+            os.makedirs(dirname, exist_ok=True)
 
-            if os.path.exists(running_fn):
-                while True:
-                    with open(running_fn) as f:
-                        diff = datetime.now() - datetime.strptime(f.read(), fmt)
-                    if diff < timedelta(hours=rerun_hours):
-                        if not return_results:
-                            return
-                        time.sleep(600)
-                    else:
-                        break
-
-            if os.path.exists(finish_fn):
-                all_exist = True
-                if verbose:
-                    print(datetime.now(), f"`finish_fn` exists: {finish_fn}")
-            elif all([os.path.exists(_) for _ in out_fns]):
-                all_exist = True
-                if verbose:
-                    print(datetime.now(), f"All output files exist: {out_fns}")
-
-            if all_exist:
-                if not return_results:
-                    return
+        while True:
+            if not rerun and finished():
+                return cached_results()
+            try:
+                with open(started_fn) as f:
+                    stat = os.fstat(f.fileno())
+                    try:
+                        started = datetime.strptime(f.read(), fmt)
+                    except ValueError:
+                        # Incomplete markers still count as started.
+                        started = datetime.fromtimestamp(stat.st_mtime)
+                expired = datetime.now() - started >= timedelta(hours=rerun_hours)
+                if rerun or expired:
+                    _remove_started(started_fn, _file_identity(stat))
+                elif not return_results:
+                    return None
                 else:
-                    results = [load(_) for _ in out_fns]
-                    if len(results) == 1:
-                        return results[0]
-                    else:
-                        return results
+                    time.sleep(600)
+                    continue
+            except FileNotFoundError:
+                pass
 
-        os.makedirs(os.path.dirname(log_fn), exist_ok=True)
-        with open(running_fn, "w") as f:
-            f.write(datetime.now().strftime(fmt))
+            if not rerun and complete():
+                return cached_results()
 
-        if verbose:
-            print(datetime.now(), f"Starting to compute for: {out_fns}")
+            # Always let the server arbitrate acquisition, even if this
+            # client's directory cache says the running file does not exist.
+            identity = _claim_started(started_fn, fmt)
+            if identity is not None:
+                break
+            if not rerun and finished():
+                return cached_results()
+            if not return_results:
+                return None
+            time.sleep(600)
 
-        results = monitored_func(*args, **kwargs)
+        release = False
+        try:
+            # A competing job may have finished between our initial check
+            # and acquisition. Check its outputs while holding the claim.
+            if not rerun and complete():
+                release = True
+                return cached_results()
 
-        if len(out_fns) > 1:
-            for res, fn in zip(results, out_fns):
-                save(fn, res)
-        else:
-            save(out_fns[0], results)
+            if verbose:
+                print(datetime.now(), f"Starting to compute for: {out_fns}")
 
-        if os.path.exists(running_fn):
-            os.remove(running_fn)
+            # Only an explicit rerun invalidates a completed result.
+            # A normal competitor must not delete a newly published marker.
+            if rerun:
+                try:
+                    os.remove(completed_fn)
+                except FileNotFoundError:
+                    pass
 
-        if return_results:
-            return results
-        return
+            info, results = monitored_func(*args, **kwargs)
+
+            if len(out_fns) > 1:
+                output_results = list(results)
+                if len(output_results) != len(out_fns):
+                    raise ValueError(
+                        f"Expected {len(out_fns)} results, got {len(output_results)}."
+                    )
+                for res, fn in zip(output_results, out_fns):
+                    _save_record_output(fn, res)
+            else:
+                _save_record_output(out_fns[0], results)
+
+            _write_completed(completed_fn, info)
+            release = True
+
+            if return_results:
+                return results
+            return None
+        finally:
+            if release and not finished():
+                _remove_started(started_fn, identity)
 
     wrapped_func = functools.wraps(func)(func_w_cache)
     return wrapped_func

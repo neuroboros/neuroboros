@@ -1,4 +1,5 @@
 import os
+import uuid
 import warnings
 from glob import glob
 
@@ -138,10 +139,10 @@ class DatasetManager:
             url = self.url_base + fn.replace("\\", "/")
 
         try:
-            r = requests.get(url)
+            r = requests.get(url, stream=True)
         except requests.exceptions.RequestException as e:
             raise RuntimeError(f"Error downloading {url}: {e}")
-        else:
+        with r:
             if r.status_code == 404:
                 if on_missing == "raise":
                     raise RuntimeError(f"File {url} not found.")
@@ -154,10 +155,34 @@ class DatasetManager:
                     raise ValueError(f"Invalid value for `on_missing`: {on_missing}")
             if r.status_code != 200:
                 raise RuntimeError(f"Error downloading {url}: {r.status_code}")
-        os.makedirs(os.path.dirname(local_fn), exist_ok=True)
-        with open(local_fn, "wb") as f:
-            f.write(r.content)
+
+            # Stream into a temporary file next to the target and rename it
+            # into place only when complete, so that a partial download never
+            # looks like a cached file.
+            os.makedirs(os.path.dirname(local_fn), exist_ok=True)
+            tmp_fn = f"{local_fn}.{uuid.uuid4().hex}.part"
+            try:
+                with open(tmp_fn, "wb") as f:
+                    for chunk in r.iter_content(chunk_size=1 << 20):
+                        f.write(chunk)
+                os.replace(tmp_fn, local_fn)
+            except requests.exceptions.RequestException as e:
+                self._remove_if_exists(tmp_fn)
+                raise RuntimeError(f"Error downloading {url}: {e}")
+            except BaseException:
+                self._remove_if_exists(tmp_fn)
+                raise
+
+    @staticmethod
+    def _remove_if_exists(fn):
+        try:
+            os.remove(fn)
+        except FileNotFoundError:
+            pass
 
 
 # DefaultDataset = DatasetManager
 core_dataset = DatasetManager("core", source="https://gin.g-node.org/neuroboros/core")
+hyperbrain_dataset = DatasetManager(
+    "hyperbrain", source="https://gin.g-node.org/neuroboros/hyperbrain"
+)

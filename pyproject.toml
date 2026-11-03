@@ -46,6 +46,10 @@ extra = [
 test = [
      "pytest",
 ]
+docs = [
+    "quartodoc",
+    "griffe<2",  # quartodoc 0.11 is incompatible with griffe 2.x
+]
 
 [project.urls]
 "Homepage" = "https://neuroboros.github.io/"

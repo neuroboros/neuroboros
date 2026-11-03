@@ -1,0 +1,13 @@
+---
+title: "User guide"
+---
+
+The user guide explains the concepts behind `neuroboros` and how its pieces fit together.
+Start with [Installation](installation.qmd).
+
+- [Saving, loading, and caching results](io.qmd): `nb.save`, `nb.load`, and `nb.record`.
+- [HyperBrain functional templates](templates.qmd): `nb.tpl`.
+- [Connectivity hyperalignment using HyperBrain templates](hyperalignment.qmd): aligning a dataset to the template and evaluating it with ISC.
+
+More pages will be added here as the guide is written.
+For the full list of functions and classes, see the [API reference](../reference/index.qmd).

@@ -53,6 +53,7 @@ from .spaces import smooth as smooth
 from .stats import pearsonr
 from .surface import Sphere, Surface
 from .surface.align_surface import Aligner
+from .templates import get_template as tpl
 from .utils import load, percentile, save
 from .utils import save_results
 from .utils import save_results as record

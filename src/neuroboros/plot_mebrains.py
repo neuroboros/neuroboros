@@ -4,6 +4,7 @@ from warnings import warn
 
 import numpy as np
 from matplotlib import cm, colors
+from matplotlib import pyplot as plt
 
 try:
     from PIL import Image as PIL_Image
@@ -114,7 +115,7 @@ def to_color(values, cmap, vmax=None, vmin=None):
         vmin = -vmax
     r = (values - vmin) / (vmax - vmin)
     r = np.clip(r, 0.0, 1.0)
-    cmap = cm.get_cmap(cmap)
+    cmap = plt.get_cmap(cmap)
     c = cmap(r)
     return c
 
