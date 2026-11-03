@@ -16,7 +16,13 @@ except ImportError as e:
     PIL_ok = False
 
 from .io import core_dataset
-from .spaces import HCP_MMP_DEFAULT_GROUP, check_hcp_mmp_group, get_mapping, get_mask, get_morphometry
+from .spaces import (
+    HCP_MMP_DEFAULT_GROUP,
+    check_hcp_mmp_group,
+    get_mapping,
+    get_mask,
+    get_morphometry,
+)
 from .utils import save
 
 GUESS_SEPARATE = {

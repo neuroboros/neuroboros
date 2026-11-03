@@ -1,0 +1,13 @@
+network_key	network_label	r	g	b
+1	Visual1	0	0	255
+2	Visual2	100	0	255
+3	Somatomotor	0	255	255
+4	Cingulo-Opercular	153	0	153
+5	Dorsal-attention	0	255	0
+6	Language	0	154	154
+7	Frontoparietal	255	255	0
+8	Auditory	249	61	251
+9	Default	255	0	0
+10	Posterior-Multimodal	177	89	40
+11	Ventral-Multimodal	255	156	0
+12	Orbito-Affective	65	124	0

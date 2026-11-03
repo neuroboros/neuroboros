@@ -63,6 +63,7 @@ write_to = "src/neuroboros/_version.py"
 
 [tool.codespell]
 skip = '.git,*.pdf,*.svg'
+ignore-words-list = 'pres'  # PreS = presubiculum (HCP-MMP area name)
 
 [tool.isort]
 profile = "black"
