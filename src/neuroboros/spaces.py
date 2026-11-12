@@ -95,7 +95,8 @@ def get_parcellation_colors(which, lr, networks=None):
 
     'HCP_MMP' areas: the label-table colours of the HCP-MMP1.0 dlabel (BALSA RVVG
     Q1-Q6_RelatedValidation210 ..._Group_Colors), which differ between hemispheres. networks='ColeAnticevic':
-    the ColeLab network colours. Glasser22 has no published colours.
+    the ColeLab network colours. networks='Glasser22': the region colours of Glasser et al. 2016, Supplementary
+    Neuroanatomical Results, Figure 1 (same for both hemispheres; ``lr`` is ignored).
     """
     import pandas as pd
 
@@ -110,6 +111,11 @@ def get_parcellation_colors(which, lr, networks=None):
             os.path.join(_SUPPORT, "atlas-ColeAnticevic_networks.tsv"), sep="\t"
         )
         key = "network_key"
+    elif networks == "Glasser22":
+        t = pd.read_csv(
+            os.path.join(_SUPPORT, "atlas-HCPMMP1_Glasser22_colors.tsv"), sep="\t"
+        )
+        key = "glasser22_key"
     else:
         raise NotImplementedError(f"no published colours for networks={networks!r}")
     return {

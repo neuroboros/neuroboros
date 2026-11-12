@@ -10,6 +10,7 @@ parcels themselves are in nb-data (`<space>/parcellations/HCP_MMP/{lh,rh}/<group
 | `atlas-HCPMMP1_ColeAnticevic_keylabel.tsv` | `hemi` (L/R), `key` 1-180, `label` (`L_V1`, ...), `network_key` 1-12, `network_label`. Assigned per hemisphere: 13 areas differ between L and R. |
 | `atlas-ColeAnticevic_networks.tsv` | `network_key`, `network_label`, and the ColeLab colour (`r`, `g`, `b`, 0-255). |
 | `atlas-HCPMMP1_colors.tsv` | `hemi`, `key`, `label`, `r`, `g`, `b` (0-255): the label-table colours of the published HCP-MMP1.0 dlabel (BALSA RVVG `Q1-Q6_RelatedValidation210.CorticalAreas_dil_Final_Final_Areas_Group_Colors.32k_fs_LR.dlabel.nii`). L and R colours differ for every area. |
+| `atlas-HCPMMP1_Glasser22_colors.tsv` | `glasser22_key` 1-22, `glasser22_label`, `r`, `g`, `b` (0-255): the region colours of the 22 cortices. |
 | `LICENSE_ColeAnticevicNetPartition.txt` | The CAB-NP licence (non-commercial), which must accompany redistributed CAB-NP data. |
 
 ## Sources
@@ -22,6 +23,10 @@ parcels themselves are in nb-data (`<space>/parcellations/HCP_MMP/{lh,rh}/<group
   Neuroanatomical Results*, Supplementary Table 1. The grouping comes from the same `HCP-MMP1_UniqueRegionList.csv`
   (`Cortex_ID`). It matches the bold section for 168/180 areas; the other 12 could not be machine-parsed because
   their table cells wrap.
+- **Glasser22 colours:** sampled (2026-11-12) from the numbered swatches under Figure 1 of the *Supplementary
+  Neuroanatomical Results* (page 2, embedded 1950x1176 image), median of the swatch pixels after excluding the
+  digit. Every sampled channel was within 2 of a multiple of 32 (or 255/160), i.e. JPEG noise around a designed
+  palette, so the stored values are snapped to those levels. The figure's own data are at http://balsa.wustl.edu/QnXj.
 - **ColeAnticevic:** Cole-Anticevic Brain-wide Network Partition v1.1.6
   (https://github.com/ColeLab/ColeAnticevicNetPartition), from `cortex_parcel_network_assignments.txt`,
   `network_labelfile.txt` and the LabelKey. ColeLab's README (v1.1.3) says the Q1-Q6_RelatedValidation210 Glasser
