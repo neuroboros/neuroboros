@@ -1631,6 +1631,59 @@ class Hybr(Dataset):
         return basename
 
 
+class Psych81(Dataset):
+    """Psych81 (fall 2026) class dataset.
+
+    Six Dartmouth students scanned at DBIC with the HyperBrain protocol
+    (TR 1.0 s, 2.5 mm). ses-01 is the Psych81 session: one run of
+    conversation with a human (``HumanChat``) and one with an AI
+    (``AIChat``). ses-02 is the HyperBrain movie session: two runs of
+    *Sherlock* (``sherlock``), available for the five subjects in the
+    ``sherlock`` subject set. Preprocessed with fMRIPrep 25.0.0 and
+    resampled to ``onavg-ico32`` only.
+
+    The chat tasks have a single run each, requested as ``run=1``; the
+    class maps them to their BIDS run numbers (HumanChat run-01, AIChat
+    run-02).
+    """
+
+    def __init__(
+        self,
+        space=["onavg-ico32"],
+        resample=["1step_pial_overlap"],
+        prep="default",
+        fp_version="25.0.0",
+        name="psych81",
+        root_dir="/dartfs/rc/lab/H/HaxbyLab/yuqi/psych81_26F/data/nb-data/psych81",
+        dl_source=None,
+    ):
+        super().__init__(
+            name,
+            dl_source=dl_source,
+            root_dir=root_dir,
+            space=space,
+            resample=resample,
+            prep=prep,
+            fp_version=fp_version,
+        )
+        self.TR = 1.0
+        self.tasks = ["HumanChat", "AIChat", "sherlock"]
+        self.subjects = self.subject_sets["all"]
+
+    def rename_func(self, sid, task, run, suffix=".npy"):
+        if task in ("HumanChat", "AIChat"):
+            if run != 1:
+                raise ValueError(f"task-{task} has a single run; use run=1.")
+            ses, run = "01", {"HumanChat": 1, "AIChat": 2}[task]
+        elif task == "sherlock":
+            if run not in (1, 2):
+                raise ValueError("task-sherlock has runs 1 and 2.")
+            ses = "02"
+        else:
+            raise ValueError(f"Task {task} not recognized.")
+        return f"sub-{sid}_ses-{ses}_task-{task}_run-{run:02d}{suffix}"
+
+
 datasets = {
     "forrest": Forrest,
     "bologna": Bologna,
@@ -1656,6 +1709,7 @@ datasets = {
     "hcd": HCD,
     "hbn":HBN,
     "hybr": Hybr,
+    "psych81": Psych81,
 }
 
 def get_dataset(name, **kwargs):
