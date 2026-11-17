@@ -1,0 +1,4 @@
+# source data are downloaded by ../resample_cortical_gradients.py --download and not redistributed
+*
+!.gitignore
+!README.md

@@ -54,6 +54,69 @@ def get_morphometry(which, lr, space="onavg-ico32", **kwargs):
     return measure
 
 
+GRADIENTS = ("Margulies2016", "SA_axis")
+
+
+def get_gradient(which, lr, space="onavg-ico32", component=None, mask=None, **kwargs):
+    """Published cortical gradient, resampled from fsLR 32k (scripts/resample_cortical_gradients.py).
+
+    Parameters
+    ----------
+    which : str
+        'Margulies2016': functional-connectivity gradients 1-10 of Margulies et al. 2016 (PNAS), as distributed
+        by neuromaps. 'SA_axis': the vertex-level sensorimotor-association axis of Sydnor et al. 2021 (Neuron),
+        ranks 1 (sensorimotor) to 59412 (association) over both hemispheres; after resampling each vertex holds
+        the area-weighted mean rank.
+    lr : str
+        Hemisphere, 'l', 'r', or 'lr' (left then right, concatenated along the vertex axis).
+    space : str, default='onavg-ico32'
+        Surface space (only the spaces the script was run for exist).
+    component : int or None
+        'Margulies2016' only: gradient number 1-10. None returns all 10 as rows (10, n_vertices).
+    mask : None, bool or ndarray, default=None
+        As in get_distances: None or False returns every vertex; True keeps the group-based cortical mask
+        (get_mask(lr, space)); a boolean array (n_vertices,) is used as the mask, for lr='lr' of length
+        n_vertices_l + n_vertices_r.
+
+    Returns
+    -------
+    values : ndarray
+        Shape (n_vertices,), or (10, n_vertices) for 'Margulies2016' with component=None. Vertices with less
+        than half their area on fsLR cortex are NaN (about 1.3% of nb.mask cortex at onavg-ico32).
+    """
+    if which not in GRADIENTS:
+        raise ValueError(f"which must be one of {GRADIENTS}; got {which!r}")
+    if lr == "lr":
+        values = np.concatenate(
+            [get_gradient(which, h, space=space, component=component, **kwargs) for h in "lr"],
+            axis=-1,
+        )
+        return _apply_vertex_mask(values, mask, lr, space)
+    assert lr in "lr"
+    resample = kwargs.get("resample", "overlap-8div")
+    fn = os.path.join(space, "gradients", which, f"{lr}h", f"{resample}.npy")
+    values = core_dataset.get(fn, on_missing="raise")
+    if component is None:
+        return _apply_vertex_mask(values, mask, lr, space)
+    if which != "Margulies2016":
+        raise ValueError("component applies to 'Margulies2016' only")
+    if not 1 <= component <= values.shape[0]:
+        raise ValueError(f"component must be 1-{values.shape[0]}; got {component}")
+    return _apply_vertex_mask(values[component - 1], mask, lr, space)
+
+
+def _apply_vertex_mask(values, mask, lr, space):
+    """Keep the masked vertices (last axis): None/False = all, True = get_mask(lr, space), or a boolean array."""
+    if mask is None or mask is False:
+        return values
+    if mask is True:
+        mask = get_mask(lr, space=space)
+    mask = np.asarray(mask).astype(bool)
+    if mask.shape != values.shape[-1:]:
+        raise ValueError(f"mask has shape {mask.shape}; expected ({values.shape[-1]},)")
+    return values[..., mask]
+
+
 def get_parcellation(which, lr, space="onavg-ico32", prob=False, **kwargs):
     """Group-based parcellation.
 
