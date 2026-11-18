@@ -1,16 +1,13 @@
 # HCP-MMP1.0 area names and groupings
 
-These tables are used by `nb.parcellation("HCP_MMP", lr, networks=...)`, `nb.parcellation_names(...)` and
-`nb.parcellation_colors(...)`. The
-parcels themselves are in nb-data (`<space>/parcellations/HCP_MMP/{lh,rh}/<group>/`).
+These tables are used by `nb.parcellation_networks(...)`, `nb.parcellation_names(...)` and
+`nb.parcellation_colors(...)`. The parcels themselves are in nb-data
+(`<space>/parcellations/HCP_MMP/{lh,rh}/<group>/`).
 
 | file | content |
 |---|---|
-| `atlas-HCPMMP1_keylabel.tsv` | `key` 1-180 = the parcel value in `nb.parcellation("HCP_MMP", ...)` (same in both hemispheres); `label` (area name, e.g. `V1`); `long_name`; `glasser22_key` / `glasser22_label` (the 22 cortices). |
-| `atlas-HCPMMP1_ColeAnticevic_keylabel.tsv` | `hemi` (L/R), `key` 1-180, `label` (`L_V1`, ...), `network_key` 1-12, `network_label`. Assigned per hemisphere: 13 areas differ between L and R. |
-| `atlas-ColeAnticevic_networks.tsv` | `network_key`, `network_label`, and the ColeLab colour (`r`, `g`, `b`, 0-255). |
-| `atlas-HCPMMP1_colors.tsv` | `hemi`, `key`, `label`, `r`, `g`, `b` (0-255): the label-table colours of the published HCP-MMP1.0 dlabel (BALSA RVVG `Q1-Q6_RelatedValidation210.CorticalAreas_dil_Final_Final_Areas_Group_Colors.32k_fs_LR.dlabel.nii`). L and R colours differ for every area. |
-| `atlas-HCPMMP1_Glasser22_colors.tsv` | `glasser22_key` 1-22, `glasser22_label`, `r`, `g`, `b` (0-255): the region colours of the 22 cortices. |
+| `atlas-HCPMMP1_areas.tsv` | One row per area and hemisphere (360 rows, L then R). `key` 1-180 = the parcel value in `nb.parcellation("HCP_MMP", ...)` (same in both hemispheres); `label` (area name, e.g. `V1`); `long_name`; `glasser22_key` 1-22 (the 22 cortices); `coleanticevic_key` 1-12 (assigned per hemisphere: 13 areas differ between L and R); `r`, `g`, `b` (0-255): the label-table colours of the published HCP-MMP1.0 dlabel (BALSA RVVG `Q1-Q6_RelatedValidation210.CorticalAreas_dil_Final_Final_Areas_Group_Colors.32k_fs_LR.dlabel.nii`). L and R colours differ for every area. |
+| `atlas-HCPMMP1_networks.tsv` | One row per network: `networks` (`Glasser22` or `ColeAnticevic`), `key`, `label`, and the colour (`r`, `g`, `b`, 0-255). Glasser22 colours are the region colours of the 22 cortices; ColeAnticevic colours are the ColeLab network colours. |
 | `LICENSE_ColeAnticevicNetPartition.txt` | The CAB-NP licence (non-commercial), which must accompany redistributed CAB-NP data. |
 
 ## Sources

@@ -16,18 +16,14 @@ from .archive import archive, archive_check
 from .benchmark import classification
 from .datasets import (
     HBNSSI,
-    HCA,
     IBC,
     ID1000,
-    Bellaria,
     Bologna,
     Budapest,
     CamCAN,
     Dalmatians,
     Forrest,
-    Hybr,
     Life,
-    MonkeyAction,
     MonkeyKingdom,
     MonkeyKingdomEng,
     Raiders,
@@ -35,6 +31,10 @@ from .datasets import (
     WhiplashC1,
     WhiplashC2,
     WhiplashC3,
+    HCA,
+    MonkeyAction,
+    Bellaria,
+    Hybr,
 )
 from .datasets import get_dataset as dataset
 from .glm import glm
@@ -51,6 +51,7 @@ from .spaces import get_morphometry as morphometry
 from .spaces import get_parcellation as parcellation
 from .spaces import get_parcellation_colors as parcellation_colors
 from .spaces import get_parcellation_names as parcellation_names
+from .spaces import get_parcellation_networks as parcellation_networks
 from .spaces import smooth as smooth
 from .stats import pearsonr
 from .surface import Sphere, Surface

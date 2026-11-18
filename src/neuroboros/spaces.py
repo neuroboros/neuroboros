@@ -17,99 +17,97 @@ MEASURES = [
     "volume",
 ]
 PARCELLATIONS = ["aparc", "aparc.DKTatlas", "aparc.a2009s", "HCP_MMP"]
-# Per-area groupings of HCP_MMP (tables in support_files/, see README_HCPMMP1.md):
-#   "Glasser22": the 22 cortices = primary text sections of Glasser et al. 2016 Supplementary Neuroanatomical Results
-#   "ColeAnticevic": Cole-Anticevic Brain-wide Network Partition v1.1.6 (Ji et al., 2019), per hemisphere
+
+# Area-level tables for HCP_MMP (see support_files/README_HCPMMP1.md): which of the 22
+# Glasser et al. 2016 cortices, or the 12 Cole-Anticevic networks (Ji et al., 2019), each of
+# the 360 areas belongs to, plus area/network names and colours.
 HCP_MMP_NETWORKS = ("Glasser22", "ColeAnticevic")
-_SUPPORT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "support_files")
+_NETWORK_KEY = {"Glasser22": "glasser22_key", "ColeAnticevic": "coleanticevic_key"}
 
 
 def _hcp_mmp_tables():
     import pandas as pd
 
-    regions = pd.read_csv(
-        os.path.join(_SUPPORT, "atlas-HCPMMP1_keylabel.tsv"), sep="\t"
+    support = os.path.join(os.path.dirname(os.path.abspath(__file__)), "support_files")
+    areas = pd.read_csv(os.path.join(support, "atlas-HCPMMP1_areas.tsv"), sep="\t")
+    networks = pd.read_csv(
+        os.path.join(support, "atlas-HCPMMP1_networks.tsv"), sep="\t"
     )
-    ca = pd.read_csv(
-        os.path.join(_SUPPORT, "atlas-HCPMMP1_ColeAnticevic_keylabel.tsv"), sep="\t"
-    )
-    ca_nets = pd.read_csv(
-        os.path.join(_SUPPORT, "atlas-ColeAnticevic_networks.tsv"), sep="\t"
-    )
-    return regions, ca, ca_nets
+    return areas, networks
 
 
-def _hcp_mmp_network_lookup(networks, lr):
-    """(181,) int array: area key (1-180, index 0 unused) -> network key for hemisphere ``lr``."""
-    regions, ca, _ = _hcp_mmp_tables()
-    lut = np.full(181, -1, dtype=int)
-    if networks == "Glasser22":
-        lut[regions["key"].values] = regions["glasser22_key"].values
-    elif networks == "ColeAnticevic":
-        rows = ca[ca["hemi"] == lr.upper()]
-        lut[rows["key"].values] = rows["network_key"].values
-    else:
+def _check_networks(networks):
+    if networks not in HCP_MMP_NETWORKS:
         raise ValueError(
             f"networks must be one of {HCP_MMP_NETWORKS}; got {networks!r}"
         )
-    return lut
+
+
+def get_parcellation_networks(networks, lr="lr"):
+    """Network key of each HCP_MMP area.
+
+    Parameters
+    ----------
+    networks : {'Glasser22', 'ColeAnticevic'}
+        'Glasser22': the 22 cortices of Glasser et al. 2016 (keys 1-22).
+        'ColeAnticevic': the Cole-Anticevic partition (keys 1-12), assigned per
+        hemisphere, so 13 areas differ between L and R.
+    lr : {'l', 'r', 'lr'}
+        'l' or 'r' gives 180 values; 'lr' gives 360 (left, then right).
+
+    Returns
+    -------
+    ndarray of int
+        Entry ``i`` is the network of area ``i + 1``, where area keys are the values
+        in ``get_parcellation("HCP_MMP", ...)``. Map a parcellation to networks with
+        ``np.where(parc > 0, nets[parc - 1], parc)``.
+    """
+    _check_networks(networks)
+    areas, _ = _hcp_mmp_tables()
+    if lr != "lr":
+        areas = areas[areas["hemi"] == lr.upper()]
+    return areas[_NETWORK_KEY[networks]].to_numpy()
 
 
 def get_parcellation_names(which, lr=None, networks=None):
-    """Names of the labels returned by get_parcellation, as {key: name}.
+    """Names of the HCP_MMP labels, as {key: name}.
 
-    Only 'HCP_MMP' has names in neuroboros. Without ``networks`` the keys are the area keys 1-180 (names like
-    'V1'; with ``lr`` given they are prefixed 'L_' / 'R_'). With ``networks`` ('Glasser22' or 'ColeAnticevic') the
-    keys are the network keys returned by ``get_parcellation(..., networks=...)``.
+    Without ``networks`` the keys are the area keys 1-180 (names like 'V1', prefixed
+    'L_' / 'R_' if ``lr`` is given). With ``networks`` the keys are the network keys
+    of ``get_parcellation_networks``.
     """
     if which != "HCP_MMP":
         raise NotImplementedError(f"neuroboros has no region names for {which!r}")
-    regions, _, ca_nets = _hcp_mmp_tables()
+    areas, nets = _hcp_mmp_tables()
     if networks is None:
         prefix = f"{lr.upper()}_" if lr else ""
-        return {int(k): prefix + n for k, n in zip(regions["key"], regions["label"])}
-    if networks == "Glasser22":
-        g = regions.drop_duplicates("glasser22_key").sort_values("glasser22_key")
-        return {int(k): n for k, n in zip(g["glasser22_key"], g["glasser22_label"])}
-    if networks == "ColeAnticevic":
-        return {
-            int(k): n for k, n in zip(ca_nets["network_key"], ca_nets["network_label"])
-        }
-    raise ValueError(f"networks must be one of {HCP_MMP_NETWORKS}; got {networks!r}")
+        a = areas[areas["hemi"] == "L"]
+        return {int(k): prefix + n for k, n in zip(a["key"], a["label"])}
+    _check_networks(networks)
+    n = nets[nets["networks"] == networks]
+    return {int(k): name for k, name in zip(n["key"], n["label"])}
 
 
 def get_parcellation_colors(which, lr, networks=None):
-    """Published colours of the labels returned by get_parcellation, as {key: (r, g, b)} in 0-1.
+    """Published colours of the HCP_MMP labels, as {key: (r, g, b)} in 0-1.
 
-    'HCP_MMP' areas: the label-table colours of the HCP-MMP1.0 dlabel (BALSA RVVG
-    Q1-Q6_RelatedValidation210 ..._Group_Colors), which differ between hemispheres. networks='ColeAnticevic':
-    the ColeLab network colours. networks='Glasser22': the region colours of Glasser et al. 2016, Supplementary
-    Neuroanatomical Results, Figure 1 (same for both hemispheres; ``lr`` is ignored).
+    Areas: the label-table colours of the HCP-MMP1.0 dlabel, which differ between
+    hemispheres. With ``networks``: the Glasser et al. 2016 region colours or the
+    ColeLab network colours (same for both hemispheres; ``lr`` is ignored).
     """
-    import pandas as pd
-
     if which != "HCP_MMP":
         raise NotImplementedError(f"neuroboros has no colours for {which!r}")
+    areas, nets = _hcp_mmp_tables()
     if networks is None:
-        t = pd.read_csv(os.path.join(_SUPPORT, "atlas-HCPMMP1_colors.tsv"), sep="\t")
-        t = t[t["hemi"] == lr.upper()]
-        key = "key"
-    elif networks == "ColeAnticevic":
-        t = pd.read_csv(
-            os.path.join(_SUPPORT, "atlas-ColeAnticevic_networks.tsv"), sep="\t"
-        )
-        key = "network_key"
-    elif networks == "Glasser22":
-        t = pd.read_csv(
-            os.path.join(_SUPPORT, "atlas-HCPMMP1_Glasser22_colors.tsv"), sep="\t"
-        )
-        key = "glasser22_key"
+        t = areas[areas["hemi"] == lr.upper()]
     else:
-        raise NotImplementedError(f"no published colours for networks={networks!r}")
+        _check_networks(networks)
+        t = nets[nets["networks"] == networks]
     return {
         int(k): (r / 255, g / 255, b / 255)
-        for k, r, g, b in zip(t[key], t["r"], t["g"], t["b"])
+        for k, r, g, b in zip(t["key"], t["r"], t["g"], t["b"])
     }
+
 
 
 def get_morphometry(which, lr, space="onavg-ico32", **kwargs):
@@ -147,9 +145,7 @@ def get_morphometry(which, lr, space="onavg-ico32", **kwargs):
     return measure
 
 
-def get_parcellation(
-    which, lr, space="onavg-ico32", prob=False, networks=None, **kwargs
-):
+def get_parcellation(which, lr, space="onavg-ico32", prob=False, **kwargs):
     """Group-based parcellation.
 
     Parameters
@@ -163,12 +159,6 @@ def get_parcellation(
         Surface space.
     prob : bool, default=False
         Whether to load the probabilistic version of the parcellation.
-    networks : str or None, default=None
-        'HCP_MMP' only: return network keys instead of area keys, 'Glasser22' (1-22) or 'ColeAnticevic'
-        (1-12, assigned per hemisphere). Unassigned vertices stay -1. With ``prob=True`` the area probability
-        maps are summed within each network (row k-1 = network k): the fraction of the group's subjects whose
-        area at that vertex belongs to network k. Neither grouping published a probabilistic version; this is
-        derived. Names: get_parcellation_names(which, networks=...).
     **kwargs : dict
         Optional keyword arguments. ``group`` is the participant group: for
         'HCP_MMP', one of 'Q1-Q6_Related420' (default),
@@ -185,12 +175,8 @@ def get_parcellation(
     """
     assert which in PARCELLATIONS
     if lr == "lr":
-        lh = get_parcellation(
-            which, "l", space=space, prob=prob, networks=networks, **kwargs
-        )
-        rh = get_parcellation(
-            which, "r", space=space, prob=prob, networks=networks, **kwargs
-        )
+        lh = get_parcellation(which, "l", space=space, prob=prob, **kwargs)
+        rh = get_parcellation(which, "r", space=space, prob=prob, **kwargs)
         # A probabilistic parcellation has shape (n_parcels, n_vertices), and
         # the vertex axis is the last one rather than the first one.
         return np.concatenate([lh, rh], axis=-1 if prob else 0)
@@ -210,15 +196,6 @@ def get_parcellation(
         space, "parcellations", which, f"{lr}h", group, basename
     )
     parc = core_dataset.get(fn, on_missing="raise")
-    if networks is not None:
-        if which != "HCP_MMP":
-            raise ValueError(f"networks is only available for 'HCP_MMP', not {which!r}")
-        lut = _hcp_mmp_network_lookup(networks, lr)
-        if prob:  # (180, n_vertices) area probabilities -> (n_networks, n_vertices)
-            out = np.zeros((lut[1:].max(), parc.shape[1]), dtype=parc.dtype)
-            np.add.at(out, lut[1:] - 1, parc)
-            return out
-        return np.where(parc > 0, lut[np.clip(parc, 0, None)], parc)
     return parc
 
 
