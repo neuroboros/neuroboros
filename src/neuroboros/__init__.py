@@ -34,6 +34,7 @@ from .datasets import (
     HCA,
     MonkeyAction,
     Bellaria,
+    Psych81,
     Hybr,
 )
 from .datasets import get_dataset as dataset
