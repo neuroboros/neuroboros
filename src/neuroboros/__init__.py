@@ -50,6 +50,9 @@ from .spaces import get_mapping as mapping
 from .spaces import get_mask as mask
 from .spaces import get_morphometry as morphometry
 from .spaces import get_parcellation as parcellation
+from .spaces import get_parcellation_colors as parcellation_colors
+from .spaces import get_parcellation_names as parcellation_names
+from .spaces import get_parcellation_networks as parcellation_networks
 from .spaces import smooth as smooth
 from .stats import pearsonr
 from .surface import Sphere, Surface
