@@ -145,7 +145,9 @@ def get_morphometry(which, lr, space="onavg-ico32", **kwargs):
     return measure
 
 
-def get_parcellation(which, lr, space="onavg-ico32", prob=False, **kwargs):
+def get_parcellation(
+    which, lr, space="onavg-ico32", prob=False, networks=None, **kwargs
+):
     """Group-based parcellation.
 
     Parameters
@@ -159,6 +161,10 @@ def get_parcellation(which, lr, space="onavg-ico32", prob=False, **kwargs):
         Surface space.
     prob : bool, default=False
         Whether to load the probabilistic version of the parcellation.
+    networks : {'Glasser22', 'ColeAnticevic'} or None, default=None
+        'HCP_MMP' only (and not with ``prob``): return the network of each
+        vertex instead of its area, see ``get_parcellation_networks``.
+        Unassigned vertices stay -1. Names: ``get_parcellation_names``.
     **kwargs : dict
         Optional keyword arguments. ``group`` is the participant group: for
         'HCP_MMP', one of 'Q1-Q6_Related420' (default),
@@ -175,8 +181,12 @@ def get_parcellation(which, lr, space="onavg-ico32", prob=False, **kwargs):
     """
     assert which in PARCELLATIONS
     if lr == "lr":
-        lh = get_parcellation(which, "l", space=space, prob=prob, **kwargs)
-        rh = get_parcellation(which, "r", space=space, prob=prob, **kwargs)
+        lh = get_parcellation(
+            which, "l", space=space, prob=prob, networks=networks, **kwargs
+        )
+        rh = get_parcellation(
+            which, "r", space=space, prob=prob, networks=networks, **kwargs
+        )
         # A probabilistic parcellation has shape (n_parcels, n_vertices), and
         # the vertex axis is the last one rather than the first one.
         return np.concatenate([lh, rh], axis=-1 if prob else 0)
@@ -196,6 +206,11 @@ def get_parcellation(which, lr, space="onavg-ico32", prob=False, **kwargs):
         space, "parcellations", which, f"{lr}h", group, basename
     )
     parc = core_dataset.get(fn, on_missing="raise")
+    if networks is not None:
+        if which != "HCP_MMP" or prob:
+            raise ValueError("networks requires which='HCP_MMP' and prob=False")
+        lut = get_parcellation_networks(networks, lr)
+        return np.where(parc > 0, lut[np.clip(parc, 1, None) - 1], parc)
     return parc
 
 

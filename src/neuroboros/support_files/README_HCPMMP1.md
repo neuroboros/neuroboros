@@ -1,6 +1,6 @@
 # HCP-MMP1.0 area names and groupings
 
-These tables are used by `nb.parcellation_networks(...)`, `nb.parcellation_names(...)` and
+These tables are used by `nb.parcellation("HCP_MMP", lr, networks=...)`, `nb.parcellation_networks(...)`, `nb.parcellation_names(...)` and
 `nb.parcellation_colors(...)`. The parcels themselves are in nb-data
 (`<space>/parcellations/HCP_MMP/{lh,rh}/<group>/`).
 
